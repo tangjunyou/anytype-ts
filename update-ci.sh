@@ -53,7 +53,11 @@ if [[ "$OS" == "ubuntu-latest" ]]; then
 elif [[ "$OS" == "macos-12" ]]; then
     [[ -z "$ARCH" ]] && do_usage # required for this os
     OS_ARCH="darwin-${ARCH}"
-    FOLDER="$OS_ARCH"
+    if [[ "$ARCH" == "arm64" ]]; then
+        FOLDER="darwin-arm"
+    else
+        FOLDER="darwin-amd64"
+    fi
 elif [[ "$OS" == "windows-latest" ]]; then
     OS_ARCH="windows-amd64"
     FOLDER="dist"
@@ -72,6 +76,9 @@ if [[ $MIDDLEWARE_VERSION == "nightly" ]]; then
         ASSET="js_${MIDDLEWARE_VERSION}_${OS_ARCH}.zip"
     else
         ASSET="js_${MIDDLEWARE_VERSION}_${OS_ARCH}.tar.gz"
+    fi
+    if [[ "$OS_ARCH" == "darwin-arm64" ]]; then
+        ASSET="js_${MIDDLEWARE_VERSION}_darwin-arm64.tar.gz"
     fi
     echo -n "Downloading file ${ASSET} ..."
     curl --silent --location "$PUBLISH_URL/mw/$ASSET" > $FILE
