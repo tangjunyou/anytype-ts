@@ -22,8 +22,8 @@ jobs:
     strategy:
       matrix:
         os:
-          - macos-12
-          #- ubuntu-latest
+          #- macos-12
+          - ubuntu-latest
           #- windows-latest
 
     steps:
@@ -112,7 +112,7 @@ jobs:
           mac_certs: ${{ secrets.MAC_CERT_TEXT }}
           mac_certs_password: ${{ secrets.MAC_CERT_PASS }}
           release: ${{ startsWith(github.ref, 'refs/tags/v') }}
-          args: --arm64 --x64
+          args: --arm64 --x64 --publish always --config.publish.provider=s3 --config.publish.bucket=${{ secrets.NIGHTLY_AWS_S3_BUCKET }} --config.publish.region=${{ secrets.NIGHTLY_AWS_REGION }}
         env:
           DEBUG: electron-builder
           APPLEID: ${{ secrets.APPLEID }}
@@ -130,6 +130,7 @@ jobs:
         with:
           github_token: ${{secrets.TOKEN}}
           release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          args: --publish always --config.publish.provider=s3 --config.publish.bucket=${{ secrets.NIGHTLY_AWS_S3_BUCKET }} --config.publish.region=${{ secrets.NIGHTLY_AWS_REGION }}
         env:
           DEBUG: electron-builder
           USE_HARD_LINKS: false
