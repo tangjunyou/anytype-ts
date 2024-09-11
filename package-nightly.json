@@ -1,7 +1,7 @@
 {
-	"name": "anytype",
-	"version": "0.42.11-alpha",
-	"description": "Anytype",
+	"name": "anytype-dev",
+	"version": "0.43.100-alpha",
+	"description": "Anytype Nightly",
 	"main": "electron.js",
 	"scripts": {
 		"precommit": "npx lint-staged",
@@ -602,7 +602,7 @@
 				"rpm",
 				"tar.gz"
 			],
-			"description": "Anytype",
+			"description": "Anytype Nightly",
 			"publish": [
 				{
 					"provider": "s3",
@@ -611,7 +611,7 @@
 				}
 			],
 			"desktop": {
-				"Name": "Anytype",
+				"Name": "Anytype Nightly",
 				"Categories": "Utility;Office;Calendar;ProjectManagement;",
 				"Keywords": "project management;",
 				"StartupWMClass": "anytype"

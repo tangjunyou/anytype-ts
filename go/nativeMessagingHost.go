@@ -186,7 +186,7 @@ func isGrpcWebServer(port string) (bool, error) {
 // MacOS and Linux: returns a list of all open ports for all instances of anytype found using cli utilities lsof and grep
 func getOpenPortsUnix() (map[string][]string, error) {
 	// execute the command
-	appName := "anytype"
+	appName := "anytype-dev"
 	stdout, err := execCommand(`lsof -i -P -n | grep LISTEN | grep "` + appName + `"`)
 	Trace.Print(`lsof -i -P -n | grep LISTEN | grep "` + appName + `"`)
 	if err != nil {
