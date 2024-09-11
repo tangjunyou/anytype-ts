@@ -79,18 +79,18 @@ jobs:
           mv package-nightly.json package.json # set nightly.json config
           jq --tab --arg date "$(date +%Y%m%d%H%M)" '.version |= (. | split(".") | .[0] + "." + .[1] + "." + $date+"-alpha")' package.json > temp.json && mv temp.json package.json
 
-      - name: Update Addon Windows
-        if: matrix.os == 'windows-latest'
+      - name: Update Addon Windows or Linux (arch only AMD)
+        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
           ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}"
 
-      - name: Update Addon
-        if: matrix.os != 'windows-latest'
+      - name: Update Addon MacOS
+        if: matrix.os == 'macos-12'
         shell: bash
         run: |
-          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}" --arch="arm"
-          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}" --arch="amd"
+          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}" --arch="arm64"
+          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}" --arch="amd64"
 
       - name: Build Native Messaging Host Windows
         if: matrix.os == 'windows-latest'

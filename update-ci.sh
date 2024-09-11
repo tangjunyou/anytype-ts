@@ -16,7 +16,7 @@ Options:
     --user  - github user
     --token - github token
     --os    - operating system
-    --arch  - architecture (optional for os windows)
+    --arch  - architecture (required only for os macos)
     --middleware-version - set middleware version
 
 EOF
@@ -48,15 +48,14 @@ REPO="anyproto/anytype-heart"
 FILE="addon.tar.gz"
 GITHUB="api.github.com"
 if [[ "$OS" == "ubuntu-latest" ]]; then
-    [[ -z "$ARCH" ]] && do_usage # required for this os
-    OS_ARCH="linux-${ARCH}64"
+    OS_ARCH="linux-amd64"
     FOLDER="$OS_ARCH"
 elif [[ "$OS" == "macos-12" ]]; then
     [[ -z "$ARCH" ]] && do_usage # required for this os
-    OS_ARCH="darwin-${ARCH}64"
+    OS_ARCH="darwin-${ARCH}"
     FOLDER="$OS_ARCH"
 elif [[ "$OS" == "windows-latest" ]]; then
-    OS_ARCH="windows"
+    OS_ARCH="windows-amd64"
     FOLDER="dist"
     FILE="addon.zip"
 else
@@ -70,7 +69,7 @@ echo ""
 
 if [[ $MIDDLEWARE_VERSION == "nightly" ]]; then
     if [[ "$OS" == "windows-latest" ]]; then
-        ASSET="js_${MIDDLEWARE_VERSION}_windows-amd64.zip"
+        ASSET="js_${MIDDLEWARE_VERSION}_${OS_ARCH}.zip"
     else
         ASSET="js_${MIDDLEWARE_VERSION}_${OS_ARCH}.tar.gz"
     fi
