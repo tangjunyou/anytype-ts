@@ -122,6 +122,8 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{secrets.SENTRY_AUTH_TOKEN}}
           AWS_ACCESS_KEY_ID: ${{ secrets.NIGHTLY_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.NIGHTLY_AWS_SECRET_ACCESS_KEY }}
+          NIGHTLY_AWS_S3_BUCKET: ${{ secrets.NIGHTLY_AWS_S3_BUCKET }}
+          NIGHTLY_AWS_REGION: ${{ secrets.NIGHTLY_AWS_REGION }}
           PUBLISH_URL: ${{ env.PUBLISH_URL }}
 
       - name: Build Front Other
@@ -142,4 +144,6 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{secrets.SENTRY_AUTH_TOKEN}}
           AWS_ACCESS_KEY_ID: ${{ secrets.NIGHTLY_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.NIGHTLY_AWS_SECRET_ACCESS_KEY }}
+          NIGHTLY_AWS_S3_BUCKET: ${{ secrets.NIGHTLY_AWS_S3_BUCKET }}
+          NIGHTLY_AWS_REGION: ${{ secrets.NIGHTLY_AWS_REGION }}
           PUBLISH_URL: ${{ env.PUBLISH_URL }}
