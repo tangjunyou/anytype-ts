@@ -247,7 +247,7 @@ class Sidebar {
 			this.toggleButton.removeClass('sidebarAnimation');
 		};
 
-		navigation?.setX(width + vw, animate);
+		navigation?.position(width + vw, animate);
 		width ? this.header.addClass('withSidebar') : this.header.removeClass('withSidebar');
 
 		this.page.css({ width: pageWidth });

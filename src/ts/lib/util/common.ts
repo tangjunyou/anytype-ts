@@ -399,7 +399,7 @@ class UtilCommon {
 	};
 	
 	lbBr (s: string) {
-		return s.toString().replace(new RegExp(/\n+/gi), '<br/>');
+		return s.toString().replace(new RegExp(/\n/gi), '<br/>');
 	};
 	
 	mapToArray (list: any[], field: string): any {
@@ -953,6 +953,18 @@ class UtilCommon {
 			if (p == '&amp;') p = '&';
 			return p;
 		});
+	};
+
+	notification (title: string, text: string) {
+		text = String(text || '');
+
+		if (!text) {
+			return;
+		};
+
+		const electron = this.getElectron();
+
+		new window.Notification(U.Common.stripTags(title), { body: U.Common.stripTags(text) }).onclick = () => electron.focus();
 	};
 
 };

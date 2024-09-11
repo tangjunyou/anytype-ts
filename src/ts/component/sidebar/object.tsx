@@ -6,14 +6,14 @@ import { AutoSizer, CellMeasurer, InfiniteLoader, List, CellMeasurerCache } from
 import { Title, Filter, Select, Icon, IconObject, Button, ObjectName, ObjectDescription, ObjectType } from 'Component';
 import { I, U, J, S, translate, Storage, sidebar, keyboard, analytics } from 'Lib';
 
+import Item from './object/item';
+
 interface State {
 	isLoading: boolean;
 };
 
 const LIMIT = 20;
 const HEIGHT = 64;
-const KEY_TYPE = 'objectContainerType';
-const KEY_SORT = 'objectContainerSort';
 
 const SidebarObject = observer(class SidebarObject extends React.Component<{}, State> {
 	
@@ -26,14 +26,13 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 	refList = null;
 	cache: any = {};
 	offset = 0;
-	sortId = '';
-	sortType: I.SortType = I.SortType.Asc;
+	sortId = 'updated';
+	sortType: I.SortType = I.SortType.Desc;
 	orphan = false;
 	type: I.ObjectContainerType = I.ObjectContainerType.Object;
 	searchIds: string[] = null;
 	filter = '';
 	timeoutFilter = 0;
-	preventClose = false;
 
 	constructor (props: any) {
 		super(props);
@@ -59,24 +58,6 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 				return null;
 			};
 
-			const cn = [ 'item', U.Data.layoutClass(item.id, item.layout) ];
-			const type = S.Record.getTypeById(item.type);
-
-			let iconSmall = null;
-			let iconLarge = null;
-
-			if (U.Object.isTypeOrRelationLayout(item.layout)) {
-				const size = U.Object.isTypeLayout(item.layout) ? 18 : 20;
-
-				iconSmall = <IconObject object={item} size={size} iconSize={18} />;
-			} else {
-				iconLarge = <IconObject object={item} size={48} />;
-			};
-
-			if (item.id == rootId) {
-				cn.push('active');
-			};
-
 			return (
 				<CellMeasurer
 					key={param.key}
@@ -85,25 +66,13 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 					columnIndex={0}
 					rowIndex={param.index}
 				>
-					<div 
-						className={cn.join(' ')} 
-						style={param.style}
+					<Item 
+						rootId={rootId}
+						item={item} 
+						style={param.style} 
 						onClick={() => this.onClick(item)}
-					>
-						{iconLarge}
-						<div className="info">
-							<div className="nameWrap">
-								{iconSmall}
-								<ObjectName object={item} />
-							</div>
-							<div className="descrWrap">
-								<div className="type">
-									<ObjectType object={type} />
-								</div>
-								<ObjectDescription object={item} />
-							</div>
-						</div>
-					</div>
+						onContext={() => this.onContext(item)}
+					/>
 				</CellMeasurer>
 			);
 		};
@@ -171,11 +140,7 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 												rowCount={items.length}
 												rowHeight={HEIGHT}
 												rowRenderer={rowRenderer}
-												onRowsRendered={({ startIndex, stopIndex }) => { 
-													onRowsRendered({ startIndex, stopIndex });
-
-													this.resize();
-												}}
+												onRowsRendered={onRowsRendered}
 												overscanRowCount={10}
 												scrollToAlignment="center"
 											/>
@@ -191,17 +156,24 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
     };
 
 	componentDidMount () {
-		this.type = Storage.get(KEY_TYPE) || I.ObjectContainerType.Object;
+		const storage = this.storageGet();
 
-		const sort = Storage.get(this.getSortKey(this.type));
-		if (sort) {
-			this.sortId = sort.id;
-			this.sortType = sort.type;
+		if (storage) {
+			this.type = storage.type || I.ObjectContainerType.Object;
+			this.orphan = storage.orphan || false;
+
+			const sort = storage.sort[this.type];
+
+			if (sort) {
+				this.sortId = sort.id;
+				this.sortType = sort.type;
+			};
 		};
 
+		this.refSelect.setOptions(this.getTypeOptions());
+		this.refSelect.setValue(this.type);
 		this.rebind();
 		this.load(true);
-		this.refSelect.setValue(this.type);
 	};
 
 	componentDidUpdate () {
@@ -212,8 +184,6 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 			defaultHeight: HEIGHT,
 			keyMapper: i => (items[i] || {}).id,
 		});
-
-		this.resize();
 	};
 
 	componentWillUnmount(): void {
@@ -222,20 +192,20 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 	};
 
 	unbind () {
-		$(window).off('mousedown.sidebarContainerObject');
+		$(window).off('click.sidebarContainerObject');
 	};
 
 	rebind () {
 		this.unbind();
 
-		$(window).on('mousedown.sidebarContainerObject', (e: any) => {
+		$(window).on('click.sidebarContainerObject', (e: any) => {
 			const target = $(e.target);
 
 			if (
-				!target.parents(`#containerObject`).length && 
-				!target.parents(`.menus`).length &&
-				!target.parents(`#widget-buttons`).length &&
-				!this.preventClose
+				!target.parents('#containerObject').length && 
+				!target.parents('#header').length &&
+				!target.parents('.menus').length &&
+				!target.parents('.popups').length
 			) {
 				sidebar.objectContainerToggle();
 			};
@@ -334,13 +304,45 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 		});
 	};
 
+	loadSearchIds (clear: boolean) {
+		if (this.filter) {
+			U.Data.search({
+				filters: [],
+				sorts: [],
+				fullText: this.filter,
+				keys: [ 'id' ],
+			}, (message: any) => {
+				this.searchIds = (message.records || []).map(it => it.id);
+				this.load(clear);
+			});
+		} else {
+			this.searchIds = null;
+			this.load(clear);
+		};
+	};
+
 	getItems () {
 		return S.Record.getRecords(J.Constant.subId.allObject);
 	};
 
 	onClick (item: any) {
 		U.Object.openConfig(item);
-		this.preventClose = true;
+	};
+
+	onContext (item: any) {
+		S.Menu.open('dataviewContext', {
+			recalcRect: () => { 
+				const { x, y } = keyboard.mouse.page;
+				return { width: 0, height: 0, x: x + 4, y: y };
+			},
+			data: {
+				objectIds: [ item.id ],
+				subId: J.Constant.subId.allObject,
+				route: analytics.route.allObjects,
+				allowedLink: true,
+				allowedOpen: true,
+			}
+		});
 	};
 
 	onSort (e: any) {
@@ -360,7 +362,11 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 					this.sortType = item.type;
 					this.load(true);
 
-					Storage.set(this.getSortKey(this.type), { id: item.id, type: item.type });
+					const storage = this.storageGet();
+					
+					storage.sort[this.type] = { id: item.id, type: item.type };
+
+					this.storageSet(storage);
 				},
 			}
 		});
@@ -369,10 +375,15 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 	onAdd () {
 		const details = {
 			...this.getDetailsByType(this.type),
-			name: this.refFilter.getValue(),
+			name: this.filter,
 		};
 
-		keyboard.pageCreate(details, analytics.route.allObjects);
+		keyboard.pageCreate(details, analytics.route.allObjects, (message: any) => {
+			if (message.targetId && this.filter && this.searchIds) {
+				this.searchIds = this.searchIds.concat(message.targetId);
+				this.load(false);
+			};
+		});
 	};
 
 	isAllowedObject (): boolean {
@@ -385,13 +396,17 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 	};
 
 	onSwitchType (id: string) {
+		const storage = this.storageGet();
+
 		if (id == I.ObjectContainerType.Orphan) {
 			this.orphan = !this.orphan;
+			storage.orphan = this.orphan;
 		} else {
 			this.type = id as I.ObjectContainerType;
-			Storage.set(KEY_TYPE, this.type);
+			storage.type = this.type;
 		};
 
+		this.storageSet(storage);
 		this.refSelect.setOptions(this.getTypeOptions());
 		this.refSelect.setValue(this.type);
 		this.load(true);
@@ -446,43 +461,23 @@ const SidebarObject = observer(class SidebarObject extends React.Component<{}, S
 			};
 
 			this.filter = v;
-
-			if (v) {
-				U.Data.search({
-					filters: [],
-					sorts: [],
-					fullText: v,
-					keys: [ 'id' ],
-				}, (message: any) => {
-					this.searchIds = (message.records || []).map(it => it.id);
-					this.load(true);
-				});
-			} else {
-				this.searchIds = null;
-				this.load(true);
-			};
+			this.loadSearchIds(true);
 		}, J.Constant.delay.keyboard);
+	};
+
+	storageGet () {
+		const storage = Storage.get('sidebarObject') || {};
+		storage.sort = storage.sort || {};
+		return storage;
+	};
+
+	storageSet (obj: any) {
+		Storage.set('sidebarObject', obj);
 	};
 
 	onFilterClear () {
 		this.searchIds = null;
 		this.load(true);
-	};
-
-	getSortKey (tab: I.ObjectContainerType) {
-		return U.Common.toCamelCase(`${KEY_SORT}-${tab}`);
-	};
-
-	resize () {
-		const node = $(this.node);
-		const list = node.find('> .body');
-
-		raf(() => {
-			list.find('.item').each((i: number, item: any) => {
-				item = $(item);
-				item.find('.iconObject').length ? item.addClass('withIcon') : item.removeClass('withIcon');
-			});
-		});
 	};
 
 });
