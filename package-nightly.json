@@ -156,12 +156,12 @@
 		"beforeBuild": "./electron/hook/beforebuild.js",
 		"afterSign": "./electron/hook/aftersign.js",
 		"afterPack": "./electron/hook/afterpack.js",
-		"appId": "com.anytype.anytype",
+		"appId": "com.anytype.anytype-dev",
 		"compression": "normal",
-		"productName": "Anytype",
+		"productName": "Anytype Nightly",
 		"protocols": [
 			{
-				"name": "Anytype",
+				"name": "Anytype Nightly",
 				"role": "Editor",
 				"schemes": [
 					"anytype"
