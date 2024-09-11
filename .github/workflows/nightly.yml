@@ -22,8 +22,8 @@ jobs:
     strategy:
       matrix:
         os:
-          - macos-12
-          #- ubuntu-latest
+          #- macos-12
+          - ubuntu-latest
           #- windows-latest
 
     steps:
@@ -78,6 +78,7 @@ jobs:
           echo PUBLISH_URL=https://${{ secrets.NIGHTLY_AWS_S3_BUCKET }}.s3.${{ secrets.NIGHTLY_AWS_REGION }}.amazonaws.com >> $GITHUB_ENV
           mv package-nightly.json package.json # set nightly.json config
           jq --tab --arg date "$(date +%Y%m%d%H%M)" '.version |= (. | split(".") | .[0] + "." + .[1] + "." + $date+"-alpha")' package.json > temp.json && mv temp.json package.json
+          sed "s|%NIGHTLY_AWS_REGION%|${{ secrets.NIGHTLY_AWS_S3_BUCKET }}|g; s|%NIGHTLY_AWS_REGION%|${{ secrets.NIGHTLY_AWS_REGION }}|g" package.json > temp.json && mv temp.json package.json
 
       - name: Update Addon Windows or Linux (arch only AMD)
         if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'

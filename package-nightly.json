@@ -568,8 +568,8 @@
 			"publish": [
 				{
 					"provider": "s3",
-					"bucket": "$NIGHTLY_AWS_S3_BUCKET",
-					"region": "$NIGHTLY_AWS_REGION"
+					"bucket": "%NIGHTLY_AWS_S3_BUCKET%",
+					"region": "%NIGHTLY_AWS_REGION%"
 				}
 			],
 			"signIgnore": [
@@ -588,8 +588,8 @@
 			"publish": [
 				{
 					"provider": "s3",
-					"bucket": "$NIGHTLY_AWS_S3_BUCKET",
-					"region": "$NIGHTLY_AWS_REGION"
+					"bucket": "%NIGHTLY_AWS_S3_BUCKET%",
+					"region": "%NIGHTLY_AWS_REGION%"
 				}
 			]
 		},
@@ -606,8 +606,8 @@
 			"publish": [
 				{
 					"provider": "s3",
-					"bucket": "$NIGHTLY_AWS_S3_BUCKET",
-					"region": "$NIGHTLY_AWS_REGION"
+					"bucket": "%NIGHTLY_AWS_S3_BUCKET%",
+					"region": "%NIGHTLY_AWS_REGION%"
 				}
 			],
 			"desktop": {
