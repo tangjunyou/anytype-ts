@@ -74,7 +74,7 @@ jobs:
           echo MIDDLEWARE_VERSION=nightly >> $GITHUB_ENV
           echo PUBLISH_URL=https://${{ secrets.NIGHTLY_AWS_S3_BUCKET }}.s3.${{ secrets.NIGHTLY_AWS_REGION }}.amazonaws.com >> $GITHUB_ENV
           mv package-nightly.json package.json # set nightly.json config
-          jq --tab --arg date "$(TZ=Europe/Berlin date +%Y%m%d%H%M)" '.version |= (. | split(".") | .[0] + "." + .[1] + "." + $date+"-alpha")' package.json > temp.json && mv temp.json package.json
+          jq --tab --arg date "$(TZ=Europe/Berlin date +%Y%m%d%H%M)" '.version |= (. | split(".") | .[0] + "." + .[1] + "." + $date+"-beta")' package.json > temp.json && mv temp.json package.json
           sed "s|%NIGHTLY_AWS_S3_BUCKET%|${{ secrets.NIGHTLY_AWS_S3_BUCKET }}|g; s|%NIGHTLY_AWS_REGION%|${{ secrets.NIGHTLY_AWS_REGION }}|g" package.json > temp.json && mv temp.json package.json
 
       #- name: Update Deps
