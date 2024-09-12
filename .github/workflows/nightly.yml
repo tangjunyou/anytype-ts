@@ -69,7 +69,7 @@ jobs:
           GITHUB_TOKEN: ${{secrets.TOKEN}}
 
       - name: Install node-gyp # only if Python >= v3.12
-        if matrix.os == 'macos-14'
+        if: matrix.os == 'macos-14'
         run: npm install -g node-gyp
 
       - name: Nightly mode settings
