@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { observer } from 'mobx-react';
-import { IconObject, Icon, ObjectName, ObjectDescription, ObjectType } from 'Component';
+import { IconObject, Icon, ObjectName, ObjectDescription, ObjectType, MediaVideo, MediaAudio } from 'Component';
 import { I, U, S, J } from 'Lib';
 
 interface Props {
@@ -34,16 +34,20 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 		};
 
 		switch (object.layout) {
-			case I.ObjectLayout.File:
+			case I.ObjectLayout.File: {
 				if (showAsFile) {
 					break;
 				};
 
-				if (mime) {
+				if (mime && object.file) {
 					const [ t1, t2 ] = mime.split('/');
 
 					switch (t1) {
 						case 'image': {
+							if (!J.Constant.fileExtension.image.includes(t2)) {
+								break;
+							};
+
 							cn.push('isImage');
 							content = this.renderImage();
 							break;
@@ -51,6 +55,7 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 					};
 				};
 				break;
+			};
 
 			case I.ObjectLayout.Image:
 				if (showAsFile) {
@@ -61,9 +66,26 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 				content = this.renderImage();
 				break;
 
-			case I.ObjectLayout.Bookmark:
+			case I.ObjectLayout.Video: {
+				if (showAsFile) {
+					break;
+				};
+
+				cn.push('isVideo');
+				content = this.renderVideo();
+				break;
+			};
+
+			case I.ObjectLayout.Audio: {
+				cn.push('isAudio');
+				content = this.renderAudio();
+				break;
+			};
+
+			case I.ObjectLayout.Bookmark: {
 				content = this.renderBookmark();
 				break;
+			};
 		};
 
 		if (!content) {
@@ -149,7 +171,37 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 			};
 		};
 
-		return <img id="image" className="image" src={this.src} onClick={this.onPreview} onDragStart={e => e.preventDefault()} />;
+		return (
+			<img 
+				id="image" 
+				className="image" 
+				src={this.src}
+				onClick={e => this.onPreview(e, this.src, I.FileType.Image)} 
+				onDragStart={e => e.preventDefault()} 
+			/>
+		);
+	};
+
+	renderVideo () {
+		const { object } = this.props;
+		const src = S.Common.fileUrl(object.id);
+
+		return (
+			<MediaVideo 
+				src={src} 
+				onClick={e => this.onPreview(e, src, I.FileType.Video)} 
+				canPlay={false} 
+			/>
+		);
+	};
+
+	renderAudio () {
+		const { object } = this.props;
+		const playlist = [ 
+			{ name: object.name, src: S.Common.fileUrl(object.id) },
+		];
+
+		return <MediaAudio playlist={playlist} />;
 	};
 
 	onOpen () {
@@ -160,16 +212,15 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 		};
 	};
 
-	onPreview (e: any) {
+	onPreview (e: any, src: string, type: I.FileType) {
 		const { object } = this.props;
-		const data: any = {
-			src: this.src, 
-			type: I.FileType.Image,
-		};
+		const data: any = { src, type };
 
 		if (!object.isTmp) {
 			data.object = object;
 		};
+
+		console.log(data);
 
 		S.Popup.open('preview', { data });
 	};

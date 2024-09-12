@@ -155,6 +155,9 @@
 	"commonEdit": "Edit",
 	"commonShare": "Share",
 	"commonDoNotShowAgain": "Don’t show this again",
+	"commonObject": "Object",
+	"commonMedia": "Media",
+	"commonFile": "File",
 	"commonMembers": "Members",
 	"commonEntrySpace": "My First Space",
 
@@ -494,7 +497,7 @@
 	"blockNameExistingPage": "Add link",
 	"blockNameExistingFile": "Add file",
 	"blockNameFile": "File",
-	"blockNameImage": "Picture",
+	"blockNameImage": "Image",
 	"blockNameVideo": "Video",
 	"blockNameAudio": "Audio",
 	"blockNamePdf": "PDF",
@@ -661,6 +664,9 @@
 	"blockChatButtonEmoji": "Add emoji",
 	"blockChatButtonMention": "Add mention",
 	"blockChatNewMessages": "New messages",
+	"blockChatMessageEdited": "(edited)",
+	"blockChatEditing": "Editing message",
+	"blockChatReplying": "Replying to %s",
 
 	"popupSettingsTitle": "Settings",
 	"popupSettingsAccountPersonalInformationTitle": "Personal information",
@@ -697,14 +703,6 @@
 	"popupSettingsColorModeButtonLight": "Light",
 	"popupSettingsColorModeButtonDark": "Dark",
 	"popupSettingsColorModeButtonSystem": "System",
-
-	"popupSettingsWallpaperTitle": "Wallpaper",
-	"popupSettingsWallpaperText": "Choose or upload the wallpaper. For best results upload high resolution images.",
-
-	"popupSettingsPicture": "Pictures",
-	"popupSettingsColor": "Colors",
-	"popupSettingsGradient": "Gradients",
-	"popupSettingsCodeStub": "Follow the white rabbit",
 
 	"popupSettingsMobileQRSubTitle": "Log in your vault on Android and iOS",
 	"popupSettingsMobileQRText": "Launch Anytype app, tap \u201cLogin\u201d and then \u201cScan QR code\u201d. Reveal and scan the code below to login to your vault.",
@@ -1739,7 +1737,7 @@
 	"widgetRecentOpen": "Recently opened",
 	"widgetSet": "Sets",
 	"widgetCollection": "Collections",
-	"widgetChat": "Discussions",
+	"widgetChat": "Chats",
 	"widgetEdit": "Edit widgets",
 	"widgetAdd": "Add widget",
 	"widgetLibrary": "Library",

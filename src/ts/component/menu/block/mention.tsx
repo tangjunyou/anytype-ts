@@ -24,7 +24,7 @@ const MenuBlockMention = observer(class MenuBlockMention extends React.Component
 	index: any = null;
 	cache: any = {};
 	items: any = [];
-	n = -1;
+	n = 0;
 	offset = 0;
 	refList: any = null;
 
@@ -36,6 +36,9 @@ const MenuBlockMention = observer(class MenuBlockMention extends React.Component
 	};
 	
 	render () {
+		const { param } = this.props;
+		const { data } = param;
+		const { canAdd } = data;
 		const { isLoading } = this.state;
 		const filter = this.getFilter();
 		const items = this.getItems();
@@ -95,38 +98,40 @@ const MenuBlockMention = observer(class MenuBlockMention extends React.Component
 		return (
 			<React.Fragment>
 				{!items.length && !isLoading ? (
-					<EmptySearch filter={filter} />
+					<EmptySearch filter={filter} readonly={!canAdd} />
 				) : ''}
 
-				<div className="items">
-					{isLoading ? <Loader /> : (
-						<InfiniteLoader
-							rowCount={items.length}
-							loadMoreRows={this.loadMoreRows}
-							isRowLoaded={({ index }) => !!this.items[index]}
-							threshold={LIMIT_HEIGHT}
-						>
-							{({ onRowsRendered }) => (
-								<AutoSizer className="scrollArea">
-									{({ width, height }) => (
-										<List
-											ref={ref => this.refList = ref}
-											width={width}
-											height={height}
-											deferredMeasurmentCache={this.cache}
-											rowCount={items.length}
-											rowHeight={({ index }) => this.getRowHeight(items[index])}
-											rowRenderer={rowRenderer}
-											onRowsRendered={onRowsRendered}
-											overscanRowCount={10}
-											scrollToAlignment="center"
-										/>
-									)}
-								</AutoSizer>
-							)}
-						</InfiniteLoader>
-					)}
-				</div>
+				{items.length ? (
+					<div className="items">
+						{isLoading ? <Loader /> : (
+							<InfiniteLoader
+								rowCount={items.length}
+								loadMoreRows={this.loadMoreRows}
+								isRowLoaded={({ index }) => !!this.items[index]}
+								threshold={LIMIT_HEIGHT}
+							>
+								{({ onRowsRendered }) => (
+									<AutoSizer className="scrollArea">
+										{({ width, height }) => (
+											<List
+												ref={ref => this.refList = ref}
+												width={width}
+												height={height}
+												deferredMeasurmentCache={this.cache}
+												rowCount={items.length}
+												rowHeight={({ index }) => this.getRowHeight(items[index])}
+												rowRenderer={rowRenderer}
+												onRowsRendered={onRowsRendered}
+												overscanRowCount={10}
+												scrollToAlignment="center"
+											/>
+										)}
+									</AutoSizer>
+								)}
+							</InfiniteLoader>
+						)}
+					</div>
+				) : ''}
 			</React.Fragment>
 		);
 	};
@@ -145,7 +150,7 @@ const MenuBlockMention = observer(class MenuBlockMention extends React.Component
 
 		if ((this.filter != filter) && !isLoading) {
 			this.filter = filter;
-			this.n = -1;
+			this.n = 0;
 			this.offset = 0;
 			this.load(true);
 			return;
@@ -157,8 +162,8 @@ const MenuBlockMention = observer(class MenuBlockMention extends React.Component
 			keyMapper: i => (items[i] || {}).id,
 		});
 
+		this.rebind();
 		this.resize();
-		this.props.setActive();
 	};
 	
 	componentWillUnmount () {

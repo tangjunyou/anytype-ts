@@ -14,6 +14,7 @@ interface Props extends I.BlockComponent {
 	subId: string;
 	scrollToBottom: () => void;
 	scrollToMessage: (id: string) => void;
+	getMessages: () => I.ChatMessage[];
 };
 
 interface State {
@@ -31,6 +32,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 	range: I.TextRange = { from: 0, to: 0 };
 	timeoutFilter = 0;
 	editingId: string = '';
+	replyingId: string = '';
 	state = {
 		attachments: [],
 		files: [],
@@ -54,21 +56,46 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		this.onDragOver = this.onDragOver.bind(this);
 		this.onDragLeave = this.onDragLeave.bind(this);
 		this.onDrop = this.onDrop.bind(this);
-		this.onContextMenu = this.onContextMenu.bind(this);
+		this.onAddFiles = this.onAddFiles.bind(this);
 		this.onSend = this.onSend.bind(this);
 		this.onEdit = this.onEdit.bind(this);
+		this.onEditClear = this.onEditClear.bind(this);
+		this.onReply = this.onReply.bind(this);
+		this.onReplyClear = this.onReplyClear.bind(this);
 		this.onAttachmentRemove = this.onAttachmentRemove.bind(this);
 		this.onFileRemove = this.onFileRemove.bind(this);
 		this.hasSelection = this.hasSelection.bind(this);
 		this.caretMenuParam = this.caretMenuParam.bind(this);
 		this.removeBookmark = this.removeBookmark.bind(this);
 		this.getMarksAndRange = this.getMarksAndRange.bind(this);
+		this.getObjectFromPath = this.getObjectFromPath.bind(this);
 	};
 
 	render () {
-		const { readonly } = this.props;
+		const { rootId, readonly } = this.props;
 		const { attachments, files } = this.state;
+		const { space } = S.Common;
 		const value = this.getTextValue();
+
+		let title = '';
+		let text = '';
+		let onClear = () => {};
+
+		if (this.editingId) {
+			title = translate('blockChatEditing');
+			onClear = this.onEditClear;
+		} else
+		if (this.replyingId) {
+			const message = S.Chat.getMessage(rootId, this.replyingId);
+			if (message) {
+				const { content, creator } = message;
+				const author = U.Space.getParticipant(U.Space.getParticipantId(space, creator));
+
+				title = U.Common.sprintf(translate('blockChatReplying'), author?.name);
+				text = U.Common.sanitize(U.Common.lbBr(Mark.toHtml(content.text, content.marks)));
+				onClear = this.onReplyClear;
+			};
+		};
 
 		return (
 			<div 
@@ -78,6 +105,18 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 			>
 				<div className="form">
 					<Loader id="form-loader" />
+
+					{title ? (
+						<div className="head">
+							<div className="side left">
+								<div className="name">{title}</div>
+								<div className="descr" dangerouslySetInnerHTML={{ __html: text }} />
+							</div>
+							<div className="side right">
+								<Icon className="clear" onClick={onClear} />
+							</div>
+						</div>
+					) : ''}
 
 					<Editable 
 						ref={ref => this.refEditable = ref}
@@ -118,6 +157,8 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 							onMention={this.onMention}
 							onChatButtonSelect={this.onChatButtonSelect}
 							onTextButtonToggle={this.onTextButtonToggle}
+							getObjectFromPath={this.getObjectFromPath}
+							onAddFiles={this.onAddFiles}
 							onMenuClose={this.onMenuClose}
 							removeBookmark={this.removeBookmark}
 						/>
@@ -180,11 +221,10 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		const { checkMarkOnBackspace } = this.props;
 		const range = this.range;
 		const cmd = keyboard.cmdKey();
-		const menuOpenMention = S.Menu.isOpen('blockMention');
 
 		let value = this.refEditable.getTextValue();
 
-		keyboard.shortcut('enter', e, () => {
+		keyboard.shortcut(`enter, ${cmd}+enter`, e, () => {
 			e.preventDefault();
 			this.onSend();
 		});
@@ -195,14 +235,15 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 
 				if (!parsed.save) {
 					return;
-					e.preventDefault();
-
-					value = parsed.value;
-					this.marks = parsed.marks;
-
-					const l = value.length;
-					this.updateMarkup(value, l, l);
 				};
+
+				e.preventDefault();
+
+				value = parsed.value;
+				this.marks = parsed.marks;
+
+				const l = value.length;
+				this.updateMarkup(value, l, l);
 			});
 		};
 
@@ -259,6 +300,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 	onKeyUpInput (e: any) {
 		this.range = this.refEditable.getRange();
 
+		const { attachments, files } = this.state;
 		const { to } = this.range;
 		const { filter } = S.Common;
 		const value = this.getTextValue();
@@ -317,6 +359,10 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 			};
 		};
 
+		if (!value && !attachments.length && !files.length && this.editingId) {
+			this.onDelete(this.editingId);
+		};
+
 		if (adjustMarks) {
 			this.updateMarkup(value, to, to);
 		};
@@ -327,9 +373,13 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 	};
 
 	onPaste (e: any) {
+		e.preventDefault();
+
 		const { from } = this.range;
+		const { files } = this.state;
 		const cb = e.clipboardData || e.originalEvent.clipboardData;
 		const text = U.Common.normalizeLineEndings(String(cb.getData('text/plain') || ''));
+		const list = U.Common.getDataTransferFiles((e.clipboardData || e.originalEvent.clipboardData).items).map((it: File) => this.getObjectFromFile(it));
 
 		let value = this.getTextValue();
 		let url = U.Common.matchUrl(text);
@@ -341,23 +391,31 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 			isLocal = true;
 		};
 
-		if (!url) {
-			return;
-		};
-
-		e.preventDefault();
-
-		const param = isLocal ? `file://${url}` : url;
+		if (url) {
+			const param = isLocal ? `file://${url}` : url;
 		
-		if (from == to) {
-			value = U.Common.stringInsert(value, url + ' ', from, from);
-			to = from + url.length;
+			if (from == to) {
+				value = U.Common.stringInsert(value, url + ' ', from, from);
+				to = from + url.length;
+			};
+
+			this.marks = Mark.adjust(this.marks, from - 1, url.length + 1);
+			this.marks.push({ type: I.MarkType.Link, range: { from, to }, param});
+			this.updateMarkup(value, to + 1, to + 1);
+			this.addBookmark(param);
+		} else {
+			value = U.Common.stringInsert(value, text, from, to);
+			
+			to = to + text.length;
+			this.range = { from: to, to };
+			this.refEditable.setValue(value);
+			this.refEditable.setRange(this.range);
+			this.refEditable.placeholderCheck();
 		};
 
-		this.marks = Mark.adjust(this.marks, from - 1, url.length + 1);
-		this.marks.push({ type: I.MarkType.Link, range: { from, to }, param});
-		this.updateMarkup(value, to + 1, to + 1);
-		this.addBookmark(param);
+		if (list.length) {
+			this.setState({ files: files.concat(list) });
+		};
 	};
 
 	canDrop (e: any): boolean {
@@ -388,77 +446,24 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		e.stopPropagation();
 
 		const { scrollToBottom } = this.props;
-		const { files } = this.state;
 		const node = $(this.node);
-		const electron = U.Common.getElectron();
-		const list = Array.from(e.dataTransfer.files).map((it: File) => {
-			const path = electron.webFilePath(it);
-
-			return {
-				id: sha1(path),
-				name: it.name,
-				layout: I.ObjectLayout.File,
-				description: U.File.size(it.size),
-				mime: it.type,
-				path,
-				isTmp: true,
-				file: it,
-			};
-		});
+		const list = Array.from(e.dataTransfer.files).map((it: File) => this.getObjectFromFile(it));
 		
 		node.removeClass('isDraggingOver');
 		keyboard.disableCommonDrop(true);
 
-		this.setState({ files: files.concat(list) }, () => scrollToBottom());
+		this.onAddFiles(list, scrollToBottom);
 		keyboard.disableCommonDrop(false);
 	};
 
-	onContextMenu (e: React.MouseEvent, item: any, onMore?: boolean) {
-		const { rootId, blockId, readonly } = this.props;
-		const { account } = S.Auth;
-		const message = `#block-${blockId} #item-${item.id}`;
+	onAddFiles (list: any[], callBack?: () => void) {
+		const { files } = this.state;
 
-		if (readonly || (item.creator != account.id)) {
-			return;
-		};
-
-		const menuParam: Partial<I.MenuParam> = {
-			vertical: I.MenuDirection.Bottom,
-			horizontal: I.MenuDirection.Left,
-			onOpen: () => $(message).addClass('hover'),
-			onClose: () => $(message).removeClass('hover'),
-			data: {
-				options: [
-					{ id: 'edit', name: translate('commonEdit') },
-					{ id: 'delete', name: translate('commonDelete'), color: 'red' },
-				],
-				onSelect: (e, option) => {
-					switch (option.id) {
-						case 'edit': {
-							this.onEdit(item);
-							break;
-						};
-
-						case 'delete': {
-							C.ChatDeleteMessage(rootId, item.id, () => {
-								if (this.editingId == item.id) {
-									this.onEditClear();
-								};
-							});
-							break;
-						};
-					};
-				},
-			},
-		};
-
-		if (onMore) {
-			menuParam.element = `${message} .icon.more`;
-		} else {
-			menuParam.recalcRect = () => ({ x: keyboard.mouse.page.x, y: keyboard.mouse.page.y, width: 0, height: 0 });
-		};
-
-		S.Menu.open('select', menuParam);
+		this.setState({ files: files.concat(list) }, () => {
+			if (callBack) {
+				callBack();
+			};
+		});
 	};
 
 	onSend () {
@@ -480,6 +485,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 
 		const clear = () => {
 			this.onEditClear();
+			this.onReplyClear();
 			loader.removeClass('active');
 		};
 		
@@ -505,6 +511,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 				};
 			} else {
 				const message = {
+					replyToMessageId: this.replyingId,
 					content: {
 						...this.getMarksFromHtml(),
 						style: I.TextStyle.Paragraph,
@@ -581,6 +588,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		this.marks = marks;
 		this.range = { from: l, to: l };
 		this.editingId = message.id;
+		this.replyingId = '';
 		this.refEditable.setValue(Mark.toHtml(text, this.marks));
 		this.renderMarkup();
 
@@ -597,7 +605,46 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		this.refEditable.setValue('');
 		this.refEditable.placeholderCheck();
 
-		this.setState({ attachments: [], files: [] });
+		this.setState({ attachments: [], files: [] }, () => this.refEditable.setRange(this.range));
+	};
+
+	onReply (message: I.ChatMessage) {
+		this.replyingId = message.id;
+		this.onEditClear();
+	};
+
+	onReplyClear () {
+		this.replyingId = '';
+		this.forceUpdate();
+	};
+
+	onDelete (id: string) {
+		const { rootId, getMessages, scrollToMessage, scrollToBottom } = this.props;
+		const messages = getMessages();
+		const idx = messages.findIndex(it => it.id == id);
+		const next = messages[idx + 1];
+
+		S.Popup.open('confirm', {
+			data: {
+				icon: 'confirm',
+				bgColor: 'red',
+				title: translate('popupConfirmChatDeleteMessageTitle'),
+				text: translate('popupConfirmChatDeleteMessageText'),
+				onConfirm: () => {
+					C.ChatDeleteMessage(rootId, id, () => {
+						if (this.editingId == id) {
+							this.onEditClear();
+						};
+
+						if (next) {
+							scrollToMessage(next.id);
+						} else {
+							scrollToBottom();
+						};
+					});
+				},
+			}
+		});
 	};
 
 	getMarksAndRange (): any {
@@ -626,6 +673,10 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 
 	updateButtons () {
 		this.refButtons?.setButtons();
+	};
+
+	onDialogSelect () {
+
 	};
 
 	onChatButtonSelect (type: I.ChatButton, item: any) {
@@ -688,6 +739,46 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 
 		this.updateButtons();
 		this.renderMarkup();
+	};
+
+	getObjectFromFile (file: File) {
+		const electron = U.Common.getElectron();
+		const path = electron.webFilePath(file);
+		const mime = electron.fileMime(path);
+		const ext = electron.fileExt(path);
+		const type = S.Record.getFileType();
+
+		return {
+			id: sha1(path),
+			name: file.name,
+			layout: I.ObjectLayout.File,
+			type: type?.id,
+			sizeInBytes: file.size,
+			fileExt: ext,
+			isTmp: true,
+			mime,
+			path,
+			file,
+		};
+	};
+
+	getObjectFromPath (path: string) {
+		const electron = U.Common.getElectron();
+		const name = electron.fileName(path);
+		const mime = electron.fileMime(path);
+		const ext = electron.fileExt(path);
+		const type = S.Record.getFileType();
+
+		return {
+			id: sha1(path),
+			name,
+			path,
+			fileExt: ext,
+			mime,
+			layout: I.ObjectLayout.File,
+			type: type?.id,
+			isTmp: true,
+		};
 	};
 
 	addBookmark (url: string) {
@@ -816,6 +907,12 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 
 	canSend () {
 		const { attachments, files } = this.state;
+
+		// You can send blank message when editing to delete it
+		if (this.editingId) {
+			return true;
+		};
+
 		return this.getTextValue() || attachments.length || files.length;
 	};
 

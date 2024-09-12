@@ -38,18 +38,43 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 		const { space } = S.Common;
 		const { account } = S.Auth;
 		const message = S.Chat.getMessage(rootId, id);
-		const { creator, content, createdAt, reactions, isFirst, isLast } = message;
-		const { marks } = content;
+		const { creator, content, createdAt, modifiedAt, reactions, isFirst, isLast, replyToMessageId } = message;
 		const subId = S.Record.getSubId(rootId, blockId);
 		const author = U.Space.getParticipant(U.Space.getParticipantId(space, creator));
-		const text = U.Common.lbBr(Mark.toHtml(content.text, marks));
-		const attachments = (message.attachments || []).map(it => S.Detail.get(subId, it.target));
+		const attachments = (message.attachments || []).map(it => S.Detail.get(subId, it.target)).filter(it => !it.isDeleted);
 		const hasReactions = reactions.length;
 		const hasAttachments = attachments.length;
 		const isSelf = creator == account.id;
 		const attachmentsLayout = this.getAttachmentsClass();
 		const cn = [ 'message' ];
 		const ca = [ 'attachments', attachmentsLayout ];
+
+		let reply = null;
+		if (replyToMessageId) {
+			const replyToMessage = S.Chat.getMessage(rootId, replyToMessageId);
+			if (replyToMessage) {
+				const author = U.Space.getParticipant(U.Space.getParticipantId(space, replyToMessage.creator));
+				const text = U.Common.sanitize(U.Common.lbBr(Mark.toHtml(replyToMessage.content.text, replyToMessage.content.marks)));
+
+				reply = (
+					<div className="reply">
+						<ObjectName object={author} />
+						<div className="text" dangerouslySetInnerHTML={{ __html: text }} />
+					</div>
+				);
+			};
+		};
+
+		let text = U.Common.sanitize(U.Common.lbBr(Mark.toHtml(content.text, content.marks)));
+
+		if (modifiedAt) {
+			const cnl = [ 'label', 'small' ];
+			if (text) {
+				cnl.push('withText');
+			};
+
+			text += `<div class="${cnl.join(' ')}">${translate('blockChatMessageEdited')}</div>`;
+		};
 
 		if (hasAttachments == 1) {
 			ca.push('isSingle');
@@ -67,9 +92,12 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 		if (isNew && !isSelf) {
 			cn.push('isNew');
 		};
+		if (text) {
+			cn.push('withText');
+		};
 
 		// Subscriptions
-		for (const mark of marks) {
+		for (const mark of content.marks) {
 			if ([ I.MarkType.Mention, I.MarkType.Object ].includes(mark.type)) {
 				const object = S.Detail.get(rootId, mark.param, []);
 			};
@@ -112,16 +140,18 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 					</div>
 					<div className="side right">
 
-						<div className="author">
+						<div className="author" onClick={e => U.Object.openConfig(author)}>
 							<ObjectName object={author} />
 							<div className="time">{U.Date.date('H:i', createdAt)}</div>
 						</div>
+
+						{reply}
 
 						<div className="textWrapper">
 							<div 
 								ref={ref => this.refText = ref} 
 								className="text" 
-								dangerouslySetInnerHTML={{ __html: U.Common.sanitize(text) }}
+								dangerouslySetInnerHTML={{ __html: text }}
 							/>
 
 							<div className="expand" onClick={this.onExpand}>
@@ -153,7 +183,7 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 					{!readonly ? (
 						<div className="controls">
 							<Icon id="reaction-add" className="reactionAdd" onClick={this.onReactionAdd} tooltip={translate('blockChatReactionAdd')} />
-							{/*<Icon id="message-reply" className="messageReply" onClick={onReply} tooltip={translate('blockChatReply')} />*/}
+							<Icon id="message-reply" className="messageReply" onClick={onReply} tooltip={translate('blockChatReply')} />
 							{isSelf ? <Icon className="more" onClick={onMore} /> : ''}
 						</div>
 					) : ''}

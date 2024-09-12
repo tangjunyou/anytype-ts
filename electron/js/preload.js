@@ -3,6 +3,7 @@ const { app, getCurrentWindow, getGlobal, dialog, BrowserWindow } = require('@el
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const mime = require('mime-types');
 const tmpPath = () => app.getPath('temp');
 
 contextBridge.exposeInMainWorld('Electron', {
@@ -20,7 +21,10 @@ contextBridge.exposeInMainWorld('Electron', {
 	tmpPath,
 	logPath: () => path.join(app.getPath('userData'), 'logs'),
 	filePath: (...args) => path.join(...args),
-	dirname: fp => path.dirname(fp),
+	dirName: fp => path.dirname(fp),
+	fileName: fp => path.basename(fp),
+	fileMime: fp => mime.lookup(fp),
+	fileExt: fp => path.extname(fp),
 	defaultPath: () => path.join(app.getPath('appData'), app.getName()),
 
 	currentWindow: () => getCurrentWindow(),
