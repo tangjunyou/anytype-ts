@@ -6,6 +6,14 @@ on:
       - nightly-ci-test
       - nightly-ci-test-beta
   workflow_dispatch:
+    inputs:
+      channel:
+        description: electron.builder channel
+        required: true
+        default: alpha
+        options:
+          - alpha
+          - beta
 #  schedule:
 #    - cron: '0 0 * * *' # every day at midnight
 #      filters:
