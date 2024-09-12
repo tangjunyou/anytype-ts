@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - nightly-ci-test
+      - nightly-ci-test-beta
   workflow_dispatch:
 #  schedule:
 #    - cron: '0 0 * * *' # every day at midnight
