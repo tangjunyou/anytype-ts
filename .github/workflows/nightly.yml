@@ -68,9 +68,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{secrets.TOKEN}}
 
-      - name: Update Deps
-        run: npm run build:deps
-
       - name: Nightly mode settings
         shell: bash
         run: |
@@ -79,6 +76,9 @@ jobs:
           mv package-nightly.json package.json # set nightly.json config
           jq --tab --arg date "$(TZ=Europe/Berlin date +%Y%m%d%H%M)" '.version |= (. | split(".") | .[0] + "." + .[1] + "." + $date+"-alpha")' package.json > temp.json && mv temp.json package.json
           sed "s|%NIGHTLY_AWS_S3_BUCKET%|${{ secrets.NIGHTLY_AWS_S3_BUCKET }}|g; s|%NIGHTLY_AWS_REGION%|${{ secrets.NIGHTLY_AWS_REGION }}|g" package.json > temp.json && mv temp.json package.json
+
+      - name: Update Deps
+        run: npm run build:deps
 
       - name: Update Addon Windows or Linux (arch only AMD)
         if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
