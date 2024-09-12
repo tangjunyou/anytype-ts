@@ -45,41 +45,37 @@ if [[ -z $USER || -z $TOKEN || -z $OS || -z $MIDDLEWARE_VERSION ]]; then
 fi
 
 REPO="anyproto/anytype-heart"
-FILE="addon.tar.gz"
+ARCHIVE_SUFFIX="tar.gz"
 GITHUB="api.github.com"
 if [[ "$OS" == "ubuntu-latest" ]]; then
     OS_ARCH="linux-amd64"
-    FOLDER="$OS_ARCH"
+    FOLDER="linux-amd"
 elif [[ "$OS" == "macos-12" ]]; then
     [[ -z "$ARCH" ]] && do_usage # required for this os
-    OS_ARCH="darwin-${ARCH}"
-    if [[ "$ARCH" == "arm64" ]]; then
-        FOLDER="darwin-arm"
-    else
-        FOLDER="darwin-amd64"
-    fi
+    OS_ARCH="darwin-${ARCH}64"
+    FOLDER="darwin-${ARCH}"
 elif [[ "$OS" == "windows-latest" ]]; then
     OS_ARCH="windows-amd64"
     FOLDER="dist"
-    FILE="addon.zip"
+    ARCHIVE_SUFFIX="zip"
 else
     echo "Unsupported OS='$OS'" 1>&2
     exit 1
 fi
+FILE="addon.$ARCHIVE_SUFFIX"
 
-echo "OS-Arch: $OS_ARCH"
-echo "Folder: $FOLDER"
-echo ""
+# debug
+cat <<EOF
+OS_ARCH=$OS_ARCH
+FOLDER=$FOLDER
+ARCHIVE_SUFFIX=$ARCHIVE_SUFFIX
+FILE=$FILE
+MIDDLEWARE_VERSION=$MIDDLEWARE_VERSION
+
+EOF
 
 if [[ $MIDDLEWARE_VERSION == "nightly" ]]; then
-    if [[ "$OS" == "windows-latest" ]]; then
-        ASSET="js_${MIDDLEWARE_VERSION}_${OS_ARCH}.zip"
-    else
-        ASSET="js_${MIDDLEWARE_VERSION}_${OS_ARCH}.tar.gz"
-    fi
-    if [[ "$OS_ARCH" == "darwin-arm64" ]]; then
-        ASSET="js_${MIDDLEWARE_VERSION}_darwin-arm64.tar.gz"
-    fi
+    ASSET="js_${MIDDLEWARE_VERSION}_${OS_ARCH}.${ARCHIVE_SUFFIX}"
     echo -n "Downloading file ${ASSET} ..."
     curl --silent --location "$PUBLISH_URL/mw/$ASSET" > $FILE
 else
