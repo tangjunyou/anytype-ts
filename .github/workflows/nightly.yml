@@ -81,24 +81,29 @@ jobs:
       - name: Nightly mode env settings
         shell: bash
         run: |
+          # choice channel name {{
           if [[ -z "${{ github.event.inputs.channel }}" ]]; then
             # choice default value for channel from ref name
             if echo "${{ github.ref_name }}" | grep -q "beta"; then
-              echo "CHANNEL=beta" >> $GITHUB_ENV
+              CHANNEL="beta"
             else
-              echo "CHANNEL=alpha" >> $GITHUB_ENV
+              CHANNEL="alpha"
             fi
           else
-            echo "CHANNEL=${{ github.event.inputs.channel }}" >> $GITHUB_ENV
+            CHANNEL="${{github.event.inputs.channel}}"
           fi
-          # choice s3 bucket for publishing
-          if [[ "${{ env.CHANNEL }}" == "beta" ]]; then
-            echo "S3_BUCKET=${{ secrets.NIGHTLY_AWS_S3_BUCKET_BETA }}_1" >> $GITHUB_ENV
+          echo "CHANNEL=$CHANNEL" >> $GITHUB_ENV
+          # }}
+          # choice s3 bucket for publishing {{
+          if [[ "$CHANNEL" == "beta" ]]; then
+            S3_BUCKET="${{ secrets.NIGHTLY_AWS_S3_BUCKET_BETA }}_1"
           else
-            echo "S3_BUCKET=${{ secrets.NIGHTLY_AWS_S3_BUCKET }}_2" >> $GITHUB_ENV
+            S3_BUCKET="${{ secrets.NIGHTLY_AWS_S3_BUCKET }}_2"
           fi
-          echo MIDDLEWARE_VERSION=nightly >> $GITHUB_ENV
-          echo PUBLISH_URL=https://${{ env.S3_BUCKET }}.s3.${{ secrets.NIGHTLY_AWS_REGION }}.amazonaws.com >> $GITHUB_ENV
+          echo "S3_BUCKET=$S3_BUCKET" >> $GITHUB_ENV
+          # }}
+          echo "MIDDLEWARE_VERSION=nightly" >> $GITHUB_ENV
+          echo "PUBLISH_URL=https://${S3_BUCKET}.s3.${{ secrets.NIGHTLY_AWS_REGION }}.amazonaws.com" >> $GITHUB_ENV
 
       - name: Print all environment variables
         run: printenv
