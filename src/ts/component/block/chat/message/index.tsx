@@ -51,7 +51,7 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 
 		let reply = null;
 		if (replyToMessageId) {
-			const replyToMessage = S.Chat.getMessage(rootId, replyToMessageId);
+			const replyToMessage = S.Chat.getReply(rootId, replyToMessageId);
 			if (replyToMessage) {
 				const author = U.Space.getParticipant(U.Space.getParticipantId(space, replyToMessage.creator));
 				const text = U.Common.sanitize(U.Common.lbBr(Mark.toHtml(replyToMessage.content.text, replyToMessage.content.marks)));
@@ -172,6 +172,9 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 								{reactions.map((item: any, i: number) => (
 									<Reaction key={i} {...item} />
 								))}
+								{!readonly ? (
+									<Icon id="reaction-add" className="reactionAdd" onClick={this.onReactionAdd} tooltip={translate('blockChatReactionAdd')} />
+								) : ''}
 							</div>
 						) : ''}
 
@@ -182,9 +185,9 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 
 					{!readonly ? (
 						<div className="controls">
-							<Icon id="reaction-add" className="reactionAdd" onClick={this.onReactionAdd} tooltip={translate('blockChatReactionAdd')} />
+							{!hasReactions ? <Icon id="reaction-add" className="reactionAdd" onClick={this.onReactionAdd} tooltip={translate('blockChatReactionAdd')} /> : ''}
 							<Icon id="message-reply" className="messageReply" onClick={onReply} tooltip={translate('blockChatReply')} />
-							{isSelf ? <Icon className="more" onClick={onMore} /> : ''}
+							<Icon className="more" onClick={onMore} />
 						</div>
 					) : ''}
 				</div>

@@ -172,8 +172,24 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 	
 	componentDidMount () {
 		this._isMounted = true;
-		this.renderMarkup();
 		this.checkSendButton();
+
+		const { rootId } = this.props;
+		const storage = Storage.getChat(rootId);
+
+		if (storage) {
+			const text = String(storage.text || '');
+			const marks = storage.marks || [];
+			const attachments = storage.attachments || [];
+			const length = text.length;
+
+			this.marks = marks;
+			this.updateMarkup(text, length, length);
+
+			if (attachments) {
+				this.setState({ attachments });
+			};
+		};
 	};
 
 	componentDidUpdate () {
@@ -184,6 +200,15 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 	componentWillUnmount () {
 		this._isMounted = false;
 		window.clearTimeout(this.timeoutFilter);
+
+		const { rootId } = this.props;
+		const { attachments } = this.state;
+
+		Storage.setChat(rootId, {
+			text: this.getTextValue(),
+			marks: this.marks,
+			attachments,
+		});
 	};
 
 	checkSendButton () {
@@ -471,7 +496,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 			return;
 		};
 
-		const { rootId, scrollToMessage, scrollToBottom } = this.props;
+		const { rootId, scrollToBottom, scrollToMessage } = this.props;
 		const node = $(this.node);
 		const loader = node.find('#form-loader');
 		const list = this.state.files || [];
@@ -500,11 +525,8 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 					update.content.text = text;
 					update.content.marks = marks;
 
-					C.ChatEditMessageContent(rootId, this.editingId, update, (message: any) => {
-						if (message.error.code) {
-							return;
-						};
-
+					C.ChatEditMessageContent(rootId, this.editingId, update, () => {
+						scrollToMessage(this.editingId);
 						clear();
 					});
 				};
@@ -520,11 +542,10 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 				};
 
 				C.ChatAddMessage(rootId, message, (message: any) => {
-					if (message.error.code) {
-						return;
+					if (!message.error.code) {
+						Storage.setChat(rootId, { lastId: message.messageId });
 					};
 
-					Storage.setLastChatMessageId(rootId, message.messageId);
 					scrollToBottom();
 					clear();
 				});
@@ -585,11 +606,9 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		const attachments = (message.attachments || []).map(it => it.target).map(id => S.Detail.get(subId, id));
 
 		this.marks = marks;
-		this.range = { from: l, to: l };
 		this.editingId = message.id;
 		this.replyingId = '';
-		this.refEditable.setValue(Mark.toHtml(text, this.marks));
-		this.renderMarkup();
+		this.updateMarkup(text, l, l);
 
 		this.setState({ attachments }, () => {
 			this.refEditable.setRange(this.range);
@@ -599,11 +618,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 	onEditClear () {
 		this.editingId = '';
 		this.marks = [];
-		this.range = { from: 0, to: 0 };
-
-		this.refEditable.setValue('');
-		this.refEditable.placeholderCheck();
-
+		this.updateMarkup('', 0, 0);
 		this.setState({ attachments: [], files: [] }, () => this.refEditable.setRange(this.range));
 	};
 
@@ -629,6 +644,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 				bgColor: 'red',
 				title: translate('popupConfirmChatDeleteMessageTitle'),
 				text: translate('popupConfirmChatDeleteMessageText'),
+				textConfirm: translate('commonYes'),
 				onConfirm: () => {
 					C.ChatDeleteMessage(rootId, id, () => {
 						if (this.editingId == id) {
@@ -672,10 +688,6 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 
 	updateButtons () {
 		this.refButtons?.setButtons();
-	};
-
-	onDialogSelect () {
-
 	};
 
 	onChatButtonSelect (type: I.ChatButton, item: any) {
