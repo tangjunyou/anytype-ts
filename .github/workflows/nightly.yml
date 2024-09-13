@@ -117,8 +117,8 @@ jobs:
             .build.linux.publish |= map(del(.url)) |
             .build.linux.publish[0].provider = "s3" |
             .build.linux.publish[0].bucket = "${{ secrets.NIGHTLY_AWS_S3_BUCKET }}" |
-            .build.linux.publish[0].region = "${{ secrets.NIGHTLY_AWS_REGION }}" |
-            .build.linux.publish[0].channel = "${{ env.CHANNEL }}"
+            .build.linux.publish[0].region = "${{ secrets.NIGHTLY_AWS_REGION }}"
+            .build.linux.publish[0].channel = "${{ env.CHANNEL }}" |
           ' package.json > tmp.json && mv tmp.json package.json
 
       - name: debug cat package.json
