@@ -103,7 +103,7 @@ jobs:
           echo "S3_BUCKET=$S3_BUCKET" >> $GITHUB_ENV
           # }}
           echo "MIDDLEWARE_VERSION=nightly" >> $GITHUB_ENV
-          echo "PUBLISH_URL=https://${S3_BUCKET}.s3.${{ secrets.NIGHTLY_AWS_REGION }}.amazonaws.com" >> $GITHUB_ENV
+          echo "DOWNLOAD_ASSETS_URL=https://${{ secrets.NIGHTLY_AWS_S3_BUCKET }}.s3.${{ secrets.NIGHTLY_AWS_REGION }}.amazonaws.com/mw/" >> $GITHUB_ENV
 
       #- name: Print all environment variables
       #  run: printenv
@@ -187,7 +187,7 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{secrets.SENTRY_AUTH_TOKEN}}
           AWS_ACCESS_KEY_ID: ${{ secrets.NIGHTLY_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.NIGHTLY_AWS_SECRET_ACCESS_KEY }}
-          PUBLISH_URL: ${{ env.PUBLISH_URL }}
+          DOWNLOAD_ASSETS_URL: ${{ env.DOWNLOAD_ASSETS_URL }}
 
       - name: Build Front Other
         if: matrix.os != 'macos-12'
@@ -207,4 +207,4 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{secrets.SENTRY_AUTH_TOKEN}}
           AWS_ACCESS_KEY_ID: ${{ secrets.NIGHTLY_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.NIGHTLY_AWS_SECRET_ACCESS_KEY }}
-          PUBLISH_URL: ${{ env.PUBLISH_URL }}
+          DOWNLOAD_ASSETS_URL: ${{ env.DOWNLOAD_ASSETS_URL }}

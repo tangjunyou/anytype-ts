@@ -77,7 +77,7 @@ EOF
 if [[ $MIDDLEWARE_VERSION == "nightly" ]]; then
     ASSET="js_${MIDDLEWARE_VERSION}_${OS_ARCH}.${ARCHIVE_SUFFIX}"
     echo -n "Downloading file ${ASSET} ..."
-    curl --silent --location "$PUBLISH_URL/mw/$ASSET" > $FILE
+    curl --silent --location "${DOWNLOAD_ASSETS_URL}/$ASSET" > $FILE
 else
     VERSION=$(curl --silent --location --user "$USER:$TOKEN" --header "Accept: application/vnd.github.v3+json" "https://$GITHUB/repos/$REPO/releases/tags/v${MIDDLEWARE_VERSION}" | jq .)
     ASSET_ID=$(echo $VERSION | jq ".assets | map(select(.name | match(\"js_v[0-9]+.[0-9]+.[0-9]+(-rc[0-9]+)?_${OS_ARCH}\";\"i\")))[0].id")
