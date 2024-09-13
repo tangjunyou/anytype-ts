@@ -11,6 +11,7 @@ on:
         description: electron.builder channel
         required: true
         default: alpha
+        type: choice
         options:
           - alpha
           - beta
@@ -77,83 +78,125 @@ jobs:
         env:
           GITHUB_TOKEN: ${{secrets.TOKEN}}
 
-      - name: Nightly mode settings
+      - name: Nightly mode env settings
         shell: bash
         run: |
+          if [[ -z "${{ github.event.inputs.channel }}" ]]; then
+            echo "CHANNEL=alpha" >> $GITHUB_ENV # default value for channel
+          else
+            echo "CHANNEL=${{ github.event.inputs.channel }}" >> $GITHUB_ENV
+          fi
           echo MIDDLEWARE_VERSION=nightly >> $GITHUB_ENV
           echo PUBLISH_URL=https://${{ secrets.NIGHTLY_AWS_S3_BUCKET }}.s3.${{ secrets.NIGHTLY_AWS_REGION }}.amazonaws.com >> $GITHUB_ENV
-          mv package-nightly.json package.json # set nightly.json config
-          jq --tab --arg date "$(TZ=Europe/Berlin date +%Y%m%d%H%M)" '.version |= (. | split(".") | .[0] + "." + .[1] + "." + $date+"-beta")' package.json > temp.json && mv temp.json package.json
-          sed "s|%NIGHTLY_AWS_S3_BUCKET%|${{ secrets.NIGHTLY_AWS_S3_BUCKET }}|g; s|%NIGHTLY_AWS_REGION%|${{ secrets.NIGHTLY_AWS_REGION }}|g" package.json > temp.json && mv temp.json package.json
 
-      #- name: Update Deps
-      #  run: npm run build:deps
-
-      - name: Update Addon Windows or Linux (arch only AMD)
-        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
+      - name: Nightly mode edit package.json
         shell: bash
         run: |
-          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}"
+          jq \
+            --tab \
+            --arg date "$(TZ=Europe/Berlin date +%Y%m%d%H%M)" \
+            '
+            .name = "anytype-dev" |
+            .version |= (. | split(".") | .[0] + "." + .[1] + "." + $date + "-${{ env.CHANNEL }}") |
+            .description = "Anytype Nightly" |
+            .build.appId = "com.anytype.anytype-dev" |
+            .build.productName = "Anytype Nightly" |
+            .build.protocols[0].name = "Anytype Nightly" |
+            .build.mac.publish |= map(del(.url)) |
+            .build.mac.publish[0].provider = "s3" |
+            .build.mac.publish[0].bucket = "${{ secrets.NIGHTLY_AWS_S3_BUCKET }}" |
+            .build.mac.publish[0].region = "${{ secrets.NIGHTLY_AWS_REGION }}" |
+            .build.win.publish |= map(del(.url)) |
+            .build.win.publish[0].provider = "s3" |
+            .build.win.publish[0].bucket = "${{ secrets.NIGHTLY_AWS_S3_BUCKET }}" |
+            .build.win.publish[0].region = "${{ secrets.NIGHTLY_AWS_REGION }}" |
+            .build.linux.description = "Anytype Nightly" |
+            .build.linux.desktop.Name = "Anytype Nightly" |
+            .build.linux.publish |= map(del(.url)) |
+            .build.linux.publish[0].provider = "s3" |
+            .build.linux.publish[0].bucket = "${{ secrets.NIGHTLY_AWS_S3_BUCKET }}" |
+            .build.linux.publish[0].region = "${{ secrets.NIGHTLY_AWS_REGION }}"
+          ' package.json > package-nightly-new.json
 
-      - name: Update Addon MacOS
-        if: matrix.os == 'macos-12'
+
+      - name: debug cat package-nightly-new.json
         shell: bash
         run: |
-          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}" --arch="arm"
-          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}" --arch="amd"
+          cat package-nightly-new.json
 
-      - name: Build Native Messaging Host Windows
-        if: matrix.os == 'windows-latest'
-        run: npm run build:nmh-win
-        env:
-          CGO_ENABLED: 0
+      - name: debug diff
+        shell: bash
+        run: |
+          diff -u package-nightly.json package-nightly-new.json || true
 
-      - name: Build Native Messaging Host
-        if: matrix.os != 'windows-latest'
-        run: npm run build:nmh
-        env:
-          CGO_ENABLED: 0
-
-      - name: Build Front Mac OS
-        if: matrix.os == 'macos-12'
-        uses: samuelmeuli/action-electron-builder@v1
-        with:
-          github_token: ${{secrets.TOKEN}}
-          mac_certs: ${{ secrets.MAC_CERT_TEXT }}
-          mac_certs_password: ${{ secrets.MAC_CERT_PASS }}
-          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
-          args: --arm64 --x64 --publish always --config.publish.provider=s3 --config.publish.bucket=${{ secrets.NIGHTLY_AWS_S3_BUCKET }} --config.publish.region=${{ secrets.NIGHTLY_AWS_REGION }}
-        env:
-          DEBUG: electron-builder
-          APPLEID: ${{ secrets.APPLEID }}
-          APPLEIDPASS: ${{ secrets.APPLEIDPASS }}
-          APPLETEAM: ${{ secrets.APPLETEAM }}
-          USE_HARD_LINKS: false
-          SENTRY_AUTH_TOKEN: ${{secrets.SENTRY_AUTH_TOKEN}}
-          AWS_ACCESS_KEY_ID: ${{ secrets.NIGHTLY_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.NIGHTLY_AWS_SECRET_ACCESS_KEY }}
-          NIGHTLY_AWS_S3_BUCKET: ${{ secrets.NIGHTLY_AWS_S3_BUCKET }}
-          NIGHTLY_AWS_REGION: ${{ secrets.NIGHTLY_AWS_REGION }}
-          PUBLISH_URL: ${{ env.PUBLISH_URL }}
-
-      - name: Build Front Other
-        if: matrix.os != 'macos-12'
-        uses: samuelmeuli/action-electron-builder@v1
-        with:
-          github_token: ${{secrets.TOKEN}}
-          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
-          args: --publish always --config.publish.provider=s3 --config.publish.bucket=${{ secrets.NIGHTLY_AWS_S3_BUCKET }} --config.publish.region=${{ secrets.NIGHTLY_AWS_REGION }}
-        env:
-          DEBUG: electron-builder
-          USE_HARD_LINKS: false
-          AZURE_KEY_VAULT_URI: ${{ secrets.AZURE_KEY_VAULT_URI }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_CERT_NAME: ${{ secrets.AZURE_CERT_NAME }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          SENTRY_AUTH_TOKEN: ${{secrets.SENTRY_AUTH_TOKEN}}
-          AWS_ACCESS_KEY_ID: ${{ secrets.NIGHTLY_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.NIGHTLY_AWS_SECRET_ACCESS_KEY }}
-          NIGHTLY_AWS_S3_BUCKET: ${{ secrets.NIGHTLY_AWS_S3_BUCKET }}
-          NIGHTLY_AWS_REGION: ${{ secrets.NIGHTLY_AWS_REGION }}
-          PUBLISH_URL: ${{ env.PUBLISH_URL }}
+#      #- name: Update Deps
+#      #  run: npm run build:deps
+#
+#      - name: Update Addon Windows or Linux (arch only AMD)
+#        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
+#        shell: bash
+#        run: |
+#          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}"
+#
+#      - name: Update Addon MacOS
+#        if: matrix.os == 'macos-12'
+#        shell: bash
+#        run: |
+#          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}" --arch="arm"
+#          ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}" --arch="amd"
+#
+#      - name: Build Native Messaging Host Windows
+#        if: matrix.os == 'windows-latest'
+#        run: npm run build:nmh-win
+#        env:
+#          CGO_ENABLED: 0
+#
+#      - name: Build Native Messaging Host
+#        if: matrix.os != 'windows-latest'
+#        run: npm run build:nmh
+#        env:
+#          CGO_ENABLED: 0
+#
+#      - name: Build Front Mac OS
+#        if: matrix.os == 'macos-12'
+#        uses: samuelmeuli/action-electron-builder@v1
+#        with:
+#          github_token: ${{secrets.TOKEN}}
+#          mac_certs: ${{ secrets.MAC_CERT_TEXT }}
+#          mac_certs_password: ${{ secrets.MAC_CERT_PASS }}
+#          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+#          args: --arm64 --x64 --publish always --config.publish.provider=s3 --config.publish.bucket=${{ secrets.NIGHTLY_AWS_S3_BUCKET }} --config.publish.region=${{ secrets.NIGHTLY_AWS_REGION }}
+#        env:
+#          DEBUG: electron-builder
+#          APPLEID: ${{ secrets.APPLEID }}
+#          APPLEIDPASS: ${{ secrets.APPLEIDPASS }}
+#          APPLETEAM: ${{ secrets.APPLETEAM }}
+#          USE_HARD_LINKS: false
+#          SENTRY_AUTH_TOKEN: ${{secrets.SENTRY_AUTH_TOKEN}}
+#          AWS_ACCESS_KEY_ID: ${{ secrets.NIGHTLY_AWS_ACCESS_KEY_ID }}
+#          AWS_SECRET_ACCESS_KEY: ${{ secrets.NIGHTLY_AWS_SECRET_ACCESS_KEY }}
+#          NIGHTLY_AWS_S3_BUCKET: ${{ secrets.NIGHTLY_AWS_S3_BUCKET }}
+#          NIGHTLY_AWS_REGION: ${{ secrets.NIGHTLY_AWS_REGION }}
+#          PUBLISH_URL: ${{ env.PUBLISH_URL }}
+#
+#      - name: Build Front Other
+#        if: matrix.os != 'macos-12'
+#        uses: samuelmeuli/action-electron-builder@v1
+#        with:
+#          github_token: ${{secrets.TOKEN}}
+#          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+#          args: --publish always --config.publish.provider=s3 --config.publish.bucket=${{ secrets.NIGHTLY_AWS_S3_BUCKET }} --config.publish.region=${{ secrets.NIGHTLY_AWS_REGION }}
+#        env:
+#          DEBUG: electron-builder
+#          USE_HARD_LINKS: false
+#          AZURE_KEY_VAULT_URI: ${{ secrets.AZURE_KEY_VAULT_URI }}
+#          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+#          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+#          AZURE_CERT_NAME: ${{ secrets.AZURE_CERT_NAME }}
+#          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+#          SENTRY_AUTH_TOKEN: ${{secrets.SENTRY_AUTH_TOKEN}}
+#          AWS_ACCESS_KEY_ID: ${{ secrets.NIGHTLY_AWS_ACCESS_KEY_ID }}
+#          AWS_SECRET_ACCESS_KEY: ${{ secrets.NIGHTLY_AWS_SECRET_ACCESS_KEY }}
+#          NIGHTLY_AWS_S3_BUCKET: ${{ secrets.NIGHTLY_AWS_S3_BUCKET }}
+#          NIGHTLY_AWS_REGION: ${{ secrets.NIGHTLY_AWS_REGION }}
+#          PUBLISH_URL: ${{ env.PUBLISH_URL }}
