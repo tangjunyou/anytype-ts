@@ -82,7 +82,7 @@ jobs:
         shell: bash
         run: |
           if [[ -z "${{ github.event.inputs.channel }}" ]]; then
-            echo "CHANNEL=beta" >> $GITHUB_ENV # default value for channel
+            echo "CHANNEL=alpha" >> $GITHUB_ENV # default value for channel
           else
             echo "CHANNEL=${{ github.event.inputs.channel }}" >> $GITHUB_ENV
           fi
