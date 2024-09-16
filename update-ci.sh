@@ -76,7 +76,7 @@ EOF
 
 if [[ $MIDDLEWARE_VERSION == "nightly" ]]; then
     ASSET="js_${MIDDLEWARE_VERSION}_${OS_ARCH}.${ARCHIVE_SUFFIX}"
-    echo -n "Downloading file ${ASSET} ..."
+    echo -n "Downloading file ${DOWNLOAD_ASSETS_URL}/$ASSET ..."
     curl --silent --location "${DOWNLOAD_ASSETS_URL}/$ASSET" > $FILE
 else
     VERSION=$(curl --silent --location --user "$USER:$TOKEN" --header "Accept: application/vnd.github.v3+json" "https://$GITHUB/repos/$REPO/releases/tags/v${MIDDLEWARE_VERSION}" | jq .)
@@ -93,6 +93,7 @@ else
     curl --silent --location --header "Authorization: token $TOKEN" --header "Accept: application/octet-stream" "https://$GITHUB/repos/$REPO/releases/assets/$ASSET_ID" > $FILE
 fi
 # check download status
+ls -al $FILE
 if [[ -s $FILE ]]; then
     echo " Done"
 else
