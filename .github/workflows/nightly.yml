@@ -32,7 +32,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - macos-12
+          - macos-14
           - ubuntu-latest
           - windows-latest
 
@@ -60,6 +60,12 @@ jobs:
 
       - name: Check out Git repository
         uses: actions/checkout@v1
+
+      - name: Set up Python 3.11 # downgrade python for macos-14 and above (error: npm ERR! ModuleNotFoundError: No module named 'distutils')
+        if: startsWith(matrix.os, 'macos-') && (matrix.os == 'macos-14' || matrix.os > 'macos-14')
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
       - name: Setup distutils
         if: matrix.os != 'windows-latest'
