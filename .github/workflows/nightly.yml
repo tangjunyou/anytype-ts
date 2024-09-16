@@ -103,7 +103,7 @@ jobs:
           echo "S3_BUCKET=$S3_BUCKET" >> $GITHUB_ENV
           # }}
           echo "MIDDLEWARE_VERSION=nightly" >> $GITHUB_ENV
-          echo "DOWNLOAD_ASSETS_URL=https://${{ secrets.NIGHTLY_AWS_S3_BUCKET }}.s3.${{ secrets.NIGHTLY_AWS_REGION }}.amazonaws.com/mw/" >> $GITHUB_ENV
+          echo "DOWNLOAD_ASSETS_URL=https://${{ secrets.NIGHTLY_AWS_S3_BUCKET }}.s3.${{ secrets.NIGHTLY_AWS_REGION }}.amazonaws.com/mw" >> $GITHUB_ENV
 
       #- name: Print all environment variables
       #  run: printenv
