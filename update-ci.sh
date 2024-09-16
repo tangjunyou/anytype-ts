@@ -93,7 +93,6 @@ else
     curl --silent --location --header "Authorization: token $TOKEN" --header "Accept: application/octet-stream" "https://$GITHUB/repos/$REPO/releases/assets/$ASSET_ID" > $FILE
 fi
 # check download status
-ls -al $FILE
 if [[ -s $FILE ]]; then
     echo " Done"
 else
