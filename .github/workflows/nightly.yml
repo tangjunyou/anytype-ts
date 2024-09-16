@@ -151,7 +151,7 @@ jobs:
           ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}"
 
       - name: Update Addon MacOS
-        if: matrix.os == 'macos-12'
+        if: ${{ startsWith(matrix.os, 'macos-') }}
         shell: bash
         run: |
           ./update-ci.sh --user="${{secrets.USER}}" --token="${{secrets.TOKEN}}" --os="${{matrix.os}}" --middleware-version="${{env.MIDDLEWARE_VERSION}}" --arch="arm"
@@ -170,7 +170,7 @@ jobs:
           CGO_ENABLED: 0
 
       - name: Build Front Mac OS
-        if: matrix.os == 'macos-12'
+        if: ${{ startsWith(matrix.os, 'macos-') }}
         uses: samuelmeuli/action-electron-builder@v1
         with:
           github_token: ${{secrets.TOKEN}}
@@ -190,7 +190,7 @@ jobs:
           DOWNLOAD_ASSETS_URL: ${{ env.DOWNLOAD_ASSETS_URL }}
 
       - name: Build Front Other
-        if: matrix.os != 'macos-12'
+        if: ${{ !startsWith(matrix.os, 'macos-') }}
         uses: samuelmeuli/action-electron-builder@v1
         with:
           github_token: ${{secrets.TOKEN}}

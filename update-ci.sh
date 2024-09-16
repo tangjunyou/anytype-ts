@@ -50,7 +50,7 @@ GITHUB="api.github.com"
 if [[ "$OS" == "ubuntu-latest" ]]; then
     OS_ARCH="linux-amd64"
     FOLDER="linux-amd"
-elif [[ "$OS" == "macos-12" ]]; then
+elif echo "$OS" | grep -q '^macos-'; then
     [[ -z "$ARCH" ]] && do_usage # required for this os
     OS_ARCH="darwin-${ARCH}64"
     FOLDER="darwin-${ARCH}"
