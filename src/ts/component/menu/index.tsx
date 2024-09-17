@@ -530,6 +530,10 @@ const Menu = observer(class Menu extends React.Component<I.Menu, State> {
 				oy = top;
 			};
 
+			if (isFixed) {
+				oy -= scrollTop;
+			};
+
 			let x = ox;
 			let y = oy;
 			let flipX = false;
@@ -582,11 +586,6 @@ const Menu = observer(class Menu extends React.Component<I.Menu, State> {
 						flipX = true;
 					};
 					break;
-			};
-
-			if (isFixed) {
-				oy -= scrollTop;
-				y -= scrollTop;
 			};
 
 			x = Math.max(borderLeft, x);
@@ -977,7 +976,7 @@ const Menu = observer(class Menu extends React.Component<I.Menu, State> {
 		if (item.itemId) {
 			el = menu.find(`#item-${$.escapeSelector(item.itemId)}`);
 		};
-		if (item.id && !el) {
+		if (item.id && (!el || !el.length)) {
 			el = menu.find(`#item-${$.escapeSelector(item.id)}`);
 		};
 

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import sha1 from 'sha1';
 import { observer } from 'mobx-react';
 import { Icon } from 'Component';
 import { Action, I, J, keyboard, Mark, S, translate, U } from 'Lib';
@@ -16,7 +15,7 @@ interface Props extends I.BlockComponent {
 	onMenuClose: () => void;
 	onMention: () => void;
 	getObjectFromPath: (path: string) => void;
-	onAddFiles: (files: any, callBack?: () => void) => void;
+	addAttachments: (attachments: any[], callBack?: () => void) => void;
 	removeBookmark: (url: string) => void;
 };
 
@@ -46,7 +45,8 @@ const ChatButtons = observer(class ChatButtons extends React.Component<Props, St
 		return (
 			<div className="buttons">
 				{buttons.map((item: any, i: number) => {
-					const cn = [ item.icon ];
+					const cn = [ item.icon, 'withBackground' ];
+
 					if (item.isActive) {
 						cn.push('isActive');
 					};
@@ -83,7 +83,7 @@ const ChatButtons = observer(class ChatButtons extends React.Component<Props, St
 	};
 
 	onChatButton (e: React.MouseEvent, type: I.ChatButton) {
-		const { block, attachments, caretMenuParam, onMention, onMenuClose, onChatButtonSelect } = this.props;
+		const { block, caretMenuParam, onMention, onChatButtonSelect } = this.props;
 
 		switch (type) {
 			case I.ChatButton.Object: {
@@ -93,6 +93,7 @@ const ChatButtons = observer(class ChatButtons extends React.Component<Props, St
 
 			case I.ChatButton.Emoji: {
 				S.Menu.open('smile', {
+					element: `#button-${block.id}-${type}`,
 					...caretMenuParam(),
 					data: {
 						noHead: true,
@@ -120,7 +121,8 @@ const ChatButtons = observer(class ChatButtons extends React.Component<Props, St
 		const menuParam: any = {
 			element: `#button-${block.id}-${type}`,
 			className: 'fixed',
-			offsetY: 6,
+			offsetY: -8,
+			vertical: I.MenuDirection.Top,
 			horizontal: I.MenuDirection.Center,
 			noAnimation: true,
 			data: {} as any,
@@ -229,7 +231,7 @@ const ChatButtons = observer(class ChatButtons extends React.Component<Props, St
 	};
 
 	onAttachment (menu?: string) {
-		const { blockId, attachments, onMenuClose, onChatButtonSelect, onAddFiles, getObjectFromPath } = this.props;
+		const { blockId, attachments, onMenuClose, onChatButtonSelect, addAttachments, getObjectFromPath } = this.props;
 
 		const options: any[] = [
 			{ id: 'object', icon: 'object', name: translate('commonObject') },
@@ -241,7 +243,7 @@ const ChatButtons = observer(class ChatButtons extends React.Component<Props, St
 		const upload = () => {
 			Action.openFileDialog([], paths => {
 				if (paths.length) {
-					onAddFiles([ getObjectFromPath(paths[0]) ]);
+					addAttachments([ getObjectFromPath(paths[0]) ]);
 				};
 			});
 		};
@@ -296,6 +298,7 @@ const ChatButtons = observer(class ChatButtons extends React.Component<Props, St
 			S.Menu.open(menuItem, {
 				element: `#block-${blockId} #button-${blockId}-${I.ChatButton.Object}`,
 				className: 'chatAttachment',
+				offsetY: -8,
 				vertical: I.MenuDirection.Top,
 				noFlipX: true,
 				noFlipY: true,
