@@ -1,10 +1,9 @@
-name: Release Nightly
+name: Nightly Builds
 
 on:
   push:
     branches:
-      - nightly-ci-test
-      - nightly-ci-test-beta
+      - 'nightly*'
   workflow_dispatch:
     inputs:
       channel:
