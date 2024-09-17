@@ -43,14 +43,14 @@ jobs:
           git config --global url."https://${{secrets.USER}}:${{secrets.TOKEN}}@api.github.com/".insteadOf "https://api.github.com/"
 
       - name: Install Go
-      - uses: actions/setup-go@v4
+        uses: actions/setup-go@v4
         with:
           go-version: '1.22'
           check-latest: true
 
       - name: Check GO version
-        run: |
-          go version
+        shell: bash
+        run: go version
 
       - name: Install AzureSignTool
         if: matrix.os == 'windows-latest'
