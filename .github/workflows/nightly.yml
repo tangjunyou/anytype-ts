@@ -144,8 +144,8 @@ jobs:
         shell: bash
         run: cat package.json
 
-#      #- name: Update Deps
-#      #  run: npm run build:deps
+      #- name: Update Deps
+      #  run: npm run build:deps
 
       - name: Update Addon Windows or Linux (arch only AMD)
         if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
