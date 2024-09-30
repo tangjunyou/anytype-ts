@@ -550,7 +550,7 @@ class UtilData {
 			items.push(S.Record.getSetType());
 		};
 
-		if (withChat && config.experimental) {
+		if (withChat) {
 			items.push(S.Record.getChatType());
 		};
 
@@ -789,7 +789,7 @@ class UtilData {
 			filters.push({ relationKey: 'isArchived', condition: I.FilterCondition.NotEqual, value: true });
 		};
 
-		if (!config.experimental) {
+		/*if (!config.experimental) {
 			const chatType = S.Record.getChatType();
 
 			if (chatType) {
@@ -797,7 +797,7 @@ class UtilData {
 			};
 
 			filters.push({ relationKey: 'uniqueKey', condition: I.FilterCondition.NotEqual, value: J.Constant.typeKey.chat });
-		};
+		};*/
 
 		if (chatDerivedType) {
 			filters.push({ relationKey: 'type', condition: I.FilterCondition.NotEqual, value: chatDerivedType.id });
