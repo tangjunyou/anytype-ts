@@ -76,6 +76,7 @@ export const Mapper = {
 				deviceId: obj.getDeviceid(),
 				localStoragePath: obj.getLocalstoragepath(),
 				accountSpaceId: obj.getAccountspaceid(),
+				techSpaceId: obj.getTechspaceid(),
 				spaceViewId: obj.getSpaceviewid(),
 				widgetsId: obj.getWidgetsid(),
 				analyticsId: obj.getAnalyticsid(),
@@ -654,7 +655,7 @@ export const Mapper = {
 			};
 		},
 
-		ChatMessageReaction (obj: Model.ChatMessage.Reactions)  {
+		ChatMessageReaction (obj: Model.ChatMessage.Reactions) {
 			const reactions = [];
 
 			obj.getReactionsMap().forEach((identityList, emoji) => {

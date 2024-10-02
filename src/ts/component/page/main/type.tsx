@@ -61,16 +61,13 @@ const PageMainType = observer(class PageMainType extends React.Component<I.PageC
 
 		const allowedObject = object.isInstalled && U.Object.isInPageLayouts(object.recommendedLayout);
 		const allowedDetails = object.isInstalled && S.Block.checkFlags(rootId, rootId, [ I.RestrictionObject.Details ]);
-		const allowedRelation = object.isInstalled && S.Block.checkFlags(rootId, rootId, [ I.RestrictionObject.Relation ]);
+		const allowedRelation = object.isInstalled && S.Block.checkFlags(rootId, rootId, [ I.RestrictionObject.Relation ]) && !U.Object.isParticipantLayout(object.recommendedLayout);
 		const allowedTemplate = object.isInstalled && allowedObject && showTemplates && canWrite && !isTemplate;
-		const allowedLayout = ![ I.ObjectLayout.Bookmark, I.ObjectLayout.Chat ].includes(object.recommendedLayout);
+		const allowedLayout = ![ I.ObjectLayout.Bookmark, I.ObjectLayout.Chat, I.ObjectLayout.Participant ].includes(object.recommendedLayout);
 		
 		const subIdObject = this.getSubIdObject();
 		const totalObject = S.Record.getMeta(subIdObject, '').total;
 		const totalTemplate = templates.length + (allowedTemplate ? 1 : 0);
-		const filtersObject: I.Filter[] = [
-			{ relationKey: 'spaceId', condition: I.FilterCondition.Equal, value: this.getSpaceId() },
-		];
 
 		if (!recommendedRelations.includes('rel-description')) {
 			recommendedRelations.push('rel-description');
@@ -84,7 +81,7 @@ const PageMainType = observer(class PageMainType extends React.Component<I.PageC
 				return false;
 			};
 			return config.debug.hiddenObject ? true : !it.isHidden;
-		});
+		}).sort(U.Data.sortByName);
 
 		const isFileType = U.Object.isInFileLayouts(object.recommendedLayout);
 		const columns: any[] = [
@@ -212,10 +209,10 @@ const PageMainType = observer(class PageMainType extends React.Component<I.PageC
 								<ListObject 
 									{...this.props} 
 									sources={[ rootId ]} 
+									spaceId={this.getSpaceId()}
 									subId={subIdObject} 
 									rootId={rootId} 
 									columns={columns} 
-									filters={filtersObject} 
 									relationKeys={recommendedKeys}
 								/>
 							</div>
@@ -276,16 +273,15 @@ const PageMainType = observer(class PageMainType extends React.Component<I.PageC
 		const rootId = this.getRootId();
 
 		U.Data.searchSubscribe({
+			spaceId: this.getSpaceId(),
 			subId: this.getSubIdTemplate(),
 			filters: [
-				{ relationKey: 'spaceId', condition: I.FilterCondition.Equal, value: this.getSpaceId() },
 				{ relationKey: 'targetObjectType', condition: I.FilterCondition.Equal, value: rootId },
 			],
 			sorts: [
 				{ relationKey: 'lastModifiedDate', type: I.SortType.Desc },
 			],
 			keys: [ 'id' ],
-			ignoreWorkspace: true,
 			ignoreDeleted: true,
 		});
 	};

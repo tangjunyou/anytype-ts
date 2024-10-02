@@ -253,13 +253,9 @@ class UtilObject {
 			{ relationKey: 'id', condition: I.FilterCondition.In, value: ids }
 		];
 
-		C.ObjectSearch(filters, [], [], '', 0, 0, (message: any) => {
-			if (message.error.code || !message.records.length) {
-				return;
-			};
-
+		U.Data.search({ filters }, (message: any) => {
 			if (callBack) {
-				callBack(message.records.map(it => S.Detail.mapper(it)).filter(it => !it._empty_));
+				callBack((message.records || []).filter(it => !it._empty_));
 			};
 		});
 	};
@@ -291,6 +287,10 @@ class UtilObject {
 	};
 
 	// --------------------------------------------------------- //
+
+	isSpaceViewLayout (layout: I.ObjectLayout): boolean {
+		return layout == I.ObjectLayout.SpaceView;
+	};
 
 	isSetLayout (layout: I.ObjectLayout): boolean {
 		return layout == I.ObjectLayout.Set;
@@ -374,7 +374,7 @@ class UtilObject {
 	};
 
 	getLayoutsWithoutTemplates (): I.ObjectLayout[] {
-		return [].concat(this.getFileAndSystemLayouts()).concat(this.getSetLayouts()).concat(I.ObjectLayout.Chat);
+		return [].concat(this.getFileAndSystemLayouts()).concat(this.getSetLayouts()).concat([ I.ObjectLayout.Chat, I.ObjectLayout.Participant ]);
 	};
 
 	getFileAndSystemLayouts (): I.ObjectLayout[] {

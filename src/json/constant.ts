@@ -15,7 +15,7 @@ export default {
 	allowedSchemes:		 [ 'https?', 'mailto', 'tel' ],
 
 	count: {
-		icon:			 16,
+		icon:			 10,
 		phrase:			 { letter: 8, word: 12 }
 	},
 	
@@ -54,7 +54,7 @@ export default {
 	default: {
 		interfaceLang:	 'en-US',
 		codeLang:		 'plain',
-		typeKey:		 'ot-note',
+		typeKey:		 'ot-page',
 		pinTime:		 600,
 	},
 
@@ -93,7 +93,9 @@ export default {
 		profile:		 'profile',
 		deleted:		 'deleted',
 		type:			 'type',
+		typeStore:		 'typeStore',
 		relation:		 'relation',
+		relationStore:	 'relationStore',
 		option:			 'option',
 		store:			 'store',
 		archive:		 'archive',
