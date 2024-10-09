@@ -323,17 +323,19 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 	};
 
 	onPreview (preview: any) {
-		const data = {
-			...preview,
-			gallery: null
-		};
+		const data: any = { ...preview };
+		const gallery = [];
 
-		let gallery = [];
-		Object.keys(this.attachmentRefs).forEach((key) => {
+		Object.keys(this.attachmentRefs).forEach(key => {
 			const ref = this.attachmentRefs[key];
-			gallery.push(ref?.getPreviewItem());
+			if (ref) {
+				const item = ref.getPreviewItem();
+				if (item) {
+					gallery.push(item);
+				};
+			};
 		});
-		gallery = gallery.filter(it => it);
+
 		data.gallery = gallery;
 		data.initialIdx = gallery.findIndex(it => it.src == preview.src);
 

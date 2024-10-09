@@ -5,6 +5,10 @@ import { I, S, J, U, keyboard, sidebar, translate } from 'Lib';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Keyboard, Mousewheel, Thumbs, Navigation } from 'swiper/modules';
 
+interface State {
+	current: any;
+};
+
 const BORDER = 16;
 const WIDTH_VIDEO = 1040;
 const HEIGHT_VIDEO = 585;
@@ -18,6 +22,9 @@ class PopupPreview extends React.Component<I.Popup> {
 	thumbs = null;
 	galleryMap: Map<number, any> = new Map();
 	current: any = null;
+	state = {
+		current: null,
+	};
 
 	constructor (props: I.Popup) {
 		super(props);
@@ -32,6 +39,7 @@ class PopupPreview extends React.Component<I.Popup> {
 		const { param, close } = this.props;
 		const { data } = param;
 		const { gallery } = data;
+		const { current } = this.state;
 		const initial = data.initialIdx || 0;
 
 		const getContent = (item: any, idx: number, isThumb?: boolean) => {
@@ -69,18 +77,16 @@ class PopupPreview extends React.Component<I.Popup> {
 		return (
 			<div id="wrap" className="wrap">
 				<div className="galleryHeader">
-					{this.current ? (
-						<div className="head">
-							<div className="side left">
-							</div>
+					{current ? (
+						<React.Fragment>
+							<div className="side left" />
 							<div className="side center">
-								<ObjectName object={this.current} />
+								<ObjectName object={current} />
 							</div>
 							<div className="side right">
-								<Icon className="expand" tooltip={translate('commonOpenObject')} onClick={this.onExpand} />
 								<Icon id="button-header-more" tooltip={translate('commonMenu')} className="more" onClick={this.onMore} />
 							</div>
-						</div>
+						</React.Fragment>
 					) : ''}
 				</div>
 
@@ -88,7 +94,7 @@ class PopupPreview extends React.Component<I.Popup> {
 					<Swiper
 						onSwiper={swiper => this.swiper = swiper}
 						initialSlide={initial}
-						spaceBetween={8}
+						spaceBetween={0}
 						slidesPerView={1}
 						centeredSlides={true}
 						keyboard={{ enabled: true }}
@@ -96,10 +102,10 @@ class PopupPreview extends React.Component<I.Popup> {
 						thumbs={{ swiper: this.thumbs }}
 						navigation={true}
 						modules={[ Mousewheel, Keyboard, Thumbs, Navigation ]}
-						onTransitionEnd={(data) => this.setCurrent(data.activeIndex)}
+						onTransitionEnd={data => this.setCurrent(data.activeIndex)}
 					>
 						{gallery.map((item: any, i: number) => (
-							<SwiperSlide key={i}>
+							<SwiperSlide key={i} onClick={() => close()}>
 								{getContent(item, i)}
 							</SwiperSlide>
 						))}
@@ -113,7 +119,7 @@ class PopupPreview extends React.Component<I.Popup> {
 								onSwiper={swiper => this.thumbs = swiper}
 								initialSlide={initial}
 								spaceBetween={8}
-								slidesPerView={'auto'}
+								slidesPerView="auto"
 								modules={[ Thumbs ]}
 							>
 								{gallery.map((item: any, i: number) => (
@@ -137,9 +143,7 @@ class PopupPreview extends React.Component<I.Popup> {
 		this.setCurrent();
 
 		// swiper need to catch up with thumbs in case of no objects
-		window.setTimeout(() => {
-			this.forceUpdate();
-		}, 100);
+		window.setTimeout(() => this.forceUpdate(), 100);
 	};
 
 	componentWillUnmount () {
@@ -170,9 +174,8 @@ class PopupPreview extends React.Component<I.Popup> {
 
 		const item = gallery[idx];
 
-		if (item.object) {
-			this.current = item.object;
-			this.forceUpdate();
+		if (item && item.object) {
+			this.setState({ current: item.object });
 		};
 	};
 
@@ -180,40 +183,64 @@ class PopupPreview extends React.Component<I.Popup> {
 		keyboard.shortcut('escape', e, () => this.props.close());
 	};
 
-	onExpand () {
-		const { id, layout } = this.current;
+	onExpand (e: any) {
+		e.stopPropagation();
+		e.preventDefault();
 
-		S.Popup.closeAll(null, () => U.Object.openRoute({ id, layout }));
+		const { current } = this.state;
+
+		S.Popup.closeAll(null, () => {
+			if (current) {
+				U.Object.openAuto(current);
+			};
+		});
 	};
 	
-	onMore () {
-		const { param, getId } = this.props;
-		const { data } = param;
-		const { object } = data;
+	onMore (e: any) {
+		e.stopPropagation();
+		e.preventDefault();
+
+		const { getId, close } = this.props;
+		const { current } = this.state;
+
+		if (!current) {
+			return;
+		};
+
+		const cb = () => close();
 
 		S.Menu.open('object', {
 			element: `#${getId()} #button-header-more`,
 			horizontal: I.MenuDirection.Right,
 			subIds: J.Menu.object,
 			data: {
-				rootId: object.id,
-				blockId: object.id,
-				blockIds: [ object.id ],
-				object,
+				rootId: current.id,
+				blockId: current.id,
+				blockIds: [ current.id ],
+				object: current,
 				isFilePreview: true,
+				onArchive: cb,
+				onDelete: cb,
 			}
 		});
 	};
 
-	onError (idx) {
+	onError (idx: number) {
 		const { getId } = this.props;
 		const node = $(`#${getId()}-innerWrap`);
 		const wrap = node.find(`#itemPreview-${idx}`);
-		const obj = this.galleryMap.get(idx);
 
-		wrap
-			.addClass('brokenMedia')
-			.find('.loader').remove();
+		if (!wrap.length) {
+			return;
+		};
+
+		const obj = this.galleryMap.get(idx);
+		if (!obj) {
+			return;
+		};
+
+		wrap.addClass('brokenMedia');
+		wrap.find('.loader').remove();
 
 		obj.isLoaded = true;
 		this.galleryMap.set(idx, obj);
@@ -263,7 +290,7 @@ class PopupPreview extends React.Component<I.Popup> {
 					this.galleryMap.set(idx, obj);
 				};
 
-				img.onerror = this.onError;
+				img.onerror = () => this.onError(idx);
 				img.src = src;
 				break;
 			};
@@ -295,7 +322,7 @@ class PopupPreview extends React.Component<I.Popup> {
 					this.resizeMedia(idx, w, h);
 					video.css({ width: '100%', height: '100%' });
 				};
-				videoEl.onerror = this.onError;
+				videoEl.onerror = () => this.onError(idx);
 
 				video.css({ width: w, height: h });
 				break;

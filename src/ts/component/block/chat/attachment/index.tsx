@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { observer } from 'mobx-react';
 import { IconObject, Icon, ObjectName, ObjectDescription, ObjectType, MediaVideo, MediaAudio } from 'Component';
-import { I, U, S, J } from 'Lib';
+import { I, U, S, J, Action } from 'Lib';
 
 interface Props {
 	object: any;
@@ -20,6 +20,7 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 		super(props);
 
 		this.onOpen = this.onOpen.bind(this);
+		this.onOpenBookmark = this.onOpenBookmark.bind(this);
 		this.onPreview = this.onPreview.bind(this);
 		this.onRemove = this.onRemove.bind(this);
 		this.getPreviewItem = this.getPreviewItem.bind(this);
@@ -145,15 +146,29 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 
 	renderBookmark () {
 		const { object } = this.props;
+		const { picture, source } = object;
+		const cn = [ 'inner', 'isVertical' ];
+
+		if (picture) {
+			cn.push('withImage');
+		};
 
 		return (
-			<div className="clickable" onClick={this.onOpen}>
-				<div className="info">
-					<div className="descr">
+			<div
+				className={cn.join(' ')}
+				onClick={this.onOpenBookmark}
+				{...U.Common.dataProps({ href: source })}
+			>
+				<div className="side left">
+					<div className="link">
 						<IconObject object={object} size={14} />
-						<div className="url">{U.Common.shortUrl(object.source)}</div>
+						{U.Common.shortUrl(source)}
 					</div>
 					<ObjectName object={object} />
+					<ObjectDescription object={object} />
+				</div>
+				<div className="side right">
+					{picture ? <img src={S.Common.imageUrl(picture, 500)} className="img" /> : ''}
 				</div>
 			</div>
 		);
@@ -162,7 +177,8 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 	renderImage () {
 		const { object } = this.props;
 
-		this.previewItem = { type: I.FileType.Image };
+		this.previewItem = { type: I.FileType.Image, object };
+
 		if (!this.src) {
 			if (object.isTmp && object.file) {
 				U.File.loadPreviewBase64(object.file, { type: 'jpg', quality: 99, maxWidth: J.Size.image }, (image: string, param: any) => {
@@ -173,7 +189,6 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 				this.src = './img/space.svg';
 			} else {
 				this.src = S.Common.imageUrl(object.id, J.Size.image);
-				this.previewItem.object = object;
 			};
 		};
 
@@ -194,7 +209,7 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 		const { object } = this.props;
 		const src = S.Common.fileUrl(object.id);
 
-		this.previewItem = { src, type: I.FileType.Video };
+		this.previewItem = { type: I.FileType.Video, src, object };
 
 		return (
 			<MediaVideo 
@@ -222,8 +237,19 @@ const ChatAttachment = observer(class ChatAttachment extends React.Component<Pro
 		};
 	};
 
+	onOpenBookmark () {
+		const { object } = this.props;
+		const { source } = object;
+
+		Action.openUrl(source);
+	};
+
 	onPreview () {
 		const { onPreview } = this.props;
+
+		if (!this.previewItem) {
+			return;
+		};
 
 		if (onPreview) {
 			onPreview(this.previewItem);
