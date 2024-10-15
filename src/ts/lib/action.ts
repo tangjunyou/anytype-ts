@@ -618,14 +618,16 @@ class Action {
 					isSpace: true,
 					route,
 					onCreate: id => {
-						U.Router.switchSpace(id, '', true, () => {
+						const cb = () => {
 							const { widgets } = S.Block;
 
 							Storage.initPinnedTypes();
 
 							const blocks = S.Block.getChildren(widgets, widgets);
 							blocks.forEach(block => Storage.setToggle('widget', block.id, true));
-						});
+						};
+
+						U.Router.switchSpace(id, '', true, { onRouteChange: cb });
 					},
 				},
 			});
@@ -634,7 +636,6 @@ class Action {
 
 	removeSpace (id: string, route: string, callBack?: (message: any) => void) {
 		const deleted = U.Space.getSpaceviewBySpaceId(id);
-		const list = U.Space.getList().filter(it => it.targetSpaceId != id);
 
 		if (!deleted) {
 			return;
@@ -673,12 +674,7 @@ class Action {
 					};
 
 					if (space == id) {
-						if (list.length) {
-							U.Router.switchSpace(list[0].targetSpaceId, '', false, cb);
-						} else {
-							cb();
-							U.Router.go('/main/void', { replace: true });
-						};
+						U.Space.openFirstSpaceOrVoid(it => it.targetSpaceId != id, { replace: true, onRouteChange: cb });
 					} else {
 						cb();
 					};

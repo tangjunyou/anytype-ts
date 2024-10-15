@@ -22,7 +22,6 @@ export default {
 		'sizeInBytes',
 		'restrictions',
 		'defaultTemplateId',
-		'identityProfileLink',
 		'createdDate'
 	],
 
@@ -49,7 +48,6 @@ export default {
 		'links',
 		'restrictions',
 		'source',
-		'identityProfileLink',
 		'lastModifiedDate',
 		'lastOpenedDate'
 	],
@@ -99,7 +97,6 @@ export default {
 		'sourceObject',
 		'uniqueKey',
 		'defaultTemplateId',
-		'lastUsedDate'
 	],
 
 	graph: [
@@ -119,7 +116,6 @@ export default {
 		'isDeleted',
 		'isArchived',
 		'isFavorite',
-		'identityProfileLink',
 		'restrictions'
 	],
 

@@ -35,7 +35,7 @@ class UtilObject {
 		};
 
 		const id = String(object.id || '');
-		const spaceId = object.spaceId || S.Common.space;
+		const spaceId = object.spaceId || S.Common.space || '';
 		const action = this.actionByLayout(object.layout);
 
 		if (!action) {
@@ -233,6 +233,9 @@ class UtilObject {
 		let name = '';
 		if (this.isNoteLayout(layout)) {
 			name = snippet || translate('commonEmpty');
+		} else 
+		if (this.isInFileLayouts(layout)) {
+			name = U.File.name(object);
 		} else {
 			name = object.name || translate('defaultNamePage');
 		};

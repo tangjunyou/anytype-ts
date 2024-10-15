@@ -1,14 +1,5 @@
 import $ from 'jquery';
-import { C, S, U, J, Preview, analytics, Storage } from 'Lib';
-
-type RouteParam = { 
-	replace: boolean;
-	animate: boolean;
-	delay: number;
-	onFadeOut: () => void;
-	onFadeIn?: () => void;
-	onRouteChange?: () => void;
-};
+import { I, C, S, U, J, Preview, analytics, Storage } from 'Lib';
 
 class UtilRouter {
 
@@ -44,8 +35,9 @@ class UtilRouter {
 	};
 
 	build (param: Partial<{ page: string; action: string; id: string; spaceId: string; viewId: string; }>): string {
-		const { page, action, spaceId } = param;
+		const { page, action } = param;
 		const id = String(param.id || J.Constant.blankRouteId);
+		const spaceId = String(param.spaceId || J.Constant.blankRouteId);
 		const viewId = String(param.viewId || J.Constant.blankRouteId);
 
 		let route = [ page, action, id ];
@@ -55,7 +47,7 @@ class UtilRouter {
 		return route.join('/');
 	};
 
-	go (route: string, param: Partial<RouteParam>) {
+	go (route: string, param: Partial<I.RouteParam>) {
 		if (!route) {
 			return;
 		};
@@ -75,7 +67,7 @@ class UtilRouter {
 		S.Popup.closeAll();
 
 		if (routeParam.spaceId && ![ J.Constant.storeSpaceId, J.Constant.blankRouteId, space ].includes(routeParam.spaceId)) {
-			this.switchSpace(routeParam.spaceId, route);
+			this.switchSpace(routeParam.spaceId, route, false, routeParam);
 			return;
 		};
 
@@ -128,7 +120,7 @@ class UtilRouter {
 		timeout ? window.setTimeout(() => onTimeout(), timeout) : onTimeout();
 	};
 
-	switchSpace (id: string, route?: string, sendEvent?: boolean, callBack?: () => void) {
+	switchSpace (id: string, route: string, sendEvent: boolean, routeParam: any) {
 		if (!id) {
 			console.log('[UtilRouter].swithSpace: id is empty');
 			return;
@@ -160,7 +152,7 @@ class UtilRouter {
 					Storage.set('spaceId', id);
 
 					U.Data.onInfo(message.info);
-					U.Data.onAuth({ route }, callBack);
+					U.Data.onAuth({ route, routeParam });
 				}
 			});
 		});

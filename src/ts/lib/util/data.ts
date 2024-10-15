@@ -224,12 +224,6 @@ class UtilData {
 						I.SurveyType.Object, 
 					].forEach(it => Survey.check(it));
 
-					const space = U.Space.getSpaceview();
-
-					if (!space.isPersonal && !space.isShared && Storage.get('shareBannerClosed')) {
-						Onboarding.start('space', keyboard.isPopup(), false);
-					};
-
 					Storage.clearDeletedSpaces();
 
 					if (callBack) {
@@ -260,17 +254,8 @@ class UtilData {
 		analytics.event('OpenAccount');
 	};
 
-	onAuthWithoutSpace (routeParam?: any) {
-		routeParam = routeParam || {};
-
-		this.createGlobalSubscriptions(() => {
-			const spaces = U.Space.getList();
-			if (spaces.length) {
-				U.Router.switchSpace(spaces[0].targetSpaceId, '', false, routeParam.onRouteChange);
-			} else {
-				U.Router.go('/main/void', routeParam);
-			};
-		});
+	onAuthWithoutSpace (param?: Partial<I.RouteParam>) {
+		this.createGlobalSubscriptions(() => U.Space.openFirstSpaceOrVoid(null, param));
 	};
 
 	createAllSubscriptions (callBack?: () => void) {
@@ -316,11 +301,11 @@ class UtilData {
 		];
 
 		this.createSubscriptions(list, () => {
-			this.createMyParticipantSubscriptions(null, callBack);
+			this.createSubSpaceSubscriptions(null, callBack);
 		});
 	};
 
-	createMyParticipantSubscriptions (ids: string[], callBack?: () => void) {
+	createSubSpaceSubscriptions (ids: string[], callBack?: () => void) {
 		const { account } = S.Auth;
 
 		if (!account) {
@@ -345,12 +330,21 @@ class UtilData {
 		const list = [];
 
 		spaces.forEach(space => {
+			const ids = [
+				space.creator,
+				U.Space.getParticipantId(space.targetSpaceId, account.id),
+			];
+
+			if (![ I.HomePredefinedId.Graph, I.HomePredefinedId.Last ].includes(space.spaceDashboardId)) {
+				ids.push(space.spaceDashboardId);
+			};
+
 			list.push({
 				spaceId: space.targetSpaceId,
-				subId: [ J.Constant.subId.myParticipant, space.targetSpaceId ].join('-'),
+				subId: U.Space.getSubSpaceSubId(space.targetSpaceId),
 				keys: this.participantRelationKeys(),
 				filters: [
-					{ relationKey: 'id', condition: I.FilterCondition.Equal, value: U.Space.getParticipantId(space.targetSpaceId, account.id) },
+					{ relationKey: 'id', condition: I.FilterCondition.In, value: ids },
 				],
 				noDeps: true,
 				ignoreDeleted: true,
@@ -494,7 +488,7 @@ class UtilData {
 	};
 
 	typeRelationKeys () {
-		return J.Relation.default.concat(J.Relation.type);
+		return J.Relation.default.concat(J.Relation.type).concat('lastUsedDate');
 	};
 
 	participantRelationKeys () {
