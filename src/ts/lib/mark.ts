@@ -305,10 +305,14 @@ class Mark {
 			};
 
 			const attr = this.paramToAttr(mark.type, param);
-			const data = [ `data-range="${mark.range.from}-${mark.range.to}"` ];
+			const data = [];
 
 			if (param) {
 				data.push(`data-param="${param}"`);
+			};
+
+			if ([ I.MarkType.Link, I.MarkType.Object, I.MarkType.Mention ].includes(mark.type)) {
+				data.push(`data-range="${mark.range.from}-${mark.range.to}"`);
 			};
 
 			let prefix = '';
@@ -533,7 +537,7 @@ class Mark {
 			};
 
 			marks = this.adjust(marks, from, -length);
-			marks = this.adjust(marks, to, -length);
+			marks = this.adjust(marks, to, -length + 1);
 			marks.push({ type, range: { from, to }, param: '' });
 
 			text = U.Common.stringInsert(text, replace, o + p1l, o + p1l + p2l);

@@ -1,25 +1,6 @@
 import * as Sentry from '@sentry/browser';
 import { I, C, M, S, J, U, keyboard, translate, Storage, analytics, dispatcher, Mark, focus, Renderer, Action, Survey, Onboarding, Preview } from 'Lib';
 
-type SearchSubscribeParams = Partial<{
-	spaceId: string;
-	subId: string;
-	idField: string;
-	filters: I.Filter[];
-	sorts: I.Sort[];
-	keys: string[];
-	sources: string[];
-	collectionId: string;
-	afterId: string;
-	beforeId: string;
-	offset: number;
-	limit: number;
-	ignoreHidden: boolean;
-	ignoreDeleted: boolean;
-	withArchived: boolean;
-	noDeps: boolean;
-}>;
-
 const SYSTEM_DATE_RELATION_KEYS = [
 	'lastModifiedDate', 
 	'lastOpenedDate', 
@@ -160,6 +141,7 @@ class UtilData {
 		S.Block.widgetsSet(info.widgetsId);
 		S.Block.profileSet(info.profileObjectId);
 		S.Block.spaceviewSet(info.spaceViewId);
+		S.Block.workspaceSet(info.workspaceObjectId);
 
 		S.Common.gatewaySet(info.gatewayUrl);
 		S.Common.spaceSet(info.accountSpaceId);
@@ -548,7 +530,7 @@ class UtilData {
 	};
 
 	getObjectTypesForNewObject (param?: any) {
-		const { withSet, withCollection, withChat, limit } = param || {};
+		const { withSet, withCollection, limit } = param || {};
 		const { space, config } = S.Common;
 		const pageLayouts = U.Object.getPageLayouts();
 		const skipLayouts = U.Object.getSetLayouts();
@@ -568,10 +550,6 @@ class UtilData {
 
 		if (withSet) {
 			items.push(S.Record.getSetType());
-		};
-
-		if (withChat) {
-			items.push(S.Record.getChatType());
 		};
 
 		if (withCollection) {
@@ -786,11 +764,12 @@ class UtilData {
 
 	searchDefaultFilters (param: any) {
 		const { config } = S.Common;
-		const { ignoreHidden, ignoreDeleted, withArchived } = param;
+		const { ignoreHidden, ignoreDeleted, ignoreArchived } = param;
 		const filters = param.filters || [];
-		const chatDerivedType = S.Record.getChatDerivedType();
+		const skipLayouts = [ I.ObjectLayout.Chat, I.ObjectLayout.ChatOld ];
 
-		filters.push({ relationKey: 'uniqueKey', condition: I.FilterCondition.NotEqual, value: J.Constant.typeKey.chatDerived });
+		filters.push({ relationKey: 'layout', condition: I.FilterCondition.NotIn, value: skipLayouts });
+		filters.push({ relationKey: 'recommendedLayout', condition: I.FilterCondition.NotIn, value: skipLayouts });
 
 		if (ignoreHidden && !config.debug.hiddenObject) {
 			filters.push({ relationKey: 'isHidden', condition: I.FilterCondition.NotEqual, value: true });
@@ -801,22 +780,8 @@ class UtilData {
 			filters.push({ relationKey: 'isDeleted', condition: I.FilterCondition.NotEqual, value: true });
 		};
 
-		if (!withArchived) {
+		if (ignoreArchived) {
 			filters.push({ relationKey: 'isArchived', condition: I.FilterCondition.NotEqual, value: true });
-		};
-
-		/*if (!config.experimental) {
-			const chatType = S.Record.getChatType();
-
-			if (chatType) {
-				filters.push({ relationKey: 'type', condition: I.FilterCondition.NotEqual, value: chatType?.id });
-			};
-
-			filters.push({ relationKey: 'uniqueKey', condition: I.FilterCondition.NotEqual, value: J.Constant.typeKey.chat });
-		};*/
-
-		if (chatDerivedType) {
-			filters.push({ relationKey: 'type', condition: I.FilterCondition.NotEqual, value: chatDerivedType.id });
 		};
 
 		return filters;
@@ -844,7 +809,7 @@ class UtilData {
 		S.Record.recordsSet(subId, '', message.records.map(it => it[idField]).filter(it => it));
 	};
 
-	searchSubscribe (param: SearchSubscribeParams, callBack?: (message: any) => void) {
+	searchSubscribe (param: Partial<I.SearchSubscribeParam>, callBack?: (message: any) => void) {
 		const { space } = S.Common;
 
 		param = Object.assign({
@@ -859,7 +824,7 @@ class UtilData {
 			limit: 0,
 			ignoreHidden: true,
 			ignoreDeleted: true,
-			withArchived: false,
+			ignoreArchived: true,
 			noDeps: false,
 			afterId: '',
 			beforeId: '',
@@ -872,6 +837,19 @@ class UtilData {
 
 		if (!subId) {
 			console.error('[U.Data].searchSubscribe: subId is empty');
+
+			if (callBack) {
+				callBack({});
+			};
+			return;
+		};
+
+		if (!spaceId) {
+			console.error('[U.Data].searchSubscribe: spaceId is empty');
+
+			if (callBack) {
+				callBack({});
+			};
 			return;
 		};
 
@@ -905,10 +883,28 @@ class UtilData {
 
 		if (!subId) {
 			console.error('[U.Data].subscribeIds: subId is empty');
+
+			if (callBack) {
+				callBack({});
+			};
 			return;
 		};
+
+		if (!spaceId) {
+			console.error('[U.Data].subscribeIds: spaceId is empty');
+
+			if (callBack) {
+				callBack({});
+			};
+			return;
+		};
+
 		if (!ids.length) {
 			console.error('[U.Data].subscribeIds: ids list is empty');
+
+			if (callBack) {
+				callBack({});
+			};
 			return;
 		};
 
@@ -933,7 +929,7 @@ class UtilData {
 		});
 	};
 
-	search (param: SearchSubscribeParams & { fullText?: string }, callBack?: (message: any) => void) {
+	search (param: Partial<I.SearchSubscribeParam> & { fullText?: string }, callBack?: (message: any) => void) {
 		const { space } = S.Common;
 
 		param = Object.assign({
@@ -947,12 +943,21 @@ class UtilData {
 			limit: 0,
 			ignoreHidden: true,
 			ignoreDeleted: true,
-			withArchived: false,
+			ignoreArchived: true,
 		}, param);
 
 		const { spaceId, idField, sorts, offset, limit } = param;
 		const keys: string[] = [ ...new Set(param.keys as string[]) ];
 		const filters = this.searchDefaultFilters(param);
+
+		if (!spaceId) {
+			console.error('[U.Data].search: spaceId is empty');
+
+			if (callBack) {
+				callBack({});
+			};
+			return;
+		};
 
 		if (!keys.includes(idField)) {
 			keys.push(idField);
@@ -1079,12 +1084,12 @@ class UtilData {
 		return Object.values(J.Constant.networkId).includes(S.Auth.account?.info?.networkId);
 	};
 
-	isLocalNetwork (): boolean {
-		return !S.Auth.account?.info?.networkId;
+	isDevelopmentNetwork (): boolean {
+		return S.Auth.account?.info?.networkId == J.Constant.networkId.development;
 	};
 
-	isLocalOnly (): boolean {
-		return S.Auth.account?.info?.networkId == '';
+	isLocalNetwork (): boolean {
+		return !S.Auth.account?.info?.networkId;
 	};
 
 	accountCreate (onError?: (text: string) => void, callBack?: () => void) {

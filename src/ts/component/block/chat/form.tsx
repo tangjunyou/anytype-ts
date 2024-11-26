@@ -50,6 +50,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		this.onBlurInput = this.onBlurInput.bind(this);
 		this.onKeyUpInput = this.onKeyUpInput.bind(this);
 		this.onKeyDownInput = this.onKeyDownInput.bind(this);
+		this.onInput = this.onInput.bind(this);
 		this.onPaste = this.onPaste.bind(this);
 		this.onMention = this.onMention.bind(this);
 		this.onChatButtonSelect = this.onChatButtonSelect.bind(this);
@@ -155,6 +156,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 						onBlur={this.onBlurInput}
 						onKeyUp={this.onKeyUpInput} 
 						onKeyDown={this.onKeyDownInput}
+						onInput={this.onInput}
 						onPaste={this.onPaste}
 						onMouseDown={this.onMouseDown}
 						onMouseUp={this.onMouseUp}
@@ -242,6 +244,8 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 
 		const { rootId } = this.props;
 		const { attachments } = this.state;
+
+		keyboard.disableSelection(false);
 
 		Storage.setChat(rootId, {
 			text: this.getTextValue(),
@@ -436,6 +440,13 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		this.removeBookmarks();
 	};
 
+	onInput () {
+		const value = this.getTextValue();
+		const checkRtl = U.Common.checkRtl(value);
+
+		$(this.refEditable?.node).toggleClass('isRtl', checkRtl);
+	};
+
 	onPaste (e: any) {
 		e.preventDefault();
 
@@ -482,6 +493,8 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		if (list.length) {
 			this.addAttachments(list);
 		};
+
+		this.onInput();
 	};
 
 	canDrop (e: any): boolean {
@@ -712,6 +725,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		this.marks = [];
 		this.updateMarkup('', 0, 0);
 		this.setState({ attachments: [] }, () => this.refEditable.setRange(this.range));
+		this.refButtons.setButtons();
 	};
 
 	onReply (message: I.ChatMessage) {
@@ -741,7 +755,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 				bgColor: 'red',
 				title: translate('popupConfirmChatDeleteMessageTitle'),
 				text: translate('popupConfirmChatDeleteMessageText'),
-				textConfirm: translate('commonYes'),
+				textConfirm: translate('commonDelete'),
 				onConfirm: () => {
 					C.ChatDeleteMessage(rootId, id, () => {
 						if (this.editingId == id) {
@@ -764,11 +778,15 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 	};
 
 	getTextValue (): string {
-		return String(this.refEditable?.getTextValue() || '');
+		return this.trim(String(this.refEditable?.getTextValue() || '').replace(/^\r?\n/gm, ''));
 	};
 
 	getHtmlValue (): string {
-		return String(this.refEditable?.getHtmlValue() || '');
+		return this.trim(String(this.refEditable?.getHtmlValue() || ''));
+	};
+
+	trim (value: string): string {
+		return String(value || '').replace(/^(\r?\n)/gm, '').replace(/(\r?\n)$/gm, '');
 	};
 	
 	getMarksFromHtml (): { marks: I.Mark[], text: string } {
@@ -815,7 +833,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 				this.updateMarkup(value, to, to);
 				break;
 			};
-		}
+		};
 	};
 
 	onTextButtonToggle (type: I.MarkType, param: string) {
@@ -835,7 +853,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 			};
 
 			case I.MarkType.Object: {
-				U.Object.getById(param, (object: any) => {
+				U.Object.getById(param, {}, (object: any) => {
 					object.isTmp = true;
 					object.timestamp = U.Date.now();
 
@@ -958,7 +976,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 	};
 
 	canSend () {
-		return this.editingId || this.getTextValue() || this.state.attachments.length;
+		return this.editingId || this.getTextValue() || this.state.attachments.length || this.marks.length;
 	};
 
 	hasSelection (): boolean {
@@ -983,6 +1001,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		this.refEditable.setRange({ from, to });
 		this.refEditable.placeholderCheck();
 		this.renderMarkup();
+		this.checkSendButton();
 	};
 
 	renderMarkup () {
@@ -990,9 +1009,9 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		const node = this.refEditable.node;
 		const value = this.refEditable.getTextValue();
 
-		renderMentions(rootId, node, this.marks, value);
-		renderObjects(rootId, node, this.marks, value, this.props);
-		renderLinks(node, this.marks, value, this.props);
+		renderMentions(rootId, node, this.marks, () => value);
+		renderObjects(rootId, node, this.marks, () => value, this.props);
+		renderLinks(node, this.marks, () => value, this.props);
 		renderEmoji(node);
 	};
 

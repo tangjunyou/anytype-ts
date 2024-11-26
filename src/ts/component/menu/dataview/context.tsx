@@ -172,7 +172,7 @@ class MenuContext extends React.Component<I.Menu> {
 			allowedCollection = false;
 		};
 
-		if (archiveCnt == length) {
+		if (archiveCnt && (archiveCnt == length)) {
 			allowedOpen = false;
 			allowedLinkTo = false;
 			allowedUnlink = false;
@@ -416,13 +416,13 @@ class MenuContext extends React.Component<I.Menu> {
 			};
 
 			case 'archive': {
-				Action.archive(objectIds, cb);
+				Action.archive(objectIds, route, cb);
 				win.trigger('removeGraphNode', { ids: objectIds });
 				break;
 			};
 
 			case 'unarchive': {
-				Action.restore(objectIds, cb);
+				Action.restore(objectIds, route, cb);
 				break;
 			};
 

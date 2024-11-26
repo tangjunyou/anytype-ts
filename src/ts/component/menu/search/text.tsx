@@ -143,7 +143,7 @@ class MenuSearchText extends React.Component<I.Menu> {
 			return;
 		};
 
-		const value = this.ref.getValue();
+		const value = this.ref?.getValue();
 		if (value && (this.last == value)) {
 			return;
 		};
@@ -195,7 +195,8 @@ class MenuSearchText extends React.Component<I.Menu> {
 		});
 
 		this.items = this.container.get(0).querySelectorAll(tag) || [];
-		this.items.length ? switcher.addClass('active') : switcher.removeClass('active');
+		
+		switcher.toggleClass('active', !!this.items.length);
 
 		this.setCnt();
 		this.focus();

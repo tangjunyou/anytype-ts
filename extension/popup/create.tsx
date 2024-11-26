@@ -62,7 +62,7 @@ const Create = observer(class Create extends React.Component<I.PageComponent, St
 				ref={ref => this.node = ref} 
 				className="page pageCreate"
 			>
-				{isLoading ? <Loader type="loader" /> : ''}
+				{isLoading ? <Loader type={I.LoaderType.Loader} /> : ''}
 
 				<form onSubmit={this.onSubmit}>
 					<div className="rows">
@@ -164,12 +164,11 @@ const Create = observer(class Create extends React.Component<I.PageComponent, St
 		);
 	};
 
-	componentDidMount(): void {
+	componentDidMount (): void {
 		U.Data.createAllSubscriptions(() => {
 			this.initSpace();
 			this.initName();
 			this.initType();
-
 			this.setState({ withContent: Boolean(Storage.get('withContent')) });
 		});
 	};
@@ -186,17 +185,9 @@ const Create = observer(class Create extends React.Component<I.PageComponent, St
 			return;
 		};
 
-		let check = null;
 		let spaceId = S.Common.space || Storage.get('lastSpaceId');
 
 		if (!spaceId) {
-			spaceId = spaces.find(it => it.isPersonal)?.id;
-		};
-		if (spaceId) {
-			check = spaces.find(it => it.id == spaceId);
-		};
-
-		if (!spaceId || !check) {
 			spaceId = spaces[0].id;
 		};
 
@@ -249,7 +240,7 @@ const Create = observer(class Create extends React.Component<I.PageComponent, St
 		return this.getObjects(J.Constant.subId.type).
 			map(Util.optionMapper).
 			filter(this.filter).
-			filter(it => layouts.includes(it.recommendedLayout) && (it.spaceId == S.Common.space)).
+			filter(it => layouts.includes(it.recommendedLayout) && (it.spaceId == S.Common.space) && (it.uniqueKey != J.Constant.typeKey.template)).
 			sort(U.Data.sortByName);
 	};
 
@@ -362,6 +353,7 @@ const Create = observer(class Create extends React.Component<I.PageComponent, St
 			onClose: () => $(element).removeClass('isFocused'),
 			data: {
 				canAdd: true,
+				canEdit: true,
 				filter: '',
 				value: this.details.tag,
 				maxCount: relation.maxCount,

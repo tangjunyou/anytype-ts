@@ -108,7 +108,7 @@ class PopupUsecasePageItem extends React.Component<I.PopupUsecase, State> {
 	componentDidMount(): void {
 		const object = this.getObject();
 
-		analytics.event('ScreenGalleryInstall', { name: object.name, route: 'App' });
+		analytics.event('ScreenGalleryInstall', { name: object.name, route: this.getRoute() });
 	};
 
 	onSwiper (swiper) {
@@ -131,18 +131,20 @@ class PopupUsecasePageItem extends React.Component<I.PopupUsecase, State> {
 		const idx = this.swiper.activeIndex;
 		const length = (this.swiper.slides || []).length;
 
-		!idx ? arrowLeft.addClass('hide') : arrowLeft.removeClass('hide');
-		idx >= length - 1 ? arrowRight.addClass('hide') : arrowRight.removeClass('hide');
+		arrowLeft.toggleClass('hide', !idx);
+		arrowRight.toggleClass('hide', idx >= length - 1);
 	};
 
 	onMenu () {
+		const { config } = S.Common;
 		const { getId, close } = this.props;
 		const object = this.getObject();
+		const route = this.getRoute();
 
 		const cb = (spaceId: string, isNew: boolean) => {
 			C.ObjectImportExperience(spaceId, object.downloadLink, object.title, isNew, (message: any) => {
 				if (!message.error.code) {
-					analytics.event('GalleryInstall', { name: object.name });
+					analytics.event('GalleryInstall', { name: object.name, route });
 				};
 			});
 			close();
@@ -158,12 +160,13 @@ class PopupUsecasePageItem extends React.Component<I.PopupUsecase, State> {
 				noVirtualisation: true, 
 				onSelect: (e: any, item: any) => {
 					const isNew = item.id == 'add';
+					const withChat = U.Common.isChatAllowed();
 
 					this.setState({ isLoading: true });
-					analytics.event('ClickGalleryInstallSpace', { type: isNew ? 'New' : 'Existing' });
+					analytics.event('ClickGalleryInstallSpace', { type: isNew ? 'New' : 'Existing', route });
 
 					if (isNew) {
-						C.WorkspaceCreate({ name: object.title, iconOption: U.Common.rand(1, J.Constant.count.icon) }, I.Usecase.None, (message: any) => {
+						C.WorkspaceCreate({ name: object.title, iconOption: U.Common.rand(1, J.Constant.count.icon) }, I.Usecase.None, withChat, (message: any) => {
 							if (!message.error.code) {
 								cb(message.objectId, true);
 
@@ -179,7 +182,7 @@ class PopupUsecasePageItem extends React.Component<I.PopupUsecase, State> {
 			}
 		});
 
-		analytics.event('ClickGalleryInstall', { name: object.name });
+		analytics.event('ClickGalleryInstall', { name: object.name, route });
 	};
 
 	getSpaceOptions (): any[] {
@@ -199,10 +202,11 @@ class PopupUsecasePageItem extends React.Component<I.PopupUsecase, State> {
 	};
 
 	getObject (): any {
-		const { param } = this.props;
-		const { data } = param;
+		return this.props.param.data.object || {};
+	};
 
-		return data.object || {};
+	getRoute (): string {
+		return String(this.props.param.data.route || '');
 	};
 
 };

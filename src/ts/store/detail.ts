@@ -13,18 +13,18 @@ interface Item {
 
 class DetailStore {
 
-    private map: Map<string, Map<string, Detail[]>> = new Map();
+	private map: Map<string, Map<string, Detail[]>> = new Map();
 
-    constructor() {
-        makeObservable(this, {
-            set: action,
-            update: action,
-            delete: action
-        });
-    };
+	constructor() {
+		makeObservable(this, {
+			set: action,
+			update: action,
+			delete: action
+		});
+	};
 
 	/** Idempotent. adds details to the detail store. */
-    public set (rootId: string, items: Item[]) {
+	public set (rootId: string, items: Item[]) {
 		if (!rootId) {
 			console.log('[S.Detail].set: rootId is not defined');
 			return;
@@ -54,7 +54,7 @@ class DetailStore {
 	};
 
 	/** Idempotent. updates details in the detail store. if clear is set, map wil delete details by item id. */
-    public update (rootId: string, item: Item, clear: boolean): void {
+	public update (rootId: string, item: Item, clear: boolean): void {
 		if (!rootId) {
 			console.log('[S.Detail].update: rootId is not defined');
 			return;
@@ -129,7 +129,7 @@ class DetailStore {
 	};
 
 	/** Idempotent. Clears details by keys provided, if they exist. if no keys are provided, all details are cleared. */
-    public delete (rootId: string, id: string, keys?: string[]): void {
+	public delete (rootId: string, id: string, keys?: string[]): void {
 		const map = this.map.get(rootId);
 
 		if (!map) {
@@ -147,7 +147,7 @@ class DetailStore {
 	};
 
 	/** gets the object. if no keys are provided, all properties are returned. if force keys is set, J.Relation.default are included */
-    public get (rootId: string, id: string, withKeys?: string[], forceKeys?: boolean): any {
+	public get (rootId: string, id: string, withKeys?: string[], forceKeys?: boolean): any {
 		let list = this.map.get(rootId)?.get(id) || [];
 		if (!list.length) {
 			return { id, _empty_: true };
@@ -286,8 +286,8 @@ class DetailStore {
 		object.readersLimit = Number(object.readersLimit) || 0;
 		object.writersLimit = Number(object.writersLimit) || 0;
 		object.spaceId = Relation.getStringValue(object.spaceId);
-		object.spaceMainChatId = Relation.getStringValue(object.spaceMainChatId);
 		object.spaceDashboardId = Relation.getStringValue(object.spaceDashboardId);
+		object.chatId = Relation.getStringValue(object.chatId);
 		object.targetSpaceId = Relation.getStringValue(object.targetSpaceId);
 		object.iconOption = Number(object.iconOption) || 1;
 

@@ -2,7 +2,7 @@ import * as React from 'react';
 import $ from 'jquery';
 import { observer } from 'mobx-react';
 import { I, C, S, U, J, keyboard } from 'Lib';
-import { Header, Footer, Graph, Loader } from 'Component';
+import { Header, Footer, GraphProvider, Loader } from 'Component';
 
 const PageMainGraph = observer(class PageMainGraph extends React.Component<I.PageComponent> {
 
@@ -47,7 +47,7 @@ const PageMainGraph = observer(class PageMainGraph extends React.Component<I.Pag
 				<Loader id="loader" />
 
 				<div className="wrapper">
-					<Graph 
+					<GraphProvider 
 						key="graph"
 						{...this.props} 
 						ref={ref => this.refGraph = ref} 
@@ -148,9 +148,9 @@ const PageMainGraph = observer(class PageMainGraph extends React.Component<I.Pag
 		const oh = obj.height();
 		const header = node.find('#header');
 		const hh = header.height();
-		const wh = isPopup ? oh - hh : win.height();
+		const wh = isPopup ? oh : win.height();
 
-		wrapper.css({ height: wh });
+		wrapper.css({ height: wh - hh });
 		
 		if (isPopup) {
 			const element = $('#popupPage .content');

@@ -6,6 +6,7 @@ export default {
 	appName:			 'Anytype',
 	blankRouteId:		 '_blank_',
 	storeSpaceId:		 '_anytype_marketplace',
+	localLoversSpaceId:	 'bafyreigyfkt6rbv24sbv5aq2hko3bhmv5xxlf22b4bypdu6j7hnphm3psq.23me69r569oi1',
 	anytypeProfileId:	 '_anytype_profile',
 	fontCode:			 'plex',
 	popupPinIds:		 [ 'search' ],
@@ -34,12 +35,12 @@ export default {
 	limit: {
 		menuRecords:	 100,
 		widgets:		 20,
-		space:			 10,
 		notification:	 20,
+		space:			 50,
 		graphDepth:		 5,
 
 		chat: {
-			messages:		 100,
+			messages:		 30,
 			attachments:	 10,
 			files:			 10,
 			mentions:		 10,
@@ -127,7 +128,6 @@ export default {
 		date:			 'ot-date',
 		profile:		 'ot-profile',
 		chat:			 'ot-chat',
-		chatDerived:	 'ot-chatDerived',
 	},
 
 	templateId: {

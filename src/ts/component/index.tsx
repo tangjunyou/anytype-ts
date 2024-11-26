@@ -11,6 +11,8 @@ import DropTarget from './drag/target';
 import SelectionProvider from './selection/provider';
 import SelectionTarget from './selection/target';
 
+import GraphProvider from './graph/provider';
+
 import ListPopup from './list/popup';
 import ListMenu from './list/menu';
 import ListNotification from './list/notification';
@@ -51,7 +53,8 @@ import Checkbox from './form/checkbox';
 import Textarea from './form/textarea';
 import Button from './form/button';
 import Select from './form/select';
-import Drag from './form/drag';
+import DragHorizontal from './form/drag/horizontal';
+import DragVertical from './form/drag/vertical';
 import Pin from './form/pin';
 import Filter from './form/filter';
 import Phrase from './form/phrase';
@@ -74,8 +77,6 @@ import PreviewLink from './preview/link';
 import PreviewObject from './preview/object';
 import PreviewDefault from './preview/default';
 
-import Graph from './util/graph';
-
 import Cell from './block/dataview/cell';
 
 import ObjectName from './util/object/name';
@@ -93,6 +94,8 @@ import ShareTooltip from './util/share/tooltip';
 import ShareBanner from './util/share/banner';
 import FooterAuthDisclaimer from './footer/auth/disclaimer';
 
+import EmailCollectionForm from './util/emailCollectionForm';
+
 export {
 	Page,
 	EditorPage,
@@ -105,6 +108,8 @@ export {
 
 	SelectionProvider,
 	SelectionTarget,
+
+	GraphProvider,
 
 	ListPopup,
 	ListMenu,
@@ -132,7 +137,8 @@ export {
 	Button,
 	Select,
 	Toast,
-	Drag,
+	DragHorizontal,
+	DragVertical,
 	Marker,
 	Tag,
 	Loader,
@@ -159,7 +165,6 @@ export {
 	PreviewObject,
 	PreviewDefault,
 
-	Graph,
 	Cell,
 
 	Sidebar,
@@ -182,5 +187,7 @@ export {
 	ProgressBar,
 	ShareTooltip,
 	ShareBanner,
-	FooterAuthDisclaimer
+	FooterAuthDisclaimer,
+
+	EmailCollectionForm,
 };

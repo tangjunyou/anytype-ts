@@ -4,7 +4,7 @@ import raf from 'raf';
 import arrayMove from 'array-move';
 import { observer } from 'mobx-react';
 import { set } from 'mobx';
-import { I, C, S, U, J, analytics, Dataview, keyboard, Onboarding, Relation, Renderer, focus, translate, Action } from 'Lib';
+import { I, C, S, U, J, analytics, Dataview, keyboard, Onboarding, Relation, focus, translate, Action } from 'Lib';
 
 import Controls from './dataview/controls';
 import Selection from './dataview/selection';
@@ -313,7 +313,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		const head = node.find(`#block-head-${block.id}`);
 		const object = this.getTarget();
 
-		object.isDeleted ? head.addClass('isDeleted') : head.removeClass('isDeleted');
+		head.toggleClass('isDeleted', object.isDeleted);
 	};
 
 	unbind () {
@@ -923,7 +923,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		};
 
 		if (!view.isGrid() && Relation.isUrl(relation.format)) {
-			Action.openUrl(Relation.getUrlScheme(relation.format, record[relationKey]) + record[relationKey]);
+			Action.openUrl(Relation.checkUrlScheme(relation.format, record[relationKey]));
 			return;
 		};
 
@@ -1456,7 +1456,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 
 		switch (id) {
 			case 'archive': {
-				Action.archive(ids);
+				Action.archive(ids, this.analyticsRoute());
 				break;
 			};
 
@@ -1491,7 +1491,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 				const node = $(this.node);
 				const obj = $(`#block-${block.id}`);
 
-				node.width() <= getWrapperWidth() / 2 ? obj.addClass('isVertical') : obj.removeClass('isVertical');
+				obj.toggleClass('isVertical', node.width() <= getWrapperWidth() / 2);
 			};
 
 			if (this.refControls && this.refControls.resize) {

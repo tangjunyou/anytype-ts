@@ -43,8 +43,8 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 	render () {
 		const { getAuthor, onAuthor } = this.props;
 		const { isLoading, category } = this.state;
-		const items = this.getItems();
 		const { gallery } = S.Common;
+		const items = this.getItems();
 		const filter = this.refFilter ? this.refFilter.getValue() : '';
 
 		if (isLoading) {
@@ -213,7 +213,7 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 	onCategory (item: any) {
 		this.setState({ category: (item.id == this.state.category?.id ? null : item) });
 
-		analytics.event('ClickGalleryTab', { type: U.Common.toCamelCase(`-${item.name}`) });
+		analytics.event('ClickGalleryTab', { type: item.id });
 	};
 
 	onFilterChange (v: string) {

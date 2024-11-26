@@ -49,11 +49,13 @@ class Preview {
 		const delay = Number(param.delay) || DELAY_TOOLTIP;
 		const offsetX = Number(param.offsetX) || 0;
 		const offsetY = Number(param.offsetY) || 0;
-		const text = String(param.text || '').replace(/\\n/g, '\n');
-
+		
 		if (!element.length || keyboard.isResizing) {
 			return;
 		};
+
+		let text = String(param.text || '').replace(/\\n/g, '\n');
+		text = U.Common.lbBr(U.Common.sanitize(text));
 
 		this.delayTooltip = delay;
 
@@ -66,7 +68,7 @@ class Preview {
 			const ew = element.outerWidth();
 			const eh = element.outerHeight();
 			const { ww } = U.Common.getWindowDimensions();
-			const node = $(`<div class="tooltip anim"><div class="txt">${U.Common.lbBr(text)}</div></div>`);
+			const node = $(`<div class="tooltip anim"><div class="txt">${text}</div></div>`);
 
 			if (param.className) {
 				node.addClass(param.className);
@@ -200,7 +202,7 @@ class Preview {
 			});
 		};
 
-		passThrough ? obj.addClass('passThrough') : obj.removeClass('passThrough');
+		obj.toggleClass('passThrough', passThrough);
 		obj.off('mouseleave.preview').on('mouseleave.preview', () => this.previewHide(true));
 
 		this.previewHide(true);

@@ -345,7 +345,7 @@ const MenuDataviewFilterValues = observer(class MenuDataviewFilterValues extends
 		this.unbind();
 
 		S.Menu.closeAll(J.Menu.cell);
-    };
+	};
 
 	rebind () {
 		this.unbind();
@@ -383,6 +383,10 @@ const MenuDataviewFilterValues = observer(class MenuDataviewFilterValues extends
 		};
 
 		const item = view.getFilter(itemId);
+		if (!item) {
+			return [];
+		};
+
 		const relation: any = S.Record.getRelationByKey(item.relationKey) || {};
 		const relationOptions = this.getRelationOptions();
 		const relationOption: any = relationOptions.find(it => it.id == item.relationKey) || {};
@@ -513,7 +517,7 @@ const MenuDataviewFilterValues = observer(class MenuDataviewFilterValues extends
 			// Remove value when we change relation, filter non unique entries
 			if (k == 'relationKey') {
 				const relation = S.Record.getRelationByKey(v);
-				const conditions = Relation.filterConditionsByType(relation.format);
+				const conditions = Relation.filterConditionsByType(relation?.format);
 
 				item.condition = conditions.length ? conditions[0].id : I.FilterCondition.None;
 				item.quickOption = I.FilterQuickOption.ExactDate;
@@ -728,14 +732,9 @@ const MenuDataviewFilterValues = observer(class MenuDataviewFilterValues extends
 	};
 
 	checkClear (v: any) {
-		if (!this._isMounted) {
-			return;
+		if (this._isMounted) {
+			$(this.node).find('.icon.clear').toggleClass('active', v);
 		};
-
-		const node = $(this.node);
-		const clear = node.find('.icon.clear');
-
-		v ? clear.addClass('active') : clear.removeClass('active');
 	};
 
 	onClear (e: any) {

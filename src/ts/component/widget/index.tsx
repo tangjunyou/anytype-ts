@@ -190,6 +190,7 @@ const WidgetIndex = observer(class WidgetIndex extends React.Component<Props> {
 					id={block.id} 
 					dropType={I.DropType.Widget} 
 					canDropMiddle={false} 
+					onClick={onClick}
 				/>
 			);
 
@@ -417,12 +418,6 @@ const WidgetIndex = observer(class WidgetIndex extends React.Component<Props> {
 					typeKey = J.Constant.typeKey.collection;
 					break;
 				};
-
-				case J.Constant.widgetId.chat: {
-					details.layout = I.ObjectLayout.Chat;
-					typeKey = J.Constant.typeKey.chat;
-					break;
-				};
 			};
 		};
 
@@ -493,8 +488,9 @@ const WidgetIndex = observer(class WidgetIndex extends React.Component<Props> {
 		const isClosed = Storage.checkToggle('widget', block.id);
 
 		if (!isPreview) {
-			isClosed ? node.addClass('isClosed') : node.removeClass('isClosed');
-			isClosed ? icon.addClass('isClosed') : node.removeClass('isClosed');
+			node.toggleClass('isClosed', isClosed);
+			icon.toggleClass('isClosed', isClosed);
+
 			isClosed ? innerWrap.hide() : innerWrap.show();
 		};
 	};
@@ -624,11 +620,6 @@ const WidgetIndex = observer(class WidgetIndex extends React.Component<Props> {
 
 			case J.Constant.widgetId.collection: {
 				filters.push({ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Collection });
-				break;
-			};
-
-			case J.Constant.widgetId.chat: {
-				filters.push({ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Chat });
 				break;
 			};
 		};

@@ -19,12 +19,12 @@ interface SpaceStorage {
 class CommonStore {
 
 	public dataPathValue = '';
-    public progressObj: I.Progress = null;
-    public filterObj: Filter = { from: 0, text: '' };
-    public gatewayUrl = '';
+	public progressObj: I.Progress = null;
+	public filterObj: Filter = { from: 0, text: '' };
+	public gatewayUrl = '';
 	public toastObj: I.Toast = null;
-    public configObj: any = {};
-    public cellId = '';
+	public configObj: any = {};
+	public cellId = '';
 	public themeId = '';
 	public nativeThemeIsDark = false;
 	public defaultType = '';
@@ -82,14 +82,14 @@ class CommonStore {
 
 	public membershipTiersList: I.MembershipTier[] = [];
 
-    constructor () {
-        makeObservable(this, {
-            progressObj: observable,
-            filterObj: observable,
-            gatewayUrl: observable,
-            previewObj: observable,
+	constructor () {
+		makeObservable(this, {
+			progressObj: observable,
+			filterObj: observable,
+			gatewayUrl: observable,
+			previewObj: observable,
 			toastObj: observable,
-            configObj: observable,
+			configObj: observable,
 			spaceStorageObj: observable,
 			themeId: observable,
 			nativeThemeIsDark: observable,
@@ -105,12 +105,12 @@ class CommonStore {
 			showObjectValue: observable,
 			spaceId: observable,
 			membershipTiersList: observable,
-            config: computed,
-            progress: computed,
-            preview: computed,
+			showRelativeDatesValue: observable,
+			config: computed,
+			preview: computed,
 			toast: computed,
-            filter: computed,
-            gateway: computed,
+			filter: computed,
+			gateway: computed,
 			theme: computed,
 			nativeTheme: computed,
 			membershipTiers: computed,
@@ -118,13 +118,12 @@ class CommonStore {
 			isOnline: computed,
 			shareTooltip: computed,
 			showVault: computed,
-            gatewaySet: action,
-            progressSet: action,
-            progressClear: action,
-            filterSetFrom: action,
-            filterSetText: action,
-            filterSet: action,
-            previewSet: action,
+			showRelativeDates: computed,
+			gatewaySet: action,
+			filterSetFrom: action,
+			filterSetText: action,
+			filterSet: action,
+			previewSet: action,
 			toastSet: action,
 			toastClear: action,
 			themeSet: action,
@@ -138,12 +137,13 @@ class CommonStore {
 			membershipTiersListSet: action,
 			showVaultSet: action,
 			showObjectSet: action,
+			showRelativeDatesSet: action,
 		});
 
 		intercept(this.configObj as any, change => U.Common.intercept(this.configObj, change));
-    };
+	};
 
-    get config (): any {
+	get config (): any {
 		const config = window.AnytypeGlobalConfig || this.configObj || {};
 
 		config.languages = config.languages || [];
@@ -153,11 +153,7 @@ class CommonStore {
 		return config;
 	};
 
-    get progress (): I.Progress {
-		return this.progressObj;
-	};
-
-    get preview (): I.Preview {
+	get preview (): I.Preview {
 		return this.previewObj;
 	};
 
@@ -165,11 +161,11 @@ class CommonStore {
 		return this.toastObj;
 	};
 
-    get filter (): Filter {
+	get filter (): Filter {
 		return this.filterObj;
 	};
 
-    get gateway (): string {
+	get gateway (): string {
 		return String(this.gatewayUrl || '');
 	};
 
@@ -283,40 +279,32 @@ class CommonStore {
 		return ret;
 	};
 
-    gatewaySet (v: string) {
+	gatewaySet (v: string) {
 		this.gatewayUrl = v;
 	};
 
-    fileUrl (id: string) {
+	fileUrl (id: string) {
 		return [ this.gateway, 'file', String(id || '') ].join('/');
 	};
 
-    imageUrl (id: string, width: number) {
+	imageUrl (id: string, width: number) {
 		return [ this.gateway, 'image', String(id || '') ].join('/') + `?width=${Number(width) || 0}`;
 	};
 
-    progressSet (v: I.Progress) {
-		this.progressObj = v;
-	};
-
-    progressClear () {
-		this.progressObj = null;
-	};
-
-    filterSetFrom (from: number) {
+	filterSetFrom (from: number) {
 		this.filterObj.from = from;
 	};
 
-    filterSetText (text: string) {
+	filterSetText (text: string) {
 		this.filterObj.text = text;
 	};
 
-    filterSet (from: number, text: string) {
+	filterSet (from: number, text: string) {
 		this.filterSetFrom(from);
 		this.filterSetText(text);
 	};
 
-    previewSet (preview: I.Preview) {
+	previewSet (preview: I.Preview) {
 		this.previewObj = preview;
 	};
 
@@ -330,7 +318,7 @@ class CommonStore {
 		const ids = [ objectId, targetId, originId ].filter(it => it);
 
 		if (ids.length) {
-			U.Object.getByIds(ids, (objects: any[]) => {
+			U.Object.getByIds(ids, {}, (objects: any[]) => {
 				const map = U.Common.mapToObject(objects, 'id');
 
 				if (targetId && map[targetId]) {
@@ -399,11 +387,9 @@ class CommonStore {
 	};
 
 	fullscreenSet (v: boolean) {
-		const body = $('body');
-		
 		this.isFullScreen = v;
-		v ? body.addClass('isFullScreen') : body.removeClass('isFullScreen');
 
+		$('body').toggleClass('isFullScreen', v);
 		$(window).trigger('resize');
 	};
 
@@ -527,7 +513,7 @@ class CommonStore {
 		set(this.configObj, newConfig);
 
 		this.configObj.debug = this.configObj.debug || {};
-		this.configObj.debug.ui ? html.addClass('debug') : html.removeClass('debug');
+		html.toggleClass('debug', this.configObj.debug.ui);
 	};
 
 	spaceStorageSet (value: Partial<SpaceStorage>) {

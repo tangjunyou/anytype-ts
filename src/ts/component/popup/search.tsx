@@ -310,6 +310,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 			this.filter = filter;
 			this.range = { from: 0, to: filter.length };
 			this.refFilter.setValue(filter);
+			this.reload();
 		};
 
 		setFilter();
@@ -321,7 +322,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 		focus.clear(true);
 
 		if (backlink) {
-			U.Object.getById(backlink, item => this.setBacklink(item, 'Saved', () => setFilter()));
+			U.Object.getById(backlink, {}, item => this.setBacklink(item, 'Saved', () => setFilter()));
 		} else {
 			this.reload();
 		};
@@ -332,19 +333,20 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 	componentDidUpdate () {
 		const items = this.getItems();
 		const filter = this.getFilter();
-		const length = filter.length;
 
 		if (filter != this.filter) {
 			this.filter = filter;
-			this.range = { from: length, to: length };
 			this.reload();
 			return;
 		};
 
 		this.initCache();
 		this.setActive(items[this.n]);
-		this.refFilter.setValue(this.filter);
-		this.refFilter.setRange(this.range);
+
+		if (this.refFilter) {
+			this.refFilter.setValue(this.filter);
+			this.refFilter.setRange(this.range);
+		};
 
 		if (this.refList) {
 			this.refList.recomputeRowHeights(0);
@@ -507,8 +509,11 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 
 		window.clearTimeout(this.timeout);
 		this.timeout = window.setTimeout(() => {
-			this.forceUpdate();
 			storageSet({ filter: v });
+
+			this.range = this.refFilter?.getRange();
+			this.forceUpdate();
+			
 			analytics.event('SearchInput', { route });
 		}, J.Constant.delay.keyboard);
 	};
@@ -557,7 +562,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 	};
 
 	loadMoreRows ({ startIndex, stopIndex }) {
-        return new Promise((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			this.offset += J.Constant.limit.menuRecords;
 			this.load(false, () => resolve(null));
 		});

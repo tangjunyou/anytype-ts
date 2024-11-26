@@ -162,7 +162,7 @@ class UtilDate {
 			},
 			N: () => {
 				return (f.w() + 6) % 7;
-            },
+			},
 		};
 		return format.replace(/[\\]?([a-zA-Z])/g, (t: string, s: string) => {
 			let ret = null;
@@ -265,9 +265,14 @@ class UtilDate {
 			return '';
 		};
 
-		const d = Math.floor(t / 86400);
+		const DAY_IN_SECONDS = 86400;
+		const y = Math.floor(t / (DAY_IN_SECONDS * 365));
 
-		t -= d * 86400;
+		t -= y * (DAY_IN_SECONDS * 365);
+
+		const d = Math.floor(t / DAY_IN_SECONDS);
+
+		t -= d * DAY_IN_SECONDS;
 		const h = Math.floor(t / 3600);
 
 		t -= h * 3600;
@@ -277,6 +282,9 @@ class UtilDate {
 		const s = t;
 
 		let ret = '';
+		if (y > 0) {
+			ret = U.Common.sprintf('%dy', y);
+		} else
 		if (d > 0) {
 			ret = U.Common.sprintf('%dd', d);
 		} else

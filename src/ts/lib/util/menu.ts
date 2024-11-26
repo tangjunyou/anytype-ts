@@ -1,6 +1,7 @@
 import $ from 'jquery';
 import raf from 'raf';
-import { I, C, S, U, J, keyboard, translate, Dataview, Action, analytics, Relation, Storage, sidebar } from 'Lib';
+import { observable } from 'mobx';
+import { I, C, S, U, J, M, keyboard, translate, Dataview, Action, analytics, Relation, Storage, sidebar } from 'Lib';
 
 class UtilMenu {
 
@@ -108,7 +109,7 @@ class UtilMenu {
 	};
 
 	getBlockObject () {
-		const items = U.Data.getObjectTypesForNewObject({ withSet: true, withCollection: true, withChat: true });
+		const items = U.Data.getObjectTypesForNewObject({ withSet: true, withCollection: true });
 		const ret: any[] = [
 			{ type: I.BlockType.Page, id: 'existingPage', icon: 'existing', lang: 'ExistingPage', arrow: true, aliases: [ 'link' ] },
 			{ type: I.BlockType.File, id: 'existingFile', icon: 'existing', lang: 'ExistingFile', arrow: true, aliases: [ 'file' ] }
@@ -334,9 +335,21 @@ class UtilMenu {
 
 					window.setTimeout(() => {
 						switch (option.id) {
-							case 'edit': $(`#button-${blockId}-settings`).trigger('click'); break;
-							case 'copy': onCopy(view); break;
-							case 'remove': onRemove(view); break;
+							case 'edit': {
+								$(`#button-${blockId}-settings`).trigger('click');
+								S.Menu.updateData('dataviewViewSettings', { view: observable.box(new M.View(view)) });
+								break;
+							};
+
+							case 'copy': {
+								onCopy(view); 
+								break;
+							};
+
+							case 'remove': {
+								onRemove(view); 
+								break;
+							};
 						};
 					}, S.Menu.getTimeout());
 				}
@@ -413,7 +426,6 @@ class UtilMenu {
 			if ([ 
 				J.Constant.widgetId.set, 
 				J.Constant.widgetId.collection,
-				J.Constant.widgetId.chat,
 			].includes(id)) {
 				options = options.filter(it => it != I.WidgetLayout.Tree);
 			};
@@ -842,7 +854,6 @@ class UtilMenu {
 		const { config } = S.Common;
 		return [
 			{ id: J.Constant.widgetId.favorite, name: translate('widgetFavorite'), iconEmoji: '⭐' },
-			{ id: J.Constant.widgetId.chat, name: translate('widgetChat'), iconEmoji: '💬' },
 			{ id: J.Constant.widgetId.set, name: translate('widgetSet'), iconEmoji: '🔍' },
 			{ id: J.Constant.widgetId.collection, name: translate('widgetCollection'), iconEmoji: '🗂️' },
 			{ id: J.Constant.widgetId.recentEdit, name: translate('widgetRecent'), iconEmoji: '📝' },
@@ -1043,6 +1054,24 @@ class UtilMenu {
 			{ id: I.TimeFormat.H12, name: translate('menuDataviewDate12Hour') },
 			{ id: I.TimeFormat.H24, name: translate('menuDataviewDate24Hour') },
 		];
+	};
+
+	participant (object: any, param: Partial<I.MenuParam>) {
+		S.Menu.open('participant', {
+			className: 'fixed',
+			classNameWrap: 'fromPopup',
+			horizontal: I.MenuDirection.Center,
+			rect: { 
+				x: keyboard.mouse.page.x, 
+				y: keyboard.mouse.page.y + 10, 
+				width: 0, 
+				height: 0,
+			},
+			...param,
+			data: {
+				object,
+			}
+		});
 	};
 
 };

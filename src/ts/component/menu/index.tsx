@@ -7,6 +7,7 @@ import { I, S, U, J, keyboard, analytics, Storage, sidebar } from 'Lib';
 
 import MenuHelp from './help';
 import MenuOnboarding from './onboarding';
+import MenuParticipant from './participant';
 
 import MenuSelect from './select';
 import MenuButton from './button';
@@ -86,6 +87,7 @@ const Components: any = {
 
 	help:					 MenuHelp,
 	onboarding:				 MenuOnboarding,
+	participant:			 MenuParticipant,
 
 	select:					 MenuSelect,
 	button:					 MenuButton,
@@ -538,7 +540,7 @@ const Menu = observer(class Menu extends React.Component<I.Menu, State> {
 			let y = oy;
 			let flipX = false;
 
-			if (stickToElementEdge) {
+			if (stickToElementEdge != I.MenuDirection.None) {
 				switch (stickToElementEdge) {
 					case I.MenuDirection.Top: offsetY = -eh; break;
 					case I.MenuDirection.Bottom: offsetY = eh; break;

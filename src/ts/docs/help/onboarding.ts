@@ -1,15 +1,15 @@
-import { I, U, translate } from 'Lib';
+import { I, U, translate, S, Onboarding } from 'Lib';
 
 export default {
-    mainGraph: () => ({
-        category: translate('onboardingMainGraph'),
-        items: [
-            {
-                description: translate('onboardingMainGraph11'),
-                video: './img/help/onboarding/space.mp4',
+	mainGraph: () => ({
+		category: translate('onboardingMainGraph'),
+		items: [
+			{
+				description: translate('onboardingMainGraph11'),
+				video: './img/help/onboarding/space.mp4',
 				buttonText: translate('commonFinish'),
-            }
-        ],
+			}
+		],
 
 		param: {
 			element: '#page.isFull #footer #button-help',
@@ -22,61 +22,70 @@ export default {
 			passThrough: true,
 			offsetY: -4,
 		},
-    }),
+	}),
 
-    objectCreationStart: () => ({
-        category: translate('onboardingObjectCreationStart'),
-        items: [
-            {
-                description: `
-					<p>${translate('onboardingObjectCreationStart11')}</p>
-				`,
-                video: './img/help/onboarding/object-1-default-object-type.mp4',
-            },
-            {
-                description: `
+	emailCollection: () => ({
+		items: [ { noButton: true } ],
+		param: {
+			element: '#page.isFull #footer #button-help',
+			classNameWrap: 'fixed',
+			className: 'invertedColor',
+			vertical: I.MenuDirection.Top,
+			horizontal: I.MenuDirection.Right,
+			noArrow: true,
+			noClose: true,
+			passThrough: true,
+			offsetY: -4,
+		},
+	}),
+
+	objectCreationStart: () => ({
+		category: translate('onboardingObjectCreationStart'),
+		items: [
+			{
+				description: `
 					<p>${translate('onboardingObjectCreationStart21')}</p>
 				`,
-                video: './img/help/onboarding/object-2-type-menu.mp4',
-                buttonText: translate('onboardingObjectCreationStart2Button'),
-            },
-        ],
-        param: {
-            element: '#page.isFull #footer #button-help',
-            classNameWrap: 'fixed',
-            className: 'isWizard',
-            vertical: I.MenuDirection.Top,
-            horizontal: I.MenuDirection.Right,
-            noArrow: true,
-            noClose: true,
-            passThrough: true,
-            offsetY: -4,
-        },
-    }),
+				video: './img/help/onboarding/object-2-type-menu.mp4',
+				buttonText: translate('onboardingObjectCreationStart2Button'),
+			},
+		],
+		param: {
+			element: '#page.isFull #footer #button-help',
+			classNameWrap: 'fixed',
+			className: 'isWizard',
+			vertical: I.MenuDirection.Top,
+			horizontal: I.MenuDirection.Right,
+			noArrow: true,
+			noClose: true,
+			passThrough: true,
+			offsetY: -4,
+		},
+	}),
 
-    objectCreationFinish: () => ({
-        category: translate('onboardingObjectCreationFinish'),
-        items: [
-            {
-                description: `
+	objectCreationFinish: () => ({
+		category: translate('onboardingObjectCreationFinish'),
+		items: [
+			{
+				description: `
 					<p>${translate('onboardingObjectCreationFinish11')}</p>
 				`,
-                video: './img/help/onboarding/object-layout.mp4',
-                buttonText: translate('onboardingObjectCreationFinish1Button'),
-            },
-        ],
-        param: {
-            element: '#page.isFull #footer #button-help',
-            classNameWrap: 'fixed',
-            className: 'isWizard',
-            vertical: I.MenuDirection.Top,
-            horizontal: I.MenuDirection.Right,
-            noArrow: true,
-            noClose: true,
-            passThrough: true,
-            offsetY: -4,
-        },
-    }),
+				video: './img/help/onboarding/object-layout.mp4',
+				buttonText: translate('onboardingObjectCreationFinish1Button'),
+			},
+		],
+		param: {
+			element: '#page.isFull #footer #button-help',
+			classNameWrap: 'fixed',
+			className: 'isWizard',
+			vertical: I.MenuDirection.Top,
+			horizontal: I.MenuDirection.Right,
+			noArrow: true,
+			noClose: true,
+			passThrough: true,
+			offsetY: -4,
+		},
+	}),
 
 	basics: () => ({
 		showDimmer: true,
@@ -88,7 +97,14 @@ export default {
 			offsetX: -312,
 			noClose: true,
 			highlightElements: [],
-			hiddenElements: [ '#widget-buttons', '.widgetView', '.widgetTree', '#containerWidget #list .buttons' ],
+			hiddenElements: [ 
+				'#widget-buttons', 
+				'.widget', 
+				'#containerWidget #list .buttons',
+			],
+			onClose: () => {
+				Onboarding.start('emailCollection', false);
+			},
 		},
 		items: [
 			{
@@ -110,7 +126,7 @@ export default {
 				description: translate('onboardingWidgetsText'),
 				param: {
 					element: '.widgetView',
-					highlightElements: [ '#containerWidget .widget.widgetView', '#containerWidget .widget.widgetTree' ]
+					highlightElements: [ '#containerWidget .widget.widgetView', '#containerWidget .widget.widgetTree', '#containerWidget .widget.widgetLink' ]
 				}
 			},
 			{
@@ -167,6 +183,7 @@ export default {
 			width: 288,
 			noClose: true,
 			highlightElements: [],
+			classNameWrap: 'fixed',
 		},
 		items: [
 			{
@@ -237,7 +254,7 @@ export default {
 		]
 	}),
 
-    typeDeleted: () => ({
+	typeDeleted: () => ({
 		items: [
 			{
 				name: translate('onboardingTypeDeleted1Title'),
@@ -247,9 +264,9 @@ export default {
 					element: '#block-featuredRelations',
 					offsetY: 10,
 				},
-                buttons: [
-                    { text: translate('blockFeaturedTypeMenuChangeType'), action: 'changeType' },
-                ],
+				buttons: [
+					{ text: translate('blockFeaturedTypeMenuChangeType'), action: 'changeType' },
+				],
 			},
 		],
 	}),

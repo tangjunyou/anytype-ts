@@ -47,6 +47,9 @@ class Analytics {
 		allObjects: 'AllObjects',
 		vault: 'Vault',
 		void: 'Void',
+		chat: 'Chat',
+		archive: 'Bin',
+		toast: 'Toast',
 
 		menuOnboarding: 'MenuOnboarding',
 		menuObject: 'MenuObject',
@@ -68,7 +71,10 @@ class Analytics {
 		addWidgetMain: 'Main',
 		addWidgetEditor: 'Editor',
 		addWidgetMenu: 'Menu',
-		addWidgetDnD: 'DnD'
+		addWidgetDnD: 'DnD',
+
+		usecaseApp: 'App',
+		usecaseSite: 'Site',
 	};
 
 	debug () {
@@ -127,7 +133,7 @@ class Analytics {
 		const { config } = S.Common;
 		const platform = U.Common.getPlatform();
 		const electron = U.Common.getElectron();
-		const { version, isPackaged } = electron;
+		const { version, isPackaged, userPath } = electron;
 
 		if (!version) {
 			return;
@@ -145,7 +151,7 @@ class Analytics {
 			ret.push(config.channel);
 		};
 
-		C.MetricsSetParameters(platform, ret.join('-'));
+		C.InitialSetParameters(platform, ret.join('-'), userPath(), '', true);
 	};
 
 	profile (id: string, networkId: string) {
@@ -380,6 +386,15 @@ class Analytics {
 				break;
 			};
 
+			case 'ClickGridFormula':
+			case 'ChangeGridFormula': {
+				data.format = Number(data.format) || 0;
+				data.format = I.RelationType[data.format];
+				data.type = Number(data.type) || 0;
+				data.type = I.FormulaType[data.type];
+				break;
+			};
+
 			case 'OpenAsObject': {
 				if (data.type == I.BlockType.File) {
 					if (undefined !== data.params?.fileType) {
@@ -451,6 +466,11 @@ class Analytics {
 			case 'OnboardingTooltip':
 			case 'ClickOnboardingTooltip': {
 				data.id = data.id ? U.Common.toUpperCamelCase(`-${data.id}`) : '';
+				data.type = data.type ? U.Common.toUpperCamelCase(`-${data.type}`) : '';
+				break;
+			};
+
+			case 'ChangeLibraryType': {
 				data.type = data.type ? U.Common.toUpperCamelCase(`-${data.type}`) : '';
 				break;
 			};

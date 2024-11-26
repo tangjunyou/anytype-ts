@@ -87,7 +87,7 @@ const HeaderMainObject = observer(class HeaderMainObject extends React.Component
 			<React.Fragment>
 				<div className="side left">
 					{renderLeftIcons(this.onOpen)}
-					{canSync ? <Sync id="button-header-sync" rootId={rootId} onClick={this.onSync} /> : ''}
+					{canSync ? <Sync id="button-header-sync" onClick={this.onSync} /> : ''}
 				</div>
 
 				<div className="side center">
@@ -142,7 +142,6 @@ const HeaderMainObject = observer(class HeaderMainObject extends React.Component
 		const { rootId, menuOpen } = this.props;
 
 		menuOpen('syncStatus', '#button-header-sync', {
-			horizontal: I.MenuDirection.Left,
 			subIds: [ 'syncStatusInfo' ],
 			data: {
 				rootId,

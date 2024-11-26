@@ -744,7 +744,7 @@ const BlockFeatured = observer(class BlockFeatured extends React.Component<Props
 
 				C.ObjectListSetDetails([ rootId ], [ { key: relationKey, value } ]);
 				analytics.changeRelationValue(relation, value, { type: 'featured', id: 'Single' });
-				break;
+				return;
 			};
 		};
 
@@ -853,7 +853,6 @@ const BlockFeatured = observer(class BlockFeatured extends React.Component<Props
 				noFlipY: true,
 				data: {
 					options,
-					withDefault: true,
 					onSelect: (e: any, item: any) => {
 						U.Object.openAuto(item);
 					}
