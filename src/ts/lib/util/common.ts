@@ -454,18 +454,11 @@ class UtilCommon {
 		links.on('auxclick', e => e.preventDefault());
 		links.click((e: any) => {
 			const el = $(e.currentTarget);
+			const href = el.attr('href') || el.attr('xlink:href');
 
 			e.preventDefault();
-			el.hasClass('path') ? this.onPath(el.attr('href')) : this.onUrl(el.attr('href'));
+			el.hasClass('path') ? Action.openPath(href) : Action.openUrl(href);
 		});
-	};
-	
-	onUrl (url: string) {
-		Action.openUrl(url);
-	};
-
-	onPath (path: string) {
-		Renderer.send('openPath', path);
 	};
 	
 	checkEmail (v: string) {
@@ -710,6 +703,24 @@ class UtilCommon {
 	
 	coordsCollide (x1: number, y1: number, w1: number, h1: number, x2: number, y2: number, w2: number, h2: number) {
 		return !((y1 + h1 < y2) || (y1 > y2 + h2) || (x1 + w1 < x2) || (x1 > x2 + w2));
+	};
+
+	getUrlsFromText (text: string): any[] {
+		const urls = [];
+		const words = text.split(/[\s\r?\n]+/);
+
+		let offset = 0;
+
+		for (const word of words) {
+			if (this.matchUrl(word) || this.matchLocalPath(word)) {
+				const from = text.substring(offset).indexOf(word) + offset;
+
+				offset = from + word.length;
+				urls.push({ value: word, from, to: offset, isLocal: !!this.matchLocalPath(word) });
+			};
+		};
+
+		return urls;
 	};
 
 	matchUrl (s: string): string {
