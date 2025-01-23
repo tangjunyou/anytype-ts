@@ -10,6 +10,8 @@ class Relation {
 	};
 
 	public className (v: I.RelationType): string {
+		v = Number(v);
+
 		let c = '';
 		if ([ I.RelationType.Select, I.RelationType.MultiSelect ].includes(v)) {
 			c = `select ${this.selectClassName(v)}`;
@@ -109,9 +111,32 @@ class Relation {
 		return ret;
 	};
 
-	public formulaByType (type: I.RelationType): { id: string, name: string, short?: string, section: I.FormulaSection }[] {
+	public formulaByType (relationKey: string, type: I.RelationType): { id: string, name: string, short?: string, section: I.FormulaSection }[] {
+		const relation = S.Record.getRelationByKey(relationKey);
+		if (!relation) {
+			return [];
+		};
+
+		const isArrayType = this.isArrayType(type);
+		const skipEmptyKeys = [
+			'type', 
+			'creator', 
+			'createdDate', 
+			'addedDate',
+		];
+		const skipEmpty = [ 
+			I.FormulaType.CountEmpty, 
+			I.FormulaType.CountNotEmpty,
+			I.FormulaType.PercentEmpty,
+			I.FormulaType.PercentNotEmpty,
+		];
+		const skipUnique = [
+			I.FormulaType.CountValue,
+		];
+
 		const common = [
 			{ id: I.FormulaType.Count, name: translate('formulaCount'), section: I.FormulaSection.Count },
+			{ id: I.FormulaType.CountValue, name: translate('formulaValue'), short: translate('formulaValueShort'), section: I.FormulaSection.Count },
 			{ id: I.FormulaType.CountDistinct, name: translate('formulaDistinct'), short: translate('formulaDistinctShort'), section: I.FormulaSection.Count },
 			{ id: I.FormulaType.CountEmpty, name: translate('formulaEmpty'), short: translate('formulaEmptyShort'), section: I.FormulaSection.Count },
 			{ id: I.FormulaType.CountNotEmpty, name: translate('formulaNotEmpty'), short: translate('formulaNotEmptyShort'), section: I.FormulaSection.Count },
@@ -120,7 +145,7 @@ class Relation {
 		];
 
 		let ret: any[] = [
-			{ id: I.FormulaType.None, name: translate('formulaNone') },
+			{ id: I.FormulaType.None, name: translate('commonNone') },
 		];
 
 		switch (type) {
@@ -165,7 +190,17 @@ class Relation {
 
 		};
 
-		return ret.map(it => ({ ...it, id: String(it.id)}));
+		if (skipEmptyKeys.includes(relationKey)) {
+			ret = ret.filter(it => !skipEmpty.includes(it.id));
+		};
+		if (relation.maxCount == 1) {
+			ret = ret.filter(it => !skipUnique.includes(it.id));
+		};
+		if (!isArrayType) {
+			ret = ret.filter(it => ![ I.FormulaType.CountValue ].includes(it.id));
+		};
+
+		return U.Menu.prepareForSelect(ret);
 	};
 
 	public filterConditionsDictionary () {
@@ -547,6 +582,10 @@ class Relation {
 
 	public isText (type: I.RelationType) {
 		return this.isUrl(type) || [ I.RelationType.Number, I.RelationType.ShortText ].includes(type);
+	};
+
+	public isDate (type: I.RelationType) {
+		return type == I.RelationType.Date;
 	};
 
 	public getUrlScheme (type: I.RelationType, value: string): string {

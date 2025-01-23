@@ -46,22 +46,6 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 			const cn = [];
 
 			let content = null;
-			if (item.isSection) {
-				cn.push('sectionName');
-
-				if (!item.index) {
-					cn.push('first');
-				};
-
-				content = <div className={cn.join(' ')} style={item.style}>{item.name}</div>;
-			} else
-			if (item.isDiv) {
-				content = (
-					<div className="separator" style={item.style}>
-						<div className="inner" />
-					</div>
-				);
-			} else
 			if (item.id == 'add') {
 				content = (
 					<div
@@ -437,7 +421,7 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 			if (withFilter) {
 				height += 60;
 			};
-			if (!withFilter || noScroll) {
+			if (!withFilter) {
 				height += 16;
 			};
 

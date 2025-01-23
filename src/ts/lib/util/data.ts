@@ -201,11 +201,6 @@ class UtilData {
 						Storage.set('bgColor', 'orange');
 					};
 
-					[ 
-						I.SurveyType.Register, 
-						I.SurveyType.Object, 
-					].forEach(it => Survey.check(it));
-
 					Storage.clearDeletedSpaces();
 
 					if (callBack) {
@@ -289,6 +284,7 @@ class UtilData {
 
 	createSubSpaceSubscriptions (ids: string[], callBack?: () => void) {
 		const { account } = S.Auth;
+		const skipIds = U.Space.getSystemDashboardIds();
 
 		if (!account) {
 			if (callBack) {
@@ -317,7 +313,7 @@ class UtilData {
 				U.Space.getParticipantId(space.targetSpaceId, account.id),
 			];
 
-			if (![ I.HomePredefinedId.Graph, I.HomePredefinedId.Last ].includes(space.spaceDashboardId)) {
+			if (!skipIds.includes(space.spaceDashboardId)) {
 				ids.push(space.spaceDashboardId);
 			};
 
@@ -330,7 +326,8 @@ class UtilData {
 				],
 				noDeps: true,
 				ignoreDeleted: true,
-				ignoreHidden: false,
+				ignoreHidden: true,
+				ignoreArchived: true,
 			});
 		});
 
@@ -482,7 +479,7 @@ class UtilData {
 	};
 
 	chatRelationKeys () {
-		return J.Relation.default.concat([ 'source', 'picture' ]);
+		return J.Relation.default.concat([ 'source', 'picture', 'widthInPixels', 'heightInPixels' ]);
 	};
 
 	createSession (phrase: string, key: string, callBack?: (message: any) => void) {
@@ -839,7 +836,7 @@ class UtilData {
 			console.error('[U.Data].searchSubscribe: subId is empty');
 
 			if (callBack) {
-				callBack({});
+				callBack({ error: { code: 1, description: 'subId is empty' } });
 			};
 			return;
 		};
@@ -848,7 +845,7 @@ class UtilData {
 			console.error('[U.Data].searchSubscribe: spaceId is empty');
 
 			if (callBack) {
-				callBack({});
+				callBack({ error: { code: 1, description: 'spaceId is empty' } });
 			};
 			return;
 		};
@@ -885,7 +882,7 @@ class UtilData {
 			console.error('[U.Data].subscribeIds: subId is empty');
 
 			if (callBack) {
-				callBack({});
+				callBack({ error: { code: 1, description: 'subId is empty' } });
 			};
 			return;
 		};
@@ -894,7 +891,7 @@ class UtilData {
 			console.error('[U.Data].subscribeIds: spaceId is empty');
 
 			if (callBack) {
-				callBack({});
+				callBack({ error: { code: 1, description: 'spaceId is empty' } });
 			};
 			return;
 		};
@@ -903,7 +900,7 @@ class UtilData {
 			console.error('[U.Data].subscribeIds: ids list is empty');
 
 			if (callBack) {
-				callBack({});
+				callBack({ error: { code: 1, description: 'ids list is empty' } });
 			};
 			return;
 		};
@@ -944,9 +941,10 @@ class UtilData {
 			ignoreHidden: true,
 			ignoreDeleted: true,
 			ignoreArchived: true,
+			skipLayoutFormat: null,
 		}, param);
 
-		const { spaceId, idField, sorts, offset, limit } = param;
+		const { spaceId, idField, sorts, offset, limit, skipLayoutFormat } = param;
 		const keys: string[] = [ ...new Set(param.keys as string[]) ];
 		const filters = this.searchDefaultFilters(param);
 
@@ -954,7 +952,7 @@ class UtilData {
 			console.error('[U.Data].search: spaceId is empty');
 
 			if (callBack) {
-				callBack({});
+				callBack({ error: { code: 1, description: 'spaceId is empty' } });
 			};
 			return;
 		};
@@ -965,7 +963,7 @@ class UtilData {
 
 		C.ObjectSearch(spaceId, filters, sorts.map(this.sortMapper), keys, param.fullText, offset, limit, (message: any) => {
 			if (message.records) {
-				message.records = message.records.map(it => S.Detail.mapper(it));
+				message.records = message.records.map(it => S.Detail.mapper(it, skipLayoutFormat));
 			};
 
 			if (callBack) {
@@ -1143,54 +1141,52 @@ class UtilData {
 		const yesterday = now - U.Date.timestamp(y, m, d - 1);
 		const lastWeek = now - U.Date.timestamp(y, m, d - 7);
 		const lastMonth = now - U.Date.timestamp(y, m - 1, d);
-		const groups = {
-			today: [],
-			yesterday: [],
-			lastWeek: [],
-			lastMonth: [],
-			older: []
-		};
+		const groups = {};
+		const ids = [ 'today', 'yesterday', 'lastWeek', 'lastMonth', 'older' ];
 
-		const groupNames = [ 'today', 'yesterday', 'lastWeek', 'lastMonth', 'older' ];
 		if (dir == I.SortType.Asc) {
-			groupNames.reverse();
+			ids.reverse();
 		};
 
-		let groupedRecords = [];
+		ids.forEach(id => groups[id] = []);
 
-		if (!sectionTemplate) {
-			sectionTemplate = {};
-		};
-
+		let ret = [];
 		records.forEach((record) => {
 			const diff = now - record[key];
+
+			let id = '';
 			if (diff < today) {
-				groups.today.push(record);
+				id = 'today';
 			} else
 			if (diff < yesterday) {
-				groups.yesterday.push(record);
+				id = 'yesterday';
 			} else
 			if (diff < lastWeek) {
-				groups.lastWeek.push(record);
+				id = 'lastWeek';
 			} else
 			if (diff < lastMonth) {
-				groups.lastMonth.push(record);
+				id = 'lastMonth';
 			} else {
-				groups.older.push(record);
+				id = 'older';
 			};
+			groups[id].push(record);
 		});
 
-		groupNames.forEach((name) => {
-			if (groups[name].length) {
-				groupedRecords.push(Object.assign({ id: name, isSection: true }, sectionTemplate));
+		ids.forEach(id => {
+			if (groups[id].length) {
+				ret.push(Object.assign({
+					id, 
+					name: translate(U.Common.toCamelCase([ 'common', id ].join('-'))),
+					isSection: true,
+				}, sectionTemplate || {}));
+
 				if (dir) {
-					groups[name] = groups[name].sort((c1, c2) => U.Data.sortByNumericKey(key, c1, c2, dir));
+					groups[id] = groups[id].sort((c1, c2) => U.Data.sortByNumericKey(key, c1, c2, dir));
 				};
-				groupedRecords = groupedRecords.concat(groups[name]);
+				ret = ret.concat(groups[id]);
 			};
 		});
-
-		return groupedRecords;
+		return ret;
 	};
 
 	getLinkBlockParam (id: string, layout: I.ObjectLayout, allowBookmark?: boolean) {

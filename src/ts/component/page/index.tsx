@@ -11,6 +11,7 @@ import PageAuthPinCheck from './auth/pinCheck';
 import PageAuthSetup from './auth/setup';
 import PageAuthOnboard from './auth/onboard';
 import PageAuthDeleted from './auth/deleted';
+import PageAuthMigrate from './auth/migrate';
 
 import PageMainBlank from './main/blank';
 import PageMainEmpty from './main/empty';
@@ -23,7 +24,6 @@ import PageMainMedia from './main/media';
 import PageMainRelation from './main/relation';
 import PageMainGraph from './main/graph';
 import PageMainNavigation from './main/navigation';
-import PageMainCreate from './main/create';
 import PageMainArchive from './main/archive';
 import PageMainImport from './main/import';
 import PageMainInvite from './main/invite';
@@ -42,6 +42,7 @@ const Components = {
 	'auth/setup':			 PageAuthSetup,
 	'auth/onboard':			 PageAuthOnboard,
 	'auth/deleted':			 PageAuthDeleted,
+	'auth/migrate':			 PageAuthMigrate,
 
 	'main/blank':			 PageMainBlank,		
 	'main/empty':			 PageMainEmpty,		
@@ -53,7 +54,6 @@ const Components = {
 	'main/relation':		 PageMainRelation,
 	'main/graph':			 PageMainGraph,
 	'main/navigation':		 PageMainNavigation,
-	'main/create':			 PageMainCreate,
 	'main/archive':			 PageMainArchive,
 	'main/import':			 PageMainImport,
 	'main/invite':			 PageMainInvite,
@@ -155,6 +155,8 @@ const Page = observer(class Page extends React.Component<I.PageComponent> {
 			ret.params.action = 'object';
 			ret.params.id = data.objectId;
 			ret.params.spaceId = data.spaceId;
+			ret.params.cid = data.cid;
+			ret.params.key = data.key;
 		};
 
 		// Invite route

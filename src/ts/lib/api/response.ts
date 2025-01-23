@@ -198,6 +198,14 @@ export const ObjectShow = (response: Rpc.Object.Show.Response) => {
 	};
 };
 
+/*
+export const PublishingCreate = (response: Rpc.Publishing.Create.Response) => {
+	return { 
+		url: response.getUri(),
+	};
+};
+*/
+
 export const ObjectSearch = (response: Rpc.Object.Search.Response) => {
 	return {
 		records: (response.getRecordsList() || []).map(Decode.struct),
@@ -422,10 +430,11 @@ export const HistoryDiffVersions = (response: Rpc.History.DiffVersions.Response)
 	return {
 		events: (response.getHistoryeventsList() || []).map(it => {
 			const type = Mapper.Event.Type(it.getValueCase());
-			const data = Mapper.Event[type](Mapper.Event.Data(it));
+			const { spaceId, data } = Mapper.Event.Data(it);
+			const mapped = Mapper.Event[type] ? Mapper.Event[type](data) : null;
 
-			return { type, data };
-		}),
+			return mapped ? { spaceId, type, data: mapped } : null;
+		}).filter(it => it),
 	};
 };
 

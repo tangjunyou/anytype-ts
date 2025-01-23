@@ -101,10 +101,14 @@ export default {
 				'#widget-buttons', 
 				'.widget', 
 				'#containerWidget #list .buttons',
+				'#containerWidget #body',
+				'.shareBanner',
 			],
+			/*
 			onClose: () => {
 				Onboarding.start('emailCollection', false);
 			},
+			*/
 		},
 		items: [
 			{
@@ -195,7 +199,7 @@ export default {
 					vertical: I.MenuDirection.Bottom,
 					horizontal: I.MenuDirection.Right,
 					stickToElementEdge: I.MenuDirection.None,
-					highlightElements: [ '#menuSyncStatus', '#button-header-sync' ],
+					highlightElements: [ '#menuSyncStatus', '#sidebarSync' ],
 					offsetY: 14,
 				}
 			},

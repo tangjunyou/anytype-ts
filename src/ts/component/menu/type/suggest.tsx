@@ -67,20 +67,11 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 						<div className="name">{item.name}</div>
 					</div>
 				);
-			} else
-			if (item.isDiv) {
-				content = (
-					<div className="separator" style={param.style}>
-						<div className="inner" />
-					</div>
-				);
-			} else
-			if (item.isSection) {
-				content = <div className={[ 'sectionName', (param.index == 0 ? 'first' : '') ].join(' ')} style={param.style}>{item.name}</div>;
 			} else {
 				content = (
 					<MenuItemVertical 
 						{...item}
+						index={param.index}
 						className={item.isHidden ? 'isHidden' : ''}
 						style={param.style}
 						onMouseEnter={e => this.onMouseEnter(e, item)} 
@@ -444,6 +435,8 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 			if (onClick) {
 				onClick(S.Detail.mapper(item));
 			};
+
+			U.Object.setLastUsedDate(item.id, U.Date.now());
 		};
 
 		if (item.id == 'add') {

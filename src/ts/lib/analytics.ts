@@ -17,7 +17,6 @@ class Analytics {
 
 	public route = {
 		block: 'Block',
-		navigation: 'Navigation',
 		onboarding: 'Onboarding',
 		collection: 'Collection',
 		set: 'Set',
@@ -28,6 +27,8 @@ class Analytics {
 		deleted: 'Deleted',
 		banner: 'Banner',
 		widget: 'Widget',
+		addWidget: 'AddWidget',
+		inWidget: 'InWidget',
 		graph: 'Graph',
 		store: 'Library',
 		type: 'Type',
@@ -155,7 +156,7 @@ class Analytics {
 			ret.push(config.channel);
 		};
 
-		C.InitialSetParameters(platform, ret.join('-'), userPath(), '', true);
+		C.InitialSetParameters(platform, ret.join('-'), userPath(), '', false, false);
 	};
 
 	profile (id: string, networkId: string) {
@@ -188,6 +189,10 @@ class Analytics {
 	};
 
 	setProperty (props: any) {
+		if (!this.instance || !this.isAllowed()) {
+			return;
+		};
+
 		this.instance.setUserProperties(props);
 		this.log(`[Analytics].setProperty: ${JSON.stringify(props, null, 3)}`);
 	};
@@ -419,11 +424,6 @@ class Analytics {
 				break;
 			};
 
-			case 'ChangeShowQuickCapture': {
-				data.type = I.NavigationMenuMode[data.type];
-				break;
-			};
-
 			case 'SelectUsecase': {
 				data.type = Number(data.type) || 0;
 				data.type = I.Usecase[data.type];
@@ -514,6 +514,16 @@ class Analytics {
 				break;
 			};
 
+			case 'ChangeDateFormat': {
+				data.type = I.DateFormat[Number(data.type)];
+				break;
+			};
+
+			case 'ChangeTimeFormat': {
+				data.type = I.TimeFormat[Number(data.type)];
+				break;
+			};
+
 			case 'ObjectListSort': {
 				data.type = I.SortType[Number(data.type)];
 				break;
@@ -585,6 +595,7 @@ class Analytics {
 			'main/media':		 'ScreenMedia',
 			'main/history':		 'ScreenHistory',
 			'main/date':		 'ScreenDate',
+			'main/archive':		 'ScreenBin',
 		};
 
 		return map[key] || '';
@@ -594,6 +605,7 @@ class Analytics {
 		const { id } = params;
 		const map = {
 			inviteRequest:		 'ScreenInviteRequest',
+			spaceCreate:		 'ScreenSettingsSpaceCreate',
 		};
 
 		return map[id] || '';

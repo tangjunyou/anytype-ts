@@ -37,12 +37,10 @@ class CommonStore {
 	public notionToken = '';
 	public showRelativeDatesValue = null;
 	public fullscreenObjectValue = null;
-	public navigationMenuValue = null;
 	public linkStyleValue = null;
 	public dateFormatValue = null;
 	public timeFormatValue = null;
 	public isOnlineValue = false;
-	public shareTooltipValue = false;
 	public showVaultValue = null;
 	public hideSidebarValue = null;
 	public showObjectValue = null;
@@ -98,16 +96,16 @@ class CommonStore {
 			defaultType: observable,
 			isFullScreen: observable,
 			fullscreenObjectValue: observable,
-			navigationMenuValue: observable,
 			linkStyleValue: observable,
 			isOnlineValue: observable,
-			shareTooltipValue: observable,
 			showVaultValue: observable,
 			hideSidebarValue: observable,
 			showObjectValue: observable,
 			spaceId: observable,
 			membershipTiersList: observable,
 			showRelativeDatesValue: observable,
+			dateFormatValue: observable,
+			timeFormatValue: observable,
 			config: computed,
 			preview: computed,
 			toast: computed,
@@ -118,9 +116,10 @@ class CommonStore {
 			membershipTiers: computed,
 			space: computed,
 			isOnline: computed,
-			shareTooltip: computed,
 			showVault: computed,
 			showRelativeDates: computed,
+			dateFormat: computed,
+			timeFormat: computed,
 			gatewaySet: action,
 			filterSetFrom: action,
 			filterSetText: action,
@@ -132,12 +131,10 @@ class CommonStore {
 			nativeThemeSet: action,
 			spaceSet: action,
 			spaceStorageSet: action,
-			navigationMenuSet: action,
 			linkStyleSet: action,
 			dateFormatSet: action,
 			timeFormatSet: action,
 			isOnlineSet: action,
-			shareTooltipSet: action,
 			membershipTiersListSet: action,
 			showVaultSet: action,
 			showObjectSet: action,
@@ -233,14 +230,6 @@ class CommonStore {
 		return this.boolGet('showRelativeDates');
 	};
 
-	get navigationMenu (): I.NavigationMenuMode {
-		let ret = this.navigationMenuValue;
-		if (ret === null) {
-			ret = Storage.get('navigationMenu');
-		};
-		return Number(ret) || I.NavigationMenuMode.Hover;
-	};
-
 	get linkStyle (): I.LinkCardStyle {
 		let ret = this.linkStyleValue;
 		if (ret === null) {
@@ -254,10 +243,16 @@ class CommonStore {
 
 	get dateFormat (): I.DateFormat {
 		let ret = this.dateFormatValue;
+		
 		if (ret === null) {
 			ret = Storage.get('dateFormat');
+
+			if (undefined === ret) {
+				ret = I.DateFormat.Long;
+			};
 		};
-		return Number(ret) || I.DateFormat.Long;
+
+		return Number(ret);
 	};
 
 	get timeFormat (): I.TimeFormat {
@@ -274,10 +269,6 @@ class CommonStore {
 
 	get isOnline (): boolean {
 		return Boolean(this.isOnlineValue);
-	};
-
-	get shareTooltip (): boolean {
-		return Boolean(this.shareTooltipValue);
 	};
 
 	get membershipTiers (): I.MembershipTier[] {
@@ -365,7 +356,7 @@ class CommonStore {
 	};
 
 	previewClear () {
-		this.previewObj = { type: null, target: null, element: null, range: { from: 0, to: 0 }, marks: [] };
+		this.previewObj = { type: I.PreviewType.None, target: null, element: null, range: { from: 0, to: 0 }, marks: [] };
 	};
 
 	toastClear () {
@@ -478,8 +469,6 @@ class CommonStore {
 		if (c) {
 			head.append(`<link id="link-prism" rel="stylesheet" href="./css/theme/${c}/prism.css" />`);
 		};
-
-		$(window).trigger('updateTheme');
 	};
 
 	getThemePath () {
@@ -495,13 +484,7 @@ class CommonStore {
 		this.languages = v;
 	};
 
-	navigationMenuSet (v: I.NavigationMenuMode) {
-		v = Number(v);
-		this.navigationMenuValue = v;
-		Storage.set('navigationMenu', v);
-	};
-
-	linkStyleSet (v: I.NavigationMenuMode) {
+	linkStyleSet (v: I.LinkCardStyle) {
 		v = Number(v);
 		this.linkStyleValue = v;
 		Storage.set('linkStyle', v);
@@ -522,10 +505,6 @@ class CommonStore {
 	isOnlineSet (v: boolean) {
 		this.isOnlineValue = Boolean(v);
 		console.log('[Online status]:', v);
-	};
-
-	shareTooltipSet (v: boolean) {
-		this.shareTooltipValue = Boolean(v);
 	};
 
 	configSet (config: any, force: boolean) {

@@ -63,7 +63,9 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		const { text, marks, style, checked, color, iconEmoji, iconImage } = content;
 		const { theme } = S.Common;
 		const root = S.Block.getLeaf(rootId, rootId);
-		const cv: string[] = [ 'value', 'focusable', 'c' + id ];
+		const cn = [ 'flex' ];
+		const cv = [ 'value', 'focusable', 'c' + id ];
+		const checkRtl = keyboard.isRtl || U.Common.checkRtl(text);
 
 		let marker: any = null;
 		let placeholder = translate('placeholderBlock');
@@ -72,6 +74,10 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 
 		if (color) {
 			cv.push('textColor textColor-' + color);
+		};
+
+		if (checkRtl) {
+			cn.push('isRtl');
 		};
 
 		// Subscriptions
@@ -168,7 +174,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		return (
 			<div 
 				ref={node => this.node = node}
-				className="flex"
+				className={cn.join(' ')}
 			>
 				<div className="markers">
 					{marker ? <Marker {...marker} id={id} color={color} readonly={readonly} /> : ''}
@@ -194,6 +200,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 					onMouseUp={this.onMouseUp}
 					onInput={this.onInput}
 					onDragStart={e => e.preventDefault()}
+					onCompositionEnd={this.onKeyUp}
 				/>
 			</div>
 		);
@@ -305,15 +312,14 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		const tag = Mark.getTag(I.MarkType.Latex);
 		const code = Mark.getTag(I.MarkType.Code);
 		const value = this.refEditable.getHtmlValue();
-		const reg = /(^|[^\d<]+)?\$((?:[^$<]|\.)*?)\$([^\d]|$)/gi;
-		const regCode = new RegExp(`^${code}`, 'i');
+		const reg = /(^|[^\d<\$]+)?\$((?:[^$<]|\.)*?)\$([^\d>\$]+|$)/gi;
+		const regCode = new RegExp(`^${code}|${code}$`, 'i');
 
 		if (!/\$((?:[^$<]|\.)*?)\$/.test(value)) {
 			return;
 		};
 
 		const match = value.matchAll(reg);
-
 		const render = (s: string) => {
 			s = U.Common.fromHtmlSpecialChars(s);
 
@@ -340,7 +346,17 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 			const m3 = String(m[3] || '');
 
 			// Skip inline code marks
-			if (regCode.test(m1)) {
+			if (regCode.test(m1) || regCode.test(m3)) {
+				return;
+			};
+
+			// Skip Brazilian Real
+			if (/R$/.test(m1) || /R$/.test(m2)) {
+				return;
+			};
+
+			// Escaped $ sign
+			if (/\\$/.test(m1) || /\\$/.test(m2)) {
 				return;
 			};
 
@@ -696,6 +712,8 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		const menuOpenMention = S.Menu.isOpen('blockMention');
 		const oneSymbolBefore = range ? value[range.from - 1] : '';
 		const twoSymbolBefore = range ? value[range.from - 2] : '';
+
+		keyboard.setRtl(U.Common.checkRtl(value));
 
 		if (range) {
 			isAllowedMenu = isAllowedMenu && (!range.from || (range.from == 1) || [ ' ', '\n', '(', '[', '"', '\'' ].includes(twoSymbolBefore));
@@ -1090,7 +1108,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 	};
 	
 	onSelect () {
-		if (keyboard.isContextDisabled) {
+		if (keyboard.isContextDisabled || keyboard.isComposition) {
 			return;
 		};
 

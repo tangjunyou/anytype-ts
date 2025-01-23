@@ -41,6 +41,14 @@ const MenuRelationEdit = observer(class MenuRelationEdit extends React.Component
 		};
 
 		let opts = null;
+		let name = '';
+
+		if (relation) {
+			name = relation.name;
+		} else 
+		if (data.filter) {
+			name = data.filter;
+		};
 
 		if (isObject && !isReadonly && (!relation || !relation.isReadonlyValue)) {
 			const length = this.objectTypes.length;
@@ -100,7 +108,7 @@ const MenuRelationEdit = observer(class MenuRelationEdit extends React.Component
 						<div className="inputWrap">
 							<Input 
 								ref={ref => this.ref = ref} 
-								value={relation ? relation.name : ''} 
+								value={name} 
 								onChange={this.onChange}
 								onMouseEnter={this.menuClose}
 							/>
@@ -117,7 +125,7 @@ const MenuRelationEdit = observer(class MenuRelationEdit extends React.Component
 					<div className="name">{translate('menuDataviewRelationEditRelationType')}</div>
 					<MenuItemVertical 
 						id="relation-type" 
-						icon={this.format === null ? undefined : 'relation ' + Relation.className(this.format)} 
+						icon={this.format === null ? undefined : `relation ${Relation.className(this.format)}`} 
 						name={this.format === null ? translate('menuDataviewRelationEditSelectRelationType') : translate('relationName' + this.format)}
 						onMouseEnter={this.onRelationType} 
 						readonly={isReadonly}
@@ -259,7 +267,7 @@ const MenuRelationEdit = observer(class MenuRelationEdit extends React.Component
 				},
 				{
 					children: [
-						canCalculate ? { id: 'calculate', icon: 'relation c-number', name: translate('menuDataviewRelationEditCalculate'), arrow: true } : null,
+						canCalculate ? { id: 'calculate', icon: 'relation c-number', name: translate('commonCalculate'), arrow: true } : null,
 					]
 				},
 			]);
@@ -341,7 +349,7 @@ const MenuRelationEdit = observer(class MenuRelationEdit extends React.Component
 							return;
 						};
 
-						const options = Relation.formulaByType(relation.format).filter(it => it.section == item.id);
+						const options = Relation.formulaByType(relation.relationKey, relation.format).filter(it => it.section == item.id);
 
 						S.Menu.closeAll([ 'select2' ], () => {
 							S.Menu.open('select2', {
@@ -508,11 +516,11 @@ const MenuRelationEdit = observer(class MenuRelationEdit extends React.Component
 		e.preventDefault();
 		e.stopPropagation();
 
-		const { param, getId } = this.props;
+		const { id, param, getId } = this.props;
 		const { data } = param;
 		const relation = this.getViewRelation();
 		
-		if (relation) {
+		if (relation || S.Menu.isAnimating(id)) {
 			return;
 		};
 
@@ -536,11 +544,11 @@ const MenuRelationEdit = observer(class MenuRelationEdit extends React.Component
 		e.preventDefault();
 		e.stopPropagation();
 
-		const { param, getSize } = this.props;
+		const { id, param, getSize } = this.props;
 		const { data } = param;
 		const { rootId } = data;
 
-		if (this.isReadonly()) {
+		if (this.isReadonly() || S.Menu.isAnimating(id)) {
 			return;
 		};
 

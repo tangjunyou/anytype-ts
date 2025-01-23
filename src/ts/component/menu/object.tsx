@@ -87,6 +87,7 @@ class MenuObject extends React.Component<I.Menu> {
 	};
 	
 	getSections () {
+		const { config } = S.Common;
 		const { param } = this.props;
 		const { data } = param;
 		const { blockId, rootId, isFilePreview } = data;
@@ -113,16 +114,16 @@ class MenuObject extends React.Component<I.Menu> {
 		let template = null;
 		let setDefaultTemplate = null;
 
-		let pageExport = { id: 'pageExport', icon: 'export', name: translate('menuObjectExport') };
 		let print = { id: 'print', name: translate('menuObjectPrint'), caption: `${cmd} + P` };
 		let linkTo = { id: 'linkTo', icon: 'linkTo', name: translate('commonLinkTo'), arrow: true };
 		let addCollection = { id: 'addCollection', icon: 'collection', name: translate('commonAddToCollection'), arrow: true };
 		let search = { id: 'search', name: translate('menuObjectSearchOnPage'), caption: `${cmd} + F` };
 		let history = { id: 'history', name: translate('commonVersionHistory'), caption: (U.Common.isPlatformMac() ? `${cmd} + Y` : `Ctrl + H`) };
+		let createWidget = { id: 'createWidget', icon: 'createWidget', name: translate('menuObjectCreateWidget') };
 		let pageCopy = { id: 'pageCopy', icon: 'copy', name: translate('commonDuplicate') };
 		let pageLink = { id: 'pageLink', icon: 'link', name: translate('commonCopyLink') };
 		let pageReload = { id: 'pageReload', icon: 'reload', name: translate('menuObjectReloadFromSource') };
-		let createWidget = { id: 'createWidget', icon: 'createWidget', name: translate('menuObjectCreateWidget') };
+		let pageExport = { id: 'pageExport', icon: 'export', name: translate('menuObjectExport') };
 		let downloadFile = { id: 'downloadFile', icon: 'download', name: translate('commonDownload') };
 		let openFile = { id: 'openFile', icon: 'expand', name: translate('menuObjectDownloadOpen') };
 		let openObject = { id: 'openAsObject', icon: 'expand', name: translate('commonOpenObject') };
@@ -176,7 +177,7 @@ class MenuObject extends React.Component<I.Menu> {
 		const allowedSearch = !isFilePreview && !isInSetLayouts;
 		const allowedHistory = !object.isArchived && !isInFileOrSystemLayouts && !isParticipant && !isDate && !object.templateIsBundled;
 		const allowedFav = canWrite && !object.isArchived && !object.templateIsBundled;
-		const allowedLock = canWrite && !object.isArchived && S.Block.checkFlags(rootId, rootId, [ I.RestrictionObject.Details ]);
+		const allowedLock = canWrite && !object.isArchived && S.Block.checkFlags(rootId, rootId, [ I.RestrictionObject.Details ]) && !isInFileOrSystemLayouts;
 		const allowedLinkTo = canWrite && !object.isArchived;
 		const allowedAddCollection = canWrite && !object.isArchived;
 		const allowedPageLink = !object.isArchived;
@@ -381,6 +382,7 @@ class MenuObject extends React.Component<I.Menu> {
 		const block = S.Block.getLeaf(rootId, blockId);
 		const object = this.getObject();
 		const route = analytics.route.menuObject;
+		const space = U.Space.getSpaceview();
 		
 		if (item.arrow) {
 			return;
@@ -442,7 +444,7 @@ class MenuObject extends React.Component<I.Menu> {
 				S.Popup.open('export', { data: { objectIds: [ rootId ], allowHtml: true, route } });
 				break;
 			};
-				
+
 			case 'pageArchive': {
 				Action.archive([ object.id ], route, () => {
 					if (onArchive) {
@@ -486,8 +488,24 @@ class MenuObject extends React.Component<I.Menu> {
 			};
 
 			case 'pageLink': {
-				U.Common.copyToast(translate('commonLink'), `${J.Constant.protocol}://${U.Object.universalRoute(object)}`);
-				analytics.event('CopyLink', { route });
+				const link = `${J.Constant.protocol}://${U.Object.universalRoute(object)}`;
+				const cb = (link: string) => {
+					U.Common.copyToast(translate('commonLink'), link);
+					analytics.event('CopyLink', { route });
+				};
+
+				if (space.isShared) {
+					U.Space.getInvite(S.Common.space, (cid: string, key: string) => {
+						if (cid && key) {
+							cb(link + `&cid=${cid}&key=${key}`);
+						} else {
+							cb(link);
+						};
+					});
+				} else {
+					cb(link);
+				};
+
 				break;
 			};
 

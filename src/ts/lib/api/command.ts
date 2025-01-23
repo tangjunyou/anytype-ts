@@ -4,7 +4,7 @@ import { I, S, U, J, Mark, Storage, dispatcher, Encode, Mapper, keyboard } from 
 
 const { Rpc, Empty } = Commands;
 
-export const InitialSetParameters = (platform: I.Platform, version: string, workDir: string, logLevel: string, doNotSendLogs: boolean, callBack?: (message: any) => void) => {
+export const InitialSetParameters = (platform: I.Platform, version: string, workDir: string, logLevel: string, doNotSendLogs: boolean, doNotSaveLogs: boolean, callBack?: (message: any) => void) => {
 	const request = new Rpc.Initial.SetParameters.Request();
 
 	request.setPlatform(platform);
@@ -12,6 +12,7 @@ export const InitialSetParameters = (platform: I.Platform, version: string, work
 	request.setWorkdir(workDir);
 	request.setLoglevel(logLevel);
 	request.setDonotsendlogs(doNotSendLogs);
+	request.setDonotsavelogs(doNotSaveLogs);
 
 	dispatcher.request(InitialSetParameters.name, request, callBack);
 };
@@ -192,6 +193,23 @@ export const AccountSelect = (id: string, path: string, mode: I.NetworkMode, net
 	request.setNetworkcustomconfigfilepath(networkConfigPath);
 
 	dispatcher.request(AccountSelect.name, request, callBack);
+};
+
+export const AccountMigrate = (id: string, path: string, callBack?: (message: any) => void) => {
+	const request = new Rpc.Account.Migrate.Request();
+
+	request.setId(id);
+	request.setRootpath(path);
+
+	dispatcher.request(AccountMigrate.name, request, callBack);
+};
+
+export const AccountMigrateCancel = (id: string, callBack?: (message: any) => void) => {
+	const request = new Rpc.Account.MigrateCancel.Request();
+
+	request.setId(id);
+
+	dispatcher.request(AccountMigrateCancel.name, request, callBack);
 };
 
 export const AccountStop = (removeData: boolean, callBack?: (message: any) => void) => {
@@ -1363,6 +1381,19 @@ export const ObjectShow = (objectId: string, traceId: string, spaceId: string, c
 	});
 };
 
+export const PublishingCreate = (spaceId: string, objectId: string, uri: string,  callBack?: (message: any) => void) => {
+	/*
+	const request = new Rpc.Publishing.Create.Request();
+
+	request.setObjectid(objectId);
+	request.setSpaceid(spaceId);
+	request.setUri(uri);
+
+	dispatcher.request(PublishingCreate.name, request, callBack);
+	*/
+};
+
+
 export const ObjectClose = (objectId: string, spaceId: string, callBack?: (message: any) => void) => {
 	const request = new Rpc.Object.Close.Request();
 
@@ -1883,11 +1914,12 @@ export const UnsplashDownload = (spaceId: string, id: string, callBack?: (messag
 
 // ---------------------- DEBUG ---------------------- //
 
-export const DebugTree = (objectId: string, path: string, callBack?: (message: any) => void) => {
+export const DebugTree = (objectId: string, path: string, unanonymized: boolean, callBack?: (message: any) => void) => {
 	const request = new Rpc.Debug.Tree.Request();
 
 	request.setTreeid(objectId);
 	request.setPath(path);
+	request.setUnanonymized(unanonymized);
 
 	dispatcher.request(DebugTree.name, request, callBack);
 };
@@ -1930,6 +1962,14 @@ export const DebugNetCheck = (config: string, callBack?: (message: any) => void)
 
 	dispatcher.request(DebugNetCheck.name, request, callBack);
 };
+
+export const DebugExportLog = (path: string, callBack?: (message: any) => void) => {
+	const request = new Rpc.Debug.ExportLog.Request();
+
+	request.setDir(path);
+
+	dispatcher.request(DebugExportLog.name, request, callBack);
+}
 
 // ---------------------- NOTIFICATION ---------------------- //
 
@@ -2208,11 +2248,12 @@ export const ChatDeleteMessage = (objectId: string, messageId: string, callBack?
 
 };
 
-export const ChatGetMessages = (objectId: string, beforeOrderId: string, limit: number, callBack?: (message: any) => void) => {
+export const ChatGetMessages = (objectId: string, beforeOrderId: string, afterOrderId: string, limit: number, callBack?: (message: any) => void) => {
 	const request = new Rpc.Chat.GetMessages.Request();
 
 	request.setChatobjectid(objectId);
 	request.setBeforeorderid(beforeOrderId);
+	request.setAfterorderid(afterOrderId);
 	request.setLimit(limit);
 
 	dispatcher.request(ChatGetMessages.name, request, callBack);

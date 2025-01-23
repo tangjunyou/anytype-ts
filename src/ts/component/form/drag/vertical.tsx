@@ -1,4 +1,5 @@
-import React, { useRef, useImperativeHandle, forwardRef, ChangeEvent, MouseEvent } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef, ChangeEvent, MouseEvent, useEffect } from 'react';
+import $ from 'jquery';
 import { Input } from 'Component';
 
 interface Props {
@@ -13,30 +14,52 @@ interface Props {
 	onMouseEnter? (e: MouseEvent): void;
 };
 
-const DragVertical = forwardRef<HTMLDivElement, Props>(({
+interface DragVerticalRefProps {
+	getValue: () => number;
+	setValue: (v: number) => void;
+};
+
+const DragVertical = forwardRef<DragVerticalRefProps, Props>(({
 	id,
 	className = '',
-	value,
+	value: initialValue = 0,
 	min = 0,
 	max = 1,
 	step = 0.01,
 	onChange,
 	onMouseLeave,
 	onMouseEnter,
-}, forwardedRef) => {
+}, ref) => {
 	const inputRef = useRef(null);
+	const trackRef = useRef(null);
 	const divRef = useRef(null);
 
-	useImperativeHandle(forwardedRef, () => divRef.current);
+	const setHeight = (v: number) => {
+		$(trackRef.current).css({ height: `${Math.round(v * 72)}px` });
+	};
 
 	const handleChange = (e: ChangeEvent<HTMLInputElement>, value: string) => {
+		const v = 1 - Number(value) || 0;
+
 		e.preventDefault();
 		e.stopPropagation();
 
+		setHeight(v);
+
 		if (onChange) {
-			onChange(e, 1 - Number(value) || 0);
+			onChange(e, v);
 		};
 	};
+
+	useImperativeHandle(ref, () => ({
+		getValue: () => inputRef.current?.getValue(),
+		setValue: (v: number) => inputRef.current?.setValue(v),
+	}));
+
+	useEffect(() => {
+		setHeight(initialValue);
+		inputRef.current.setValue(initialValue);
+	}, []);
 
 	return (
 		<div 
@@ -50,7 +73,7 @@ const DragVertical = forwardRef<HTMLDivElement, Props>(({
 				type="range"
 				className="vertical-range"
 				ref={inputRef}
-				value={String(value)}
+				value={String(initialValue)}
 				min={min}
 				max={max}
 				step={step}
@@ -61,7 +84,10 @@ const DragVertical = forwardRef<HTMLDivElement, Props>(({
 				}}
 			/>
 			<div className="slider-bg" />
-			<div className="slider-track" style={{ height: `${Math.round(value * 72)}px` }} />
+			<div 
+				ref={trackRef} 
+				className="slider-track" 
+			/>
 		</div>
 	);
 });

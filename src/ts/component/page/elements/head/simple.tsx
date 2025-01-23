@@ -9,7 +9,9 @@ interface Props {
 	isContextMenuDisabled?: boolean;
 	readonly?: boolean;
 	noIcon?: boolean;
+	relationKey?: string;
 	onCreate?: () => void;
+	getDotMap?: (start: number, end: number, callback: (res: Map<string, boolean>) => void) => void;
 };
 
 const EDITORS = [ 
@@ -114,6 +116,10 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 
 				button = <Button id="button-install" text={translate('pageHeadSimpleInstall')} color={color} className={cn.join(' ')} onClick={onClick} />;
 			};
+
+			if (!canWrite) {
+				button = null;
+			};
 		};
 
 		if (isDate) {
@@ -124,10 +130,6 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 					<Icon id="calendar-icon" className="calendar withBackground" onClick={this.onCalendar} />
 				</React.Fragment>
 			);
-		};
-
-		if (!canWrite) {
-			button = null;
 		};
 
 		return (
@@ -286,25 +288,25 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 		const { rootId } = this.props;
 		const object = S.Detail.get(rootId, rootId);
 
-		let sources: string[] = [];
+		let sources: any[] = [];
 
 		switch (object.layout) {
 			case I.ObjectLayout.Type: {
-				sources = S.Record.getTypes().map(it => it.sourceObject);
+				sources = S.Record.getTypes();
 				break;
 			};
 
 			case I.ObjectLayout.Relation: {
-				sources = S.Record.getRelations().map(it => it.sourceObject);
+				sources = S.Record.getRelations();
 				break;
 			};
 		};
 
-		return sources.includes(rootId);
+		return sources.map(it => it.sourceObject).includes(rootId);
 	};
 
 	onCalendar = () => {
-		const { rootId } = this.props;
+		const { rootId, getDotMap, relationKey } = this.props;
 		const object = S.Detail.get(rootId, rootId);
 
 		S.Menu.open('dataviewCalendar', {
@@ -314,7 +316,9 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 				value: object.timestamp,
 				canEdit: true,
 				canClear: false,
-				onChange: (value: number) => U.Object.openDateByTimestamp(value),
+				relationKey,
+				onChange: (value: number) => U.Object.openDateByTimestamp(relationKey, value),
+				getDotMap,
 			},
 		});
 
@@ -322,10 +326,10 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 	};
 
 	changeDate = (dir: number) => {
-		const { rootId } = this.props;
+		const { rootId, relationKey } = this.props;
 		const object = S.Detail.get(rootId, rootId);
 
-		U.Object.openDateByTimestamp(object.timestamp + dir * 86400);
+		U.Object.openDateByTimestamp(relationKey, object.timestamp + dir * 86400);
 		analytics.event(dir > 0 ? 'ClickDateForward' : 'ClickDateBack');
 	};
 

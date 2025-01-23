@@ -174,8 +174,10 @@ class Action {
 		const storageKey = 'openUrl';
 		const scheme = U.Common.getScheme(url);
 		const cb = () => Renderer.send('openUrl', url);
+		const allowedSchemes = J.Constant.allowedSchemes.concat(J.Constant.protocol);
+		const isAllowed = scheme.match(new RegExp(`^(${allowedSchemes.join('|')})$`));
 
-		if (!Storage.get(storageKey) && !scheme.match(new RegExp(`^(${J.Constant.allowedSchemes.join('|')})$`))) {
+		if (!Storage.get(storageKey) && !isAllowed) {
 			S.Popup.open('confirm', {
 				data: {
 					icon: 'confirm',
@@ -477,6 +479,8 @@ class Action {
 	};
 
 	restore (ids: string[], route: string, callBack?: () => void) {
+		ids = ids || [];
+
 		C.ObjectListSetIsArchived(ids, false, (message: any) => {
 			if (message.error.code) {
 				return;
@@ -653,24 +657,16 @@ class Action {
 				onConfirm: () => {
 					analytics.event(`Click${suffix}SpaceWarning`, { type: suffix, route });
 
-					const cb = () => {
-						C.SpaceDelete(id, (message: any) => {
-							if (callBack) {
-								callBack(message);
-							};
+					C.SpaceDelete(id, (message: any) => {
+						if (callBack) {
+							callBack(message);
+						};
 
-							if (!message.error.code) {
-								Preview.toastShow({ text: toast });
-								analytics.event(`${suffix}Space`, { type: deleted.spaceAccessType, route });
-							};
-						});
-					};
-
-					if (space == id) {
-						U.Space.openFirstSpaceOrVoid(it => it.targetSpaceId != id, { replace: true, onRouteChange: cb });
-					} else {
-						cb();
-					};
+						if (!message.error.code) {
+							Preview.toastShow({ text: toast });
+							analytics.event(`${suffix}Space`, { type: deleted.spaceAccessType, route });
+						};
+					});
 				},
 				onCancel: () => {
 					analytics.event(`Click${suffix}SpaceWarning`, { type: 'Cancel', route });
@@ -787,13 +783,20 @@ class Action {
 				text: translate('popupConfirmRevokeLinkText'),
 				textConfirm: translate('popupConfirmRevokeLinkConfirm'),
 				colorConfirm: 'red',
+				noCloseOnConfirm: true,
 				onConfirm: () => {
-					C.SpaceInviteRevoke(spaceId, () => {
+					C.SpaceInviteRevoke(spaceId, (message: any) => {
+						if (message.error.code) {
+							S.Popup.updateData('confirm', { error: message.error.description });
+							return;
+						};
+
 						if (callBack) {
 							callBack();
 						};
 
 						Preview.toastShow({ text: translate('toastInviteRevoke') });
+						S.Popup.close('confirm');
 						analytics.event('RevokeShareLink');
 					});
 				},
@@ -822,6 +825,21 @@ class Action {
 		analytics.event('ThemeSet', { id });
 	};
 
+	publish (objectId: string, url: string, callBack?: (message: any) => void) {
+		if (!url) {
+			return;
+		};
+
+		C.PublishingCreate(S.Common.space, objectId, url, (message: any) => {
+			if (!message.error.code) {
+				this.openUrl(message.url);
+			};
+
+			if (callBack) {
+				callBack(message);
+			};
+		});
+	};
 };
 
 export default new Action();
