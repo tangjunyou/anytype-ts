@@ -48,8 +48,9 @@ REPO="anyproto/anytype-heart"
 ARCHIVE_SUFFIX="tar.gz"
 GITHUB="api.github.com"
 if [[ "$OS" =~ ^ubuntu-.*$ ]]; then
-    OS_ARCH="linux-amd64"
-    FOLDER="linux-amd"
+    [[ -z "$ARCH" ]] && do_usage # required for this os
+    OS_ARCH="linux-${ARCH}64"
+    FOLDER="linux-${ARCH}"
 elif [[ "$OS" =~ ^macos-.*$ ]]; then
     [[ -z "$ARCH" ]] && do_usage # required for this os
     OS_ARCH="darwin-${ARCH}64"
