@@ -47,14 +47,14 @@ fi
 REPO="anyproto/anytype-heart"
 ARCHIVE_SUFFIX="tar.gz"
 GITHUB="api.github.com"
-if [[ "$OS" == "ubuntu-*" ]]; then
+if [[ "$OS" =~ ^ubuntu-.*$ ]]; then
     OS_ARCH="linux-amd64"
     FOLDER="linux-amd"
-elif [[ "$OS" == "macos-*" ]]; then
+elif [[ "$OS" =~ ^macos-.*$ ]]; then
     [[ -z "$ARCH" ]] && do_usage # required for this os
     OS_ARCH="darwin-${ARCH}64"
     FOLDER="darwin-${ARCH}"
-elif [[ "$OS" == "windows-*" ]]; then
+elif [[ "$OS" =~ ^windows-.*$ ]]; then
     OS_ARCH="windows-amd64"
     FOLDER="dist"
     ARCHIVE_SUFFIX="zip"
