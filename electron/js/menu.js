@@ -1,9 +1,9 @@
 const { app, shell, Menu, Tray } = require('electron');
 const { is } = require('electron-util');
+const fs = require('fs');
 const path = require('path');
 const ConfigManager = require('./config.js');
 const Util = require('./util.js');
-
 const Separator = { type: 'separator' };
 
 class MenuManager {
@@ -21,6 +21,7 @@ class MenuManager {
 		const Api = require('./api.js');
 		const WindowManager = require('./window.js');
 		const UpdateManager = require('./update.js');
+		const isAllowedUpdate = UpdateManager.isAllowed();
 
 		config.debug = config.debug || {};
 		config.flagsMw = config.flagsMw || {};
@@ -37,9 +38,8 @@ class MenuManager {
 					{ role: 'hideothers', label: Util.translate('electronMenuHideOthers') },
 					{ role: 'unhide', label: Util.translate('electronMenuUnhide') },
 
-					Separator,
-
-					{ label: Util.translate('electronMenuCheckUpdates'), click: () => Api.updateCheck(this.win) },
+					{ type: 'separator', visible: isAllowedUpdate },
+					{ label: Util.translate('electronMenuCheckUpdates'), click: () => Api.updateCheck(this.win), visible: isAllowedUpdate },
 
 					Separator,
 
@@ -58,19 +58,43 @@ class MenuManager {
 
 					Separator,
 
-					{ label: Util.translate('electronMenuImport'), click: () => this.openSettings('importIndex', { data: { isSpace: true }, className: 'isSpace' }) },
-					{ label: Util.translate('electronMenuExport'), click: () => this.openSettings('exportIndex', { data: { isSpace: true }, className: 'isSpace' }) },
+					{ label: Util.translate('electronMenuImport'), click: () => this.openSettings('importIndex') },
+					{ label: Util.translate('electronMenuExport'), click: () => this.openSettings('exportIndex') },
 					{ label: Util.translate('electronMenuSaveAs'), click: () => Util.send(this.win, 'commandGlobal', 'save') },
 
 					Separator,
 
 					{ 
-						label: Util.translate('electronMenuDirectory'), submenu: [
+						label: Util.translate('electronMenuOpen'), submenu: [
 							{ label: Util.translate('electronMenuWorkDirectory'), click: () => shell.openPath(Util.userPath()) },
 							{ label: Util.translate('electronMenuDataDirectory'), click: () => shell.openPath(Util.dataPath()) },
 							{ label: Util.translate('electronMenuConfigDirectory'), click: () => shell.openPath(Util.defaultUserDataPath()) },
 							{ label: Util.translate('electronMenuLogsDirectory'), click: () => shell.openPath(Util.logPath()) },
+							{ 
+								label: Util.translate('electronMenuCustomCss'),
+								click: () => {
+									const fp = path.join(Util.userPath(), 'custom.css');
+
+									if (!fs.existsSync(fp)) {
+										fs.writeFileSync(fp, '');
+									};
+
+									shell.openPath(fp);
+								},
+							},
 						] 
+					},
+
+					Separator,
+
+					{ 
+						label: Util.translate('electronMenuApplyCustomCss'), type: 'checkbox', checked: !config.disableCss,
+						click: () => {
+							config.disableCss = !config.disableCss;
+							Api.setConfig(this.win, { disableCss: config.disableCss }, () => {
+								WindowManager.reloadAll();
+							});
+						},
 					},
 
 					Separator,
@@ -107,7 +131,11 @@ class MenuManager {
 					{ label: Util.translate('electronMenuPaste'), role: 'paste' },
 					{ 
 						label: Util.translate('electronMenuPastePlain'), accelerator: 'CmdOrCtrl+Shift+V',
-						click: () => Util.send(this.win, 'commandEditor', 'pastePlain'),
+						click: () => {
+							if (is.macos) {
+								Util.send(this.win, 'commandEditor', 'pastePlain');
+							};
+						},
 					},
 
 					Separator,
@@ -140,7 +168,7 @@ class MenuManager {
 					{ label: Util.translate('electronMenuZoomOut'), accelerator: 'CmdOrCtrl+-', click: () => Api.setZoom(this.win, this.win.webContents.getZoomLevel() - 1) },
 					{ label: Util.translate('electronMenuZoomDefault'), accelerator: 'CmdOrCtrl+0', click: () => Api.setZoom(this.win, 0) },
 					{
-						label: Util.translate('electronMenuFullscreen'), accelerator: (is.macos ? 'Cmd+Ctrl+F' : 'Ctrl+Alt+F'), type: 'checkbox', checked: this.win.isFullScreen(),
+						label: Util.translate('electronMenuFullscreen'), accelerator: 'CmdOrCtrl+Shift+F', type: 'checkbox', checked: this.win.isFullScreen(),
 						click: () => this.win.setFullScreen(!this.win.isFullScreen())
 					},
 					{ label: Util.translate('electronMenuReload'), accelerator: 'CmdOrCtrl+R', click: () => this.win.reload() }
@@ -151,11 +179,11 @@ class MenuManager {
 				submenu: [
 					{
 						label: `${Util.translate('electronMenuReleaseNotes')} (${app.getVersion()})`,
-						click: () => Util.send(this.win, 'popup', 'help', { preventResize: true, data: { document: 'whatsNew' } })
+						click: () => Util.send(this.win, 'popup', 'help', { data: { document: 'whatsNew' } })
 					},
 					{
 						label: Util.translate('electronMenuShortcuts'), accelerator: 'Ctrl+Space',
-						click: () => Util.send(this.win, 'popup', 'shortcut', { preventResize: true })
+						click: () => Util.send(this.win, 'commandGlobal', 'shortcut')
 					},
 
 					Separator,
@@ -200,7 +228,7 @@ class MenuManager {
 					config.debug[i] = !config.debug[i];
 					Api.setConfig(this.win, { debug: config.debug });
 					
-					if ([ 'ho' ].includes(i)) {
+					if ([ 'hiddenObject' ].includes(i)) {
 						this.win.reload();
 					};
 				}
@@ -235,6 +263,9 @@ class MenuManager {
 				{ label: Util.translate('electronMenuDebugProcess'), click: () => Util.send(this.win, 'commandGlobal', 'debugProcess') },
 				{ label: Util.translate('electronMenuDebugStat'), click: () => Util.send(this.win, 'commandGlobal', 'debugStat') },
 				{ label: Util.translate('electronMenuDebugReconcile'), click: () => Util.send(this.win, 'commandGlobal', 'debugReconcile') },
+				{ label: Util.translate('electronMenuDebugNet'), click: () => Util.send(this.win, 'commandGlobal', 'debugNet') },
+				{ label: Util.translate('electronMenuDebugLog'), click: () => Util.send(this.win, 'commandGlobal', 'debugLog') },
+				{ label: Util.translate('electronMenuDebugProfiler'), click: () => Util.send(this.win, 'commandGlobal', 'debugProfiler') },
 
 				Separator,
 
@@ -245,8 +276,7 @@ class MenuManager {
 		const channels = ConfigManager.getChannels().map(it => {
 			it.click = () => { 
 				if (!UpdateManager.isUpdating) {
-					UpdateManager.setChannel(it.id); 
-					Api.setConfig(this.win, { channel: it.id });
+					Util.send(this.win, 'commandGlobal', 'releaseChannel', it.id);
 				};
 			};
 			return it;
@@ -305,7 +335,10 @@ class MenuManager {
 
 	initTray () {
 		const { config } = ConfigManager;
+		const WindowManager = require('./window.js');
 		const Api = require('./api.js');
+		const UpdateManager = require('./update.js');
+		const isAllowedUpdate = UpdateManager.isAllowed();
 
 		this.destroy();
 
@@ -313,14 +346,20 @@ class MenuManager {
 			return;
 		};
 
-		this.tray = new Tray (this.getTrayIcon());
+		const icon = this.getTrayIcon();
+
+		this.tray = new Tray (icon);
 		this.tray.setToolTip('Anytype');
 		this.tray.setContextMenu(Menu.buildFromTemplate([
-			{ label: Util.translate('electronMenuOpen'), click: () => this.winShow() },
+			{ label: Util.translate('electronMenuOpenApp'), click: () => this.winShow() },
 
 			Separator,
 
-			{ label: Util.translate('electronMenuCheckUpdates'), click: () => { this.winShow(); Api.updateCheck(this.win); } },
+			{ label: Util.translate('electronMenuNewWindow'), accelerator: 'CmdOrCtrl+Shift+N', click: () => WindowManager.createMain({ isChild: true }) },
+
+			Separator,
+
+			{ label: Util.translate('electronMenuCheckUpdates'), click: () => { this.winShow(); Api.updateCheck(this.win); }, visible: isAllowedUpdate },
 			{ label: Util.translate('commonSettings'), submenu: this.menuSettings() },
 			
 			Separator,
@@ -374,7 +413,7 @@ class MenuManager {
 			{ 
 				label: Util.translate('electronMenuSpaceSettings'), click: () => { 
 					this.winShow(); 
-					this.openSettings('spaceIndex', { data: { isSpace: true }, className: 'isSpace' }); 
+					this.openSettings('spaceIndex');
 				}
 			},
 
@@ -383,13 +422,13 @@ class MenuManager {
 			{ 
 				label: Util.translate('electronMenuImport'), click: () => { 
 					this.winShow(); 
-					this.openSettings('importIndex', { data: { isSpace: true }, className: 'isSpace' }); 
+					this.openSettings('importIndex');
 				} 
 			},
 			{ 
 				label: Util.translate('electronMenuExport'), click: () => { 
 					this.winShow(); 
-					this.openSettings('exportIndex', { data: { isSpace: true }, className: 'isSpace' }); 
+					this.openSettings('exportIndex');
 				} 
 			},
 
@@ -404,11 +443,13 @@ class MenuManager {
 				} 
 			},
 
-			(is.windows || is.linux) ? { 
-				label: Util.translate('electronMenuShowMenu'), type: 'checkbox', checked: !config.hideMenuBar, click: () => { 
-					Api.setMenuBarVisibility(this.win, !config.hideMenuBar);
+			(is.windows || is.linux || is.macos) ? {
+				label: Util.translate('electronMenuShowMenu'), type: 'checkbox', checked: config.showMenuBar, click: () => {
+					const { config } = ConfigManager;
+
+					Api.setMenuBarVisibility(this.win, !config.showMenuBar);
 					this.initTray();
-				} 
+				}
 			} : null,
 
 			Separator,
@@ -422,37 +463,47 @@ class MenuManager {
 		].filter(it => it);
 	};
 
-	openSettings (page, param) {
-		param = param || {};
-		param.data = param.data || {};
-
+	openSettings (page) {
 		const Api = require('./api.js');
 
 		if (Api.isPinChecked) {
-			const popupParam = Object.assign({}, param);
-			popupParam.data = Object.assign({ page }, param.data);
-
-			Util.send(this.win, 'popup', 'settings', popupParam, true); 
+			Util.send(this.win, 'route', '/main/settings/' + page);
 		};
 	};
 
 	updateTrayIcon () {
 		if (this.tray && this.tray.setImage) {
-			this.tray.setImage(this.getTrayIcon());
+			const icon = this.getTrayIcon();
+			if (icon) {
+				this.tray.setImage(icon);
+			};
 		};
 	};
 
 	getTrayIcon () {
 		let icon = '';
+
 		if (is.windows) {
 			icon = 'icon32x32.png';
 		} else 
 		if (is.linux) {
-			icon = 'iconTrayWhite.png';
-		} else {
+			const env = process.env.ORIGINAL_XDG_CURRENT_DESKTOP;
+			const panelAlwaysDark = env.includes('GNOME') || (env == 'Unity'); // for GNOME shell env, including ubuntu -- the panel is always dark
+
+            if (panelAlwaysDark) {
+                icon = 'iconTrayWhite.png';
+            } else 
+			if (Util.getTheme() == 'dark') {
+                icon = 'iconTrayWhite.png';
+            } else {
+                icon = 'iconTrayBlack.png';
+            };
+		} else 
+		if (is.macos) {
 			icon = `iconTrayTemplate.png`;
 		};
-		return path.join(Util.imagePath(), icon);
+
+		return icon ? path.join(Util.imagePath(), icon) : '';
 	};
 
 	destroy () {

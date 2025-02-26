@@ -1,8 +1,14 @@
 import $ from 'jquery';
+import raf from 'raf';
 import DOMPurify from 'dompurify';
-import { I, C, S, J, U, Preview, Renderer, translate, Mark, Action } from 'Lib';
+import slugify from '@sindresorhus/slugify';
+import { I, C, S, J, U, Preview, Renderer, translate, Mark, Action, sidebar } from 'Lib';
+
+const katex = require('katex');
+require('katex/dist/contrib/mhchem');
 
 const TEST_HTML = /<[^>]*>/;
+const iconCache: Map<string, string> = new Map();
 
 class UtilCommon {
 
@@ -414,12 +420,12 @@ class UtilCommon {
 	};
 
 	mapToObject (list: any[], field: string) {
-        const obj: any = {};
-        for (let i = 0; i < list.length; i++) {
-            obj[list[i][field]] = list[i];
-        };
-        return obj;
-    };
+		const obj: any = {};
+		for (let i = 0; i < list.length; i++) {
+			obj[list[i][field]] = list[i];
+		};
+		return obj;
+	};
 	
 	unmap (map: any) {
 		let ret: any[] = [] as any[];
@@ -441,7 +447,7 @@ class UtilCommon {
 
 		const scheme = this.getScheme(url);
 		if (!scheme) {
-			url = 'http://' + url;
+			url = `http://${url}`;
 		};
 
 		return url;
@@ -454,18 +460,11 @@ class UtilCommon {
 		links.on('auxclick', e => e.preventDefault());
 		links.click((e: any) => {
 			const el = $(e.currentTarget);
+			const href = el.attr('href') || el.attr('xlink:href');
 
 			e.preventDefault();
-			el.hasClass('path') ? this.onPath(el.attr('href')) : this.onUrl(el.attr('href'));
+			el.hasClass('path') ? Action.openPath(href) : Action.openUrl(href);
 		});
-	};
-	
-	onUrl (url: string) {
-		Action.openUrl(url);
-	};
-
-	onPath (path: string) {
-		Renderer.send('openPath', path);
 	};
 	
 	checkEmail (v: string) {
@@ -585,13 +584,13 @@ class UtilCommon {
 					text: translate('popupConfirmObjectOpenErrorText'),
 					textConfirm: translate('popupConfirmObjectOpenErrorButton'),
 					onConfirm: () => {
-						C.DebugTree(rootId, logPath, (message: any) => {
+						C.DebugTree(rootId, logPath, false, (message: any) => {
 							if (!message.error.code) {
-								Renderer.send('openPath', logPath);
+								Action.openPath(logPath);
 							};
 						});
 
-						U.Space.openDashboard('route', { replace: true });
+						U.Space.openDashboard({ replace: true });
 					}
 				},
 			});
@@ -628,15 +627,19 @@ class UtilCommon {
 				textConfirm: translate('commonDone'),
 				textCancel: translate('popupInviteInviteConfirmCancel'),
 				onCancel: () => {
-					window.setTimeout(() => { S.Popup.open('settings', { data: { page: 'spaceList' } }); }, S.Popup.getTimeout());
+					U.Object.openAuto({ id: 'spaceList', layout: I.ObjectLayout.Settings });
 				},
 			},
 		});
 	};
 
-	getScheme (url: string): string {
-		url = String(url || '');
-		return url.indexOf('://') >= 0 ? String(url.split('://')[0] || '') : '';
+	getScheme(url: string): string {
+		try {
+			const u = new URL(String(url || ''));
+			return u.protocol.replace(/:$/, '');
+		} catch {
+			return '';
+		}
 	};
 
 	intercept (obj: any, change: any) {
@@ -647,35 +650,44 @@ class UtilCommon {
 		return (isPopup ? $('#popupPage-innerWrap') : $(window)) as JQuery<HTMLElement>;
 	};
 
+	getPageFlexContainer (isPopup: boolean) {
+		return $(`#pageFlex.${isPopup ? 'isPopup' : 'isFull'}`);
+	};
+
 	getPageContainer (isPopup: boolean) {
-		return $(isPopup ? '#popupPage-innerWrap' : '#page.isFull');
+		return $(`#page.${isPopup ? 'isPopup' : 'isFull'}`);
 	};
 
 	getCellContainer (type: string) {
 		switch (type) {
 			default:
 			case 'page':
-				return '#page.isFull';
+				return '#pageFlex.isFull';
 
 			case 'popup':
-				return '#popupPage-innerWrap';
+				return '#pageFlex.isPopup';
 
 			case 'menuBlockAdd':
-			case 'menuBlockRelationView':
 				return `#${type}`;
 
 			case 'popupRelation':
 				return `#${type}-innerWrap`;
+
+			case 'sidebarRight':
+				return `#sidebarRight`;
 		};
 	};
 
 	searchParam (url: string): any {
-		const a = url.replace(/^\?/, '').split('&');
+		const a = String(url || '').replace(/^\?/, '').split('&');
 		const param: any = {};
 		
 		a.forEach((s) => {
 			const [ key, value ] = s.split('=');
-			param[key] = decodeURIComponent(value);
+
+			if (key) {
+				param[key] = decodeURIComponent(value);
+			};
 		});
 		return param;
 	};
@@ -705,6 +717,24 @@ class UtilCommon {
 	
 	coordsCollide (x1: number, y1: number, w1: number, h1: number, x2: number, y2: number, w2: number, h2: number) {
 		return !((y1 + h1 < y2) || (y1 > y2 + h2) || (x1 + w1 < x2) || (x1 > x2 + w2));
+	};
+
+	getUrlsFromText (text: string): any[] {
+		const urls = [];
+		const words = text.split(/[\s\r\n]+/);
+
+		let offset = 0;
+
+		for (const word of words) {
+			if (this.matchUrl(word) || this.matchLocalPath(word)) {
+				const from = text.substring(offset).indexOf(word) + offset;
+
+				offset = from + word.length;
+				urls.push({ value: word, from, to: offset, isLocal: !!this.matchLocalPath(word) });
+			};
+		};
+
+		return urls;
 	};
 
 	matchUrl (s: string): string {
@@ -789,8 +819,9 @@ class UtilCommon {
 			return;
 		};
 
-		const ret: any[] = [];
 		let n = 0;
+
+		const ret: any[] = [];
 		const cb = () => {
 			n++;
 			if (n == items.length) {
@@ -800,19 +831,19 @@ class UtilCommon {
 
 		for (const item of items) {
 			if (item.path) {
-				ret.push({ name: item.name, path: item.path });
+				ret.push(item);
 				cb();
 			} else {
 				const reader = new FileReader();
 				reader.onload = () => {
-					ret.push({ 
-						name: item.name, 
+					ret.push({
+						...item,
 						path: this.getElectron().fileWrite(item.name, reader.result, { encoding: 'binary' }),
 					});
 					cb();
 				};
 				reader.onerror = cb;
-				reader.readAsBinaryString(item);
+				reader.readAsBinaryString(item.file ? item.file : item);
 			};
 		};
 	};
@@ -822,7 +853,7 @@ class UtilCommon {
 
 		const ret: any = {};
 		for (const k in data) {
-			ret['data-' + k] = data[k];
+			ret[`data-${k}`] = data[k];
 		};
 		return ret;
 	};
@@ -955,16 +986,189 @@ class UtilCommon {
 		});
 	};
 
-	notification (title: string, text: string) {
-		text = String(text || '');
+	copyCssSingle (src: HTMLElement, dst: HTMLElement) {
+		const styles = document.defaultView.getComputedStyle(src, '');
+		const css: any = {};
+
+		for (let i = 0; i < styles.length; i++) {
+			const name = styles[i];
+			const value = styles.getPropertyValue(name);
+
+			css[name] = value;
+		};
+
+		css.visibility = 'visible';
+		$(dst).css(css);
+	};
+
+	copyCss (src: HTMLElement, dst: HTMLElement) {
+		this.copyCssSingle(src, dst);
+
+		const srcList = src.getElementsByTagName('*');
+		const dstList = dst.getElementsByTagName('*');
+
+		for (let i = 0; i < srcList.length; i++) {
+			const srcElement = srcList[i] as HTMLElement;
+			const dstElement = dstList[i] as HTMLElement;
+
+			this.copyCssSingle(srcElement, dstElement);
+		};
+	};
+
+	notification (param: any, onClick?: () => void) {
+		const title = U.Common.stripTags(String(param.title || ''));
+		const text = U.Common.stripTags(String(param.text || ''));
 
 		if (!text) {
 			return;
 		};
 
 		const electron = this.getElectron();
+		const item = new window.Notification(title, { body: text });
 
-		new window.Notification(U.Common.stripTags(title), { body: U.Common.stripTags(text) }).onclick = () => electron.focus();
+		item.onclick = () => {
+			electron.focus();
+
+			if (onClick) {
+				onClick();
+			};
+		};
+	};
+
+	isAlphaVersion (): boolean {
+		return !!this.getElectron().version.app.match(/alpha/);
+	};
+
+	isBetaVersion (): boolean {
+		return !!this.getElectron().version.app.match(/beta/);
+	};
+
+	checkRtl (s: string): boolean {
+		return /^[\u04c7-\u0591\u05D0-\u05EA\u05F0-\u05F4\u0600-\u06FF]/.test(s);
+	};
+
+	slug (s: string): string {
+		return slugify(String(s || ''));
+	};
+
+	getLatex (html: string): string {
+		if (!/\$[^\$]+\$/.test(html)) {
+			return html;
+		};
+
+		const reg = /(^|[^\d<\$]+)?\$((?:[^$<]|\.)*?)\$([^\d>\$]+|$)/gi;
+		const tag = Mark.getTag(I.MarkType.Latex);
+		const code = Mark.getTag(I.MarkType.Code);
+		const regCode = new RegExp(`^${code}|${code}$`, 'i');
+		const match = html.matchAll(reg);
+		const render = (s: string) => {
+			s = this.fromHtmlSpecialChars(s);
+
+			let ret = s;
+			try {
+				ret = katex.renderToString(s, { 
+					displayMode: false, 
+					throwOnError: false,
+					output: 'html',
+					trust: ctx => [ '\\url', '\\href', '\\includegraphics' ].includes(ctx.command),
+				});
+
+				ret = ret ? ret : s;
+			} catch (e) {};
+			return ret;
+		};
+
+		let text = html;
+
+		if (!match) {
+			return text;
+		};
+
+		match.forEach((m: any) => {
+			const m0 = String(m[0] || '');
+			const m1 = String(m[1] || '');
+			const m2 = String(m[2] || '');
+			const m3 = String(m[3] || '');
+
+			// Skip inline code marks
+			if (regCode.test(m1) || regCode.test(m3)) {
+				return;
+			};
+
+			// Skip Brazilian Real
+			if (!/^\\/.test(m2) && (/R$/.test(m1) || /R$/.test(m2))) {
+				return;
+			};
+
+			// Escaped $ sign
+			if (/\\$/.test(m1) || /\\$/.test(m2)) {
+				return;
+			};
+
+			text = text.replace(m0, `${m1}<${tag}>${render(m2)}</${tag}>${m3}`);
+		});
+
+		return text;
+	};
+
+	toggle (obj: any, delay: number) {
+		const isOpen = obj.hasClass('isOpen');
+
+		if (isOpen) {
+			obj.addClass('anim').removeClass('isOpen').css({ height: 0 });
+			window.setTimeout(() => obj.removeClass('anim'), delay);
+		} else {
+			obj.css({ height: 'auto' });
+
+			const height = obj.outerHeight();
+
+			obj.addClass('anim isOpen').css({ height: 0 });
+
+			raf(() => obj.css({ height }));
+			window.setTimeout(() => obj.removeClass('anim'), delay);
+		};
+	};
+
+	updateSvg (src: string, param: any) {
+		const id = String(param.id || '');
+		const size = Number(param.size) || 0;
+		const fill = String(param.fill || '');
+		const stroke = String(param.stroke || '');
+		const key = [ id, size, fill, stroke ].join('-');
+
+		if (iconCache.has(key)) {
+			return iconCache.get(key);
+		};
+
+		let ret = '';
+		try {
+			const chunk = src.split('base64,')[1];
+			const decoded = atob(chunk).replace(/_COLOR_VAR_/g, fill);
+			const obj = $(decoded);
+			const attr: any = {};
+
+			if (size) {
+				attr.width = size;
+				attr.height = size;
+			};
+
+			if (fill) {
+				attr.fill = fill;
+			};
+
+			if (stroke) {
+				attr.stroke = stroke;
+			};
+
+			if (this.objectLength(attr)) {
+				obj.attr(attr);
+			};
+			
+			ret = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(obj[0].outerHTML)));
+		} catch (e) { /**/ };
+
+		iconCache.set(key, ret);
+		return ret;
 	};
 
 };

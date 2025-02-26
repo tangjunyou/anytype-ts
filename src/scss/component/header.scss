@@ -11,6 +11,9 @@
 	.side.left { padding: 0px 16px; width: 20%; flex-shrink: 0; gap: 0px 8px; }
 	.side.center { width: 60%; flex-grow: 1; justify-content: center; }
 	.side.right { padding: 0px 12px; width: 20%; flex-shrink: 0; justify-content: end; gap: 0px 8px; }
+	.side.right {
+		.button.blank { font-weight: 500; border: 0px; padding: 0px 6px; color: var(--color-text-secondary); flex-shrink: 0; }
+	}
 
 	.path { 
 		width: 66%; display: inline-block; border-radius: 6px; height: 28px; line-height: 26px; transition: $transitionAllCommon;
@@ -50,36 +53,35 @@
 	.headerBanner.withMenu:after { content: ''; position: absolute; right: 10px; top: 12px; width: 8px; height: 8px; background-image: url('~img/arrow/button/black.svg'); }
 	.headerBanner.withMenu.active:after { transform: rotateZ(180deg); }
 
-	.sync { -webkit-app-region: no-drag; flex-shrink: 0; }
 	.icon { -webkit-app-region: no-drag; flex-shrink: 0; }
-
 	.icon.more { background-image: url('~img/icon/header/more.svg'); }
 	.icon.settings { background-image: url('~img/icon/header/settings.svg'); }
 	.icon.expand { display: none; background-image: url('~img/icon/header/expand.svg'); }
 	.icon.relation { background-image: url('~img/icon/header/relation.svg'); }
+	.icon.graph { background-image: url('~img/icon/menu/action/graph0.svg'); }
 }
 
 .header.sidebarAnimation {
 	.side.left { transition: padding-left $transitionSidebarTime linear; }
 }
 
-.header:not(.withSidebar) {
-	.side.left { padding-left: 120px; }
+.header:not(.withSidebarLeft) {
+	.side.left { padding-left: 156px; }
 }
 
 html:not(.platformMac) {
-	.header:not(.withSidebar) {
-		.side.left { padding-left: 52px; }
+	.header:not(.withSidebarLeft) {
+		.side.left { padding-left: 88px; }
 	}
 }
 
 body.isFullScreen {
-	.header:not(.withSidebar) {
-		.side.left { padding-left: 52px; }
+	.header:not(.withSidebarLeft) {
+		.side.left { padding-left: 88px; }
 	}
 }
 
-.header.authIndex { height: 52px; }
+.header.authIndex { height: 52px; width: 100% !important; }
 
 html:not(.bodyIndexIndex):not(.bodyAuthSelect) {
 	.header.authIndex {
@@ -87,7 +89,7 @@ html:not(.bodyIndexIndex):not(.bodyAuthSelect) {
 	}
 }
 
-.header.mainHistory { height: 52px; width: calc(100% - $historyPanelWidth); right: $historyPanelWidth; background: var(--color-bg-primary); }
+.header.mainHistory { height: 52px; width: calc(100% - $sidebarRightWidth); right: $sidebarRightWidth; background: var(--color-bg-primary); }
 .header.mainHistory {
 	.side.center { overflow: hidden; }
 	.side.center {
@@ -122,32 +124,7 @@ html:not(.bodyIndexIndex):not(.bodyAuthSelect) {
 	.icon.btn-settings { background-image: url('~img/icon/dataview/button/settings.svg'); }
 }
 
-.header.mainStore.withBanner { flex-direction: column; height: auto !important; }
-.header.mainStore.withBanner {
-	.sides { display: flex; flex-direction: row; align-items: center; justify-content: stretch; height: 52px; }
-
-	.bannerWrapper { width: 100%; padding: 16px 80px; }
-	.bannerWrapper {
-		.banner { 
-			background-image: linear-gradient(180deg, #fef2c6 0%, #f8f8f8 100%); display: flex; align-items: center;
-			color: var(--color-control-accent); height: 116px; border-radius: 11px; position: relative; justify-content: space-evenly;
-			padding: 0px 116px; overflow: hidden;
-		}
-		.banner {
-			.side { width: calc(50% - 46px); }
-			.side.left { display: flex; flex-direction: column; padding: 0px; align-items: flex-start; justify-content: center; gap: 8px 0px; }
-			.side.right { min-width: 424px; }
-
-			.icon.close { position: absolute; width: 20px; height: 20px; background-image: url('~img/icon/header/banner/close.svg'); right: 10px; top: 10px; }
-			.title { @include text-header3; @include text-overflow-nw; width: 100%; }
-			.pic { 
-				width: 100%; height: 100%; background: url('~img/icon/header/banner/pic.png') no-repeat; background-size: contain; 
-				background-position: bottom right; 
-			}
-			.button { @include text-small; height: 24px; line-height: 24px; }
-		}
-	}
-}
+.header.mainSettings { background: none; }
 
 .popup {
 	.header { position: sticky; padding: 0px; top: 0px !important; }

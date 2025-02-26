@@ -64,13 +64,6 @@ const MenuBlockLink = observer(class MenuBlockLink extends React.Component<I.Men
 
 			if (item.isSection) {
 				content = <div className={[ 'sectionName', (param.index == 0 ? 'first' : '') ].join(' ')} style={param.style}>{item.name}</div>;
-			} else
-			if (item.isDiv) {
-				content = (
-					<div className="separator" style={param.style}>
-						<div className="inner" />
-					</div>
-				);
 			} else {
 				if ([ 'add', 'link' ].indexOf(item.itemId) >= 0) {
 					cn.push(item.itemId);
@@ -96,6 +89,7 @@ const MenuBlockLink = observer(class MenuBlockLink extends React.Component<I.Men
 						description={type ? type.name : undefined}
 						style={param.style}
 						iconSize={40}
+						isDiv={item.isDiv}
 						className={cn.join(' ')}
 					/>
 				);
@@ -286,7 +280,7 @@ const MenuBlockLink = observer(class MenuBlockLink extends React.Component<I.Men
 	};
 	
 	loadMoreRows ({ startIndex, stopIndex }) {
-        return new Promise((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			this.offset += J.Constant.limit.menuRecords;
 			this.load(false, resolve);
 		});
@@ -298,7 +292,7 @@ const MenuBlockLink = observer(class MenuBlockLink extends React.Component<I.Men
 		const { skipIds, filter } = data;
 
 		const filters: any[] = [
-			{ relationKey: 'layout', condition: I.FilterCondition.NotIn, value: U.Object.getSystemLayouts() },
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.NotIn, value: U.Object.getSystemLayouts() },
 		];
 		const sorts = [
 			{ relationKey: 'lastModifiedDate', type: I.SortType.Desc },

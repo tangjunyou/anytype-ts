@@ -5,7 +5,7 @@ import { observer } from 'mobx-react';
 import { observable } from 'mobx';
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import { Icon, Button, Filter } from 'Component';
-import { C, I, S, U, analytics, Relation, keyboard, translate, Dataview, sidebar, J } from 'Lib';
+import { C, I, S, U, M, analytics, Relation, keyboard, translate, Dataview, sidebar, J } from 'Lib';
 import Head from './head';
 
 interface Props extends I.ViewComponent {
@@ -111,7 +111,7 @@ const Controls = observer(class Controls extends React.Component<Props> {
 				{views.map((item: I.View, i: number) => (
 					<ViewItem key={i} {...item} index={i} disabled={readonly} />
 				))}
-				{allowedView ? <Icon id={`button-${block.id}-view-add`} className="plus" tooltip={translate('blockDataviewControlsViewAdd')} onClick={this.onViewAdd} /> : ''}
+				{allowedView ? <Icon id={`button-${block.id}-view-add`} className="plus withBackground" tooltip={translate('blockDataviewControlsViewAdd')} onClick={this.onViewAdd} /> : ''}
 			</div>
 		));
 		
@@ -121,10 +121,9 @@ const Controls = observer(class Controls extends React.Component<Props> {
 				id="dataviewControls"
 				className={cn.join(' ')}
 			>
+				{head}
 				<div className="sides">
 					<div id="dataviewControlsSideLeft" className="side left">
-						{head}
-
 						<div 
 							id="view-selector"
 							className="viewSelect viewItem select"
@@ -154,7 +153,7 @@ const Controls = observer(class Controls extends React.Component<Props> {
 							placeholder={translate('blockDataviewSearch')} 
 							icon="search withBackground"
 							tooltip={translate('commonSearch')}
-							tooltipCaption={`${cmd} + F`}
+							tooltipCaption={keyboard.getCaption('searchText')}
 							onChange={onFilterChange}
 							onIconClick={this.onFilterShow}
 						/>
@@ -199,7 +198,7 @@ const Controls = observer(class Controls extends React.Component<Props> {
 		this._isMounted = false;
 
 		const { isPopup } = this.props;
-		const container = U.Common.getPageContainer(isPopup);
+		const container = U.Common.getPageFlexContainer(isPopup);
 		const win = $(window);
 
 		container.off('mousedown.filter');
@@ -208,7 +207,10 @@ const Controls = observer(class Controls extends React.Component<Props> {
 
 	onViewSwitch (view: any) {
 		this.onViewSet(view);
-		window.setTimeout(() => { $(`#button-${this.props.block.id}-settings`).trigger('click'); }, 50);
+
+		window.setTimeout(() => { 
+			$(`#button-${this.props.block.id}-settings`).trigger('click'); 
+		}, 50);
 	};
 
 	onViewCopy (view) {
@@ -284,9 +286,16 @@ const Controls = observer(class Controls extends React.Component<Props> {
 			horizontal: I.MenuDirection.Center,
 			offsetY: 10,
 			noFlipY: true,
-			onBack: (id) => {
+			onBack: (id: string) => {
+				const menu = S.Menu.get(id);
+
+				if (menu) {
+					const view = U.Common.objectCopy(menu.param.data.view.get());
+					param.data.view = observable.box(new M.View(view));
+				};
+
 				S.Menu.replace(id, component, { ...param, noAnimation: true });
-				window.setTimeout(() => S.Menu.update(component, { noAnimation: false }), 50);
+				window.setTimeout(() => S.Menu.update(component, { noAnimation: false }), J.Constant.delay.menu);
 			},
 			data: {
 				readonly,
@@ -378,12 +387,19 @@ const Controls = observer(class Controls extends React.Component<Props> {
 		const sources = getSources();
 		const object = getTarget();
 		const view = getView();
+		const type = S.Record.getTypeById(object.type);
+		
+		let viewType = I.ViewType.Grid;
+		if (type && (undefined !== type.defaultViewType)) {
+			viewType = type.defaultViewType;
+		};
+
 		const newView = {
 			...view,
 			id: '',
-			name: translate(`viewName${I.ViewType.Grid}`),
-			type: I.ViewType.Grid,
-			groupRelationKey: view.groupRelationKey || Relation.getGroupOption(rootId, block.id, view.type, '')?.id,
+			name: translate(`viewName${viewType}`),
+			type: viewType,
+			groupRelationKey: view.groupRelationKey || Relation.getGroupOption(rootId, block.id, viewType, '')?.id,
 			cardSize: view.cardSize || I.CardSize.Medium,
 			filters: [],
 			sorts: [],
@@ -483,7 +499,7 @@ const Controls = observer(class Controls extends React.Component<Props> {
 		};
 
 		const { isPopup, isInline } = this.props;
-		const container = U.Common.getPageContainer(isPopup);
+		const container = U.Common.getPageFlexContainer(isPopup);
 		const win = $(window);
 
 		this.refFilter.setActive(true);
@@ -526,11 +542,7 @@ const Controls = observer(class Controls extends React.Component<Props> {
 	};
 
 	toggleHoverArea (v: boolean) {
-		const { block } = this.props;
-		const obj = $(`#block-${block.id}`);
-		const hoverArea = obj.find('.hoverArea');
-
-		v ? hoverArea.addClass('active') : hoverArea.removeClass('active');
+		$(`#block-${this.props.block.id} .hoverArea`).toggleClass('active', v);
 	};
 
 	resize () {
@@ -549,11 +561,9 @@ const Controls = observer(class Controls extends React.Component<Props> {
 		const nw = node.outerWidth();
 
 		let add = false;
-		let close = false;
 
-		if (sideLeft.hasClass('small')) {
-			sideLeft.removeClass('small');
-			close = true;
+		if (node.hasClass('small')) {
+			node.removeClass('small');
 		};
 
 		const width = sideLeft.outerWidth() + sideRight.outerWidth();
@@ -567,11 +577,8 @@ const Controls = observer(class Controls extends React.Component<Props> {
 		};
 
 		if (add) {
-			sideLeft.addClass('small');
-			close = true;
-		};
-
-		if (close) {
+			node.addClass('small');
+		} else {
 			S.Menu.closeAll([ 'dataviewViewList' ]);
 		};
 	};

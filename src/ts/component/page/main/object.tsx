@@ -1,19 +1,23 @@
-import * as React from 'react';
+import React, { forwardRef, useEffect } from 'react';
 import { I, C, U } from 'Lib';
 
-class PageMainObject extends React.Component<I.PageComponent> {
+const PageMainObject = forwardRef<{}, I.PageComponent>((props, ref) => {
 
-	render () {
-		return <div />;
-	};
+	const { match } = props;
 
-	componentDidMount (): void {
-		const { match } = this.props;
-		const { id, spaceId } = match.params || {};
+	useEffect(() => {
+		const { id, spaceId, cid, key } = match.params || {};
+		const space = U.Space.getSpaceviewBySpaceId(spaceId);
+
+		// Redirect to invite page when invite parameters are present
+		if ((!space || !space.isAccountActive) && cid && key) {
+			U.Router.go(`/main/invite/?cid=${cid}&key=${key}`, { replace: true });
+			return;
+		};
 
 		C.ObjectShow(id, '', spaceId, (message: any) => {
 			if (message.error.code) {
-				U.Space.openDashboard('route');
+				U.Space.openDashboard();
 				return;
 			};
 
@@ -27,8 +31,11 @@ class PageMainObject extends React.Component<I.PageComponent> {
 
 			U.Object.openRoute(item.details);
 		});
-	};
 
-};
+	}, []);
+
+	return <div />;
+
+});
 
 export default PageMainObject;

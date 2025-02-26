@@ -16,17 +16,25 @@ contextBridge.exposeInMainWorld('Electron', {
 	platform: os.platform(),
 	arch: process.arch,
 
+	storeGet: key => ipcRenderer.sendSync('storeGet', key),
+	storeSet: (key, value) => ipcRenderer.sendSync('storeSet', key, value),
+	storeDelete: key => ipcRenderer.sendSync('storeDelete', key),
+
 	isPackaged: app.isPackaged,
 	userPath: () => app.getPath('userData'),
 	tmpPath,
 	logPath: () => path.join(app.getPath('userData'), 'logs'),
-	filePath: (...args) => path.join(...args),
 	dirName: fp => path.dirname(fp),
+	filePath: (...args) => path.join(...args),
 	fileName: fp => path.basename(fp),
 	fileMime: fp => mime.lookup(fp),
-	fileExt: fp => path.extname(fp),
+	fileExt: fp => path.extname(fp).replace(/^./, ''),
 	fileSize: fp => fs.statSync(fp).size,
-	isDirectory: fp => fs.lstatSync(fp).isDirectory(),
+	isDirectory: fp => {
+		let ret = false;
+		try { ret = fs.lstatSync(fp).isDirectory(); } catch (e) {};
+		return ret;
+	},
 	defaultPath: () => path.join(app.getPath('appData'), app.getName()),
 
 	currentWindow: () => getCurrentWindow(),
@@ -39,7 +47,7 @@ contextBridge.exposeInMainWorld('Electron', {
 	getGlobal: key => getGlobal(key),
 	showOpenDialog: dialog.showOpenDialog,
 
-	webFilePath: file => webUtils.getPathForFile(file),
+	webFilePath: file => webUtils && webUtils.getPathForFile(file),
 
 	fileWrite: (name, data, options) => {
 		name = String(name || 'temp');

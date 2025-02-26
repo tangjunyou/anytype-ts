@@ -19,16 +19,16 @@ interface SpaceStorage {
 class CommonStore {
 
 	public dataPathValue = '';
-    public progressObj: I.Progress = null;
-    public filterObj: Filter = { from: 0, text: '' };
-    public gatewayUrl = '';
+	public progressObj: I.Progress = null;
+	public filterObj: Filter = { from: 0, text: '' };
+	public gatewayUrl = '';
 	public toastObj: I.Toast = null;
-    public configObj: any = {};
-    public cellId = '';
+	public configObj: any = {};
+	public cellId = '';
 	public themeId = '';
 	public nativeThemeIsDark = false;
-	public defaultType = '';
-	public pinTimeId = 0;
+	public defaultType = null;
+	public pinTimeId = null;
 	public emailConfirmationTimeId = 0;
 	public isFullScreen = false;
 	public redirect = '';
@@ -37,13 +37,15 @@ class CommonStore {
 	public notionToken = '';
 	public showRelativeDatesValue = null;
 	public fullscreenObjectValue = null;
-	public navigationMenuValue = null;
 	public linkStyleValue = null;
+	public dateFormatValue = null;
+	public timeFormatValue = null;
 	public isOnlineValue = false;
-	public shareTooltipValue = false;
 	public showVaultValue = null;
+	public showSidebarRightValue = { full: false, popup: false };
 	public hideSidebarValue = null;
-	public showObjectValue = null;
+	public pinValue = null;
+	public firstDayValue = null;
 	public gallery = {
 		categories: [],
 		list: [],
@@ -82,68 +84,75 @@ class CommonStore {
 
 	public membershipTiersList: I.MembershipTier[] = [];
 
-    constructor () {
-        makeObservable(this, {
-            progressObj: observable,
-            filterObj: observable,
-            gatewayUrl: observable,
-            previewObj: observable,
+	constructor () {
+		makeObservable(this, {
+			progressObj: observable,
+			filterObj: observable,
+			gatewayUrl: observable,
+			previewObj: observable,
 			toastObj: observable,
-            configObj: observable,
+			configObj: observable,
 			spaceStorageObj: observable,
 			themeId: observable,
 			nativeThemeIsDark: observable,
 			defaultType: observable,
 			isFullScreen: observable,
 			fullscreenObjectValue: observable,
-			navigationMenuValue: observable,
 			linkStyleValue: observable,
 			isOnlineValue: observable,
-			shareTooltipValue: observable,
 			showVaultValue: observable,
 			hideSidebarValue: observable,
-			showObjectValue: observable,
 			spaceId: observable,
 			membershipTiersList: observable,
-            config: computed,
-            progress: computed,
-            preview: computed,
+			showSidebarRightValue: observable,
+			showRelativeDatesValue: observable,
+			dateFormatValue: observable,
+			timeFormatValue: observable,
+			pinValue: observable,
+			firstDayValue: observable,
+			config: computed,
+			preview: computed,
 			toast: computed,
-            filter: computed,
-            gateway: computed,
+			filter: computed,
+			gateway: computed,
 			theme: computed,
 			nativeTheme: computed,
 			membershipTiers: computed,
 			space: computed,
 			isOnline: computed,
-			shareTooltip: computed,
 			showVault: computed,
-            gatewaySet: action,
-            progressSet: action,
-            progressClear: action,
-            filterSetFrom: action,
-            filterSetText: action,
-            filterSet: action,
-            previewSet: action,
+			showRelativeDates: computed,
+			dateFormat: computed,
+			timeFormat: computed,
+			pin: computed,
+			firstDay: computed,
+			gatewaySet: action,
+			filterSetFrom: action,
+			filterSetText: action,
+			filterSet: action,
+			previewSet: action,
 			toastSet: action,
 			toastClear: action,
 			themeSet: action,
 			nativeThemeSet: action,
 			spaceSet: action,
 			spaceStorageSet: action,
-			navigationMenuSet: action,
 			linkStyleSet: action,
+			dateFormatSet: action,
+			timeFormatSet: action,
 			isOnlineSet: action,
-			shareTooltipSet: action,
 			membershipTiersListSet: action,
 			showVaultSet: action,
-			showObjectSet: action,
+			showSidebarRightSet: action,
+			showRelativeDatesSet: action,
+			pinSet: action,
+			firstDaySet: action,
 		});
 
 		intercept(this.configObj as any, change => U.Common.intercept(this.configObj, change));
-    };
+	};
 
-    get config (): any {
+	get config (): any {
 		const config = window.AnytypeGlobalConfig || this.configObj || {};
 
 		config.languages = config.languages || [];
@@ -153,11 +162,7 @@ class CommonStore {
 		return config;
 	};
 
-    get progress (): I.Progress {
-		return this.progressObj;
-	};
-
-    get preview (): I.Preview {
+	get preview (): I.Preview {
 		return this.previewObj;
 	};
 
@@ -165,18 +170,24 @@ class CommonStore {
 		return this.toastObj;
 	};
 
-    get filter (): Filter {
+	get filter (): Filter {
 		return this.filterObj;
 	};
 
-    get gateway (): string {
+	get gateway (): string {
 		return String(this.gatewayUrl || '');
 	};
 
 	get type (): string {
-		const key = String(this.defaultType || Storage.get('defaultType') || J.Constant.default.typeKey);
+		if (this.defaultType === null) {
+			this.defaultType = Storage.get('defaultType');
+		};
 
-		let type = S.Record.getTypeByKey(key);
+		if (!this.defaultType) {
+			this.defaultType = J.Constant.default.typeKey;
+		};
+
+		let type = S.Record.getTypeByKey(this.defaultType);
 		if (!type || !type.isInstalled || !U.Object.isAllowedObject(type.recommendedLayout)) {
 			type = S.Record.getTypeByKey(J.Constant.default.typeKey);
 		};
@@ -188,8 +199,20 @@ class CommonStore {
 		return this.isFullScreen;
 	};
 
+	get pin (): string {
+		if (this.pinValue === null) {
+			this.pinValue = Storage.get('pin');
+		};
+
+		return String(this.pinValue || '');
+	};
+
 	get pinTime (): number {
-		return (Number(this.pinTimeId) || Storage.get('pinTime') || J.Constant.default.pinTime) * 1000;
+		if (this.pinTimeId === null) {
+			this.pinTimeId = Storage.get('pinTime');
+		};
+
+		return (Number(this.pinTimeId) || J.Constant.default.pinTime) * 1000;
 	};
 
 	get emailConfirmationTime (): number {
@@ -197,15 +220,18 @@ class CommonStore {
 	};
 
 	get fullscreenObject (): boolean {
-		return this.boolGet('fullscreenObject');
+		let ret = this.fullscreenObjectValue;
+		if (ret === null) {
+			ret = Storage.get('fullscreenObject');
+		};
+		if (ret === undefined) {
+			ret = true;
+		};
+		return ret;
 	};
 
 	get hideSidebar (): boolean {
 		return this.boolGet('hideSidebar');
-	};
-
-	get showObject (): boolean {
-		return this.showObjectValue;
 	};
 
 	get theme (): string {
@@ -233,14 +259,6 @@ class CommonStore {
 		return this.boolGet('showRelativeDates');
 	};
 
-	get navigationMenu (): I.NavigationMenuMode {
-		let ret = this.navigationMenuValue;
-		if (ret === null) {
-			ret = Storage.get('navigationMenu');
-		};
-		return Number(ret) || I.NavigationMenuMode.Hover;
-	};
-
 	get linkStyle (): I.LinkCardStyle {
 		let ret = this.linkStyleValue;
 		if (ret === null) {
@@ -252,16 +270,34 @@ class CommonStore {
 		return Number(ret) || I.LinkCardStyle.Text;
 	};
 
+	get dateFormat (): I.DateFormat {
+		let ret = this.dateFormatValue;
+		
+		if (ret === null) {
+			ret = Storage.get('dateFormat');
+
+			if (undefined === ret) {
+				ret = I.DateFormat.Long;
+			};
+		};
+
+		return Number(ret);
+	};
+
+	get timeFormat (): I.TimeFormat {
+		let ret = this.timeFormatValue;
+		if (ret === null) {
+			ret = Storage.get('timeFormat');
+		};
+		return Number(ret) || I.TimeFormat.H12;
+	};
+
 	get dataPath (): string {
 		return String(this.dataPathValue || '');
 	};
 
 	get isOnline (): boolean {
 		return Boolean(this.isOnlineValue);
-	};
-
-	get shareTooltip (): boolean {
-		return Boolean(this.shareTooltipValue);
 	};
 
 	get membershipTiers (): I.MembershipTier[] {
@@ -283,40 +319,40 @@ class CommonStore {
 		return ret;
 	};
 
-    gatewaySet (v: string) {
+	get firstDay (): number {
+		if (this.firstDayValue === null) {
+			this.firstDayValue = Storage.get('firstDay');
+		};
+
+		return Number(this.firstDayValue) || 1;
+	};
+
+	gatewaySet (v: string) {
 		this.gatewayUrl = v;
 	};
 
-    fileUrl (id: string) {
+	fileUrl (id: string) {
 		return [ this.gateway, 'file', String(id || '') ].join('/');
 	};
 
-    imageUrl (id: string, width: number) {
+	imageUrl (id: string, width: number) {
 		return [ this.gateway, 'image', String(id || '') ].join('/') + `?width=${Number(width) || 0}`;
 	};
 
-    progressSet (v: I.Progress) {
-		this.progressObj = v;
-	};
-
-    progressClear () {
-		this.progressObj = null;
-	};
-
-    filterSetFrom (from: number) {
+	filterSetFrom (from: number) {
 		this.filterObj.from = from;
 	};
 
-    filterSetText (text: string) {
+	filterSetText (text: string) {
 		this.filterObj.text = text;
 	};
 
-    filterSet (from: number, text: string) {
+	filterSet (from: number, text: string) {
 		this.filterSetFrom(from);
 		this.filterSetText(text);
 	};
 
-    previewSet (preview: I.Preview) {
+	previewSet (preview: I.Preview) {
 		this.previewObj = preview;
 	};
 
@@ -330,7 +366,7 @@ class CommonStore {
 		const ids = [ objectId, targetId, originId ].filter(it => it);
 
 		if (ids.length) {
-			U.Object.getByIds(ids, (objects: any[]) => {
+			U.Object.getByIds(ids, {}, (objects: any[]) => {
 				const map = U.Common.mapToObject(objects, 'id');
 
 				if (targetId && map[targetId]) {
@@ -357,7 +393,7 @@ class CommonStore {
 	};
 
 	previewClear () {
-		this.previewObj = { type: null, target: null, element: null, range: { from: 0, to: 0 }, marks: [] };
+		this.previewObj = { type: I.PreviewType.None, target: null, element: null, range: { from: 0, to: 0 }, marks: [] };
 	};
 
 	toastClear () {
@@ -374,6 +410,11 @@ class CommonStore {
 		this.pinTimeId = Number(v) || J.Constant.default.pinTime;
 
 		Storage.set('pinTime', this.pinTimeId);
+	};
+
+	pinSet (v: string) {
+		this.pinValue = String(v || '');
+		Storage.set('pin', this.pinValue);
 	};
 
 	emailConfirmationTimeSet (t: number) {
@@ -394,16 +435,14 @@ class CommonStore {
 		this.boolSet('hideSidebar', v);
 	};
 
-	showObjectSet (v: boolean) {
-		this.showObjectValue = v;
+	showSidebarRightSet (isPopup: boolean, v: boolean) {
+		set(this.showSidebarRightValue, { [isPopup ? 'popup' : 'full'] : v });
 	};
 
 	fullscreenSet (v: boolean) {
-		const body = $('body');
-		
 		this.isFullScreen = v;
-		v ? body.addClass('isFullScreen') : body.removeClass('isFullScreen');
 
+		$('body').toggleClass('isFullScreen', v);
 		$(window).trigger('resize');
 	};
 
@@ -431,7 +470,9 @@ class CommonStore {
 	};
 
 	refSet (id: string, ref: any) {
-		this.refs.set(id, ref);
+		if (id && ref) {
+			this.refs.set(id, ref);
+		};
 	};
 
 	boolGet (k: string) {
@@ -472,8 +513,6 @@ class CommonStore {
 		if (c) {
 			head.append(`<link id="link-prism" rel="stylesheet" href="./css/theme/${c}/prism.css" />`);
 		};
-
-		$(window).trigger('updateTheme');
 	};
 
 	getThemePath () {
@@ -489,16 +528,22 @@ class CommonStore {
 		this.languages = v;
 	};
 
-	navigationMenuSet (v: I.NavigationMenuMode) {
-		v = Number(v);
-		this.navigationMenuValue = v;
-		Storage.set('navigationMenu', v);
-	};
-
-	linkStyleSet (v: I.NavigationMenuMode) {
+	linkStyleSet (v: I.LinkCardStyle) {
 		v = Number(v);
 		this.linkStyleValue = v;
 		Storage.set('linkStyle', v);
+	};
+
+	dateFormatSet (v: I.DateFormat) {
+		v = Number(v);
+		this.dateFormatValue = v;
+		Storage.set('dateFormat', v);
+	};
+
+	timeFormatSet (v: I.TimeFormat) {
+		v = Number(v);
+		this.timeFormatValue = v;
+		Storage.set('timeFormat', v);
 	};
 
 	isOnlineSet (v: boolean) {
@@ -506,8 +551,9 @@ class CommonStore {
 		console.log('[Online status]:', v);
 	};
 
-	shareTooltipSet (v: boolean) {
-		this.shareTooltipValue = Boolean(v);
+	firstDaySet (v: number) {
+		this.firstDayValue = Number(v) || 1;
+		Storage.set('firstDay', this.firstDayValue);
 	};
 
 	configSet (config: any, force: boolean) {
@@ -527,7 +573,7 @@ class CommonStore {
 		set(this.configObj, newConfig);
 
 		this.configObj.debug = this.configObj.debug || {};
-		this.configObj.debug.ui ? html.addClass('debug') : html.removeClass('debug');
+		html.toggleClass('debug', Boolean(this.configObj.debug.ui));
 	};
 
 	spaceStorageSet (value: Partial<SpaceStorage>) {
@@ -555,6 +601,10 @@ class CommonStore {
 
 	getRef (id: string) {
 		return this.refs.get(id);
+	};
+
+	getShowSidebarRight (isPopup: boolean): boolean {
+		return Boolean(this.showSidebarRightValue[isPopup ? 'popup' : 'full']);
 	};
 
 };

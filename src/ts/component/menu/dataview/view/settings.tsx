@@ -83,6 +83,10 @@ const MenuViewSettings = observer(class MenuViewSettings extends React.Component
 	};
 
 	componentDidUpdate () {
+		const { param } = this.props;
+		const { data } = param;
+
+		this.param = U.Common.objectCopy(data.view.get());
 		this.setName();
 		this.resize();
 		this.focus();
@@ -199,7 +203,7 @@ const MenuViewSettings = observer(class MenuViewSettings extends React.Component
 		const { data } = param;
 		const { rootId, blockId, onSave, readonly } = data;
 		const block = S.Block.getLeaf(rootId, blockId);
-		const view = data.view.get();
+		const view = data.view ? data.view.get() : null;
 
 		if (readonly || !block || !view) {
 			return;
@@ -207,6 +211,7 @@ const MenuViewSettings = observer(class MenuViewSettings extends React.Component
 
 		if (withName) {
 			this.param.name = this.getViewName();
+			view.name = this.param.name;
 		};
 
 		Dataview.viewUpdate(rootId, blockId, view.id, this.param, onSave);
@@ -238,7 +243,7 @@ const MenuViewSettings = observer(class MenuViewSettings extends React.Component
 		const layoutSettings = [
 			{ id: 'layout', name: translate('menuDataviewObjectTypeEditLayout'), subComponent: 'dataviewViewLayout', caption: Dataview.defaultViewName(type) },
 			isBoard ? { id: 'group', name: translate('libDataviewGroups'), subComponent: 'dataviewGroupList' } : null,
-			{ id: 'relations', name: translate('libDataviewRelations'), subComponent: 'dataviewRelationList', caption: relationCnt.join(', ') },
+			{ id: 'relations', name: translate('commonRelations'), subComponent: 'dataviewRelationList', caption: relationCnt.join(', ') },
 		];
 		const tools = [
 			{ id: 'filter', name: translate('menuDataviewViewFilter'), subComponent: 'dataviewFilterList', caption: filterCnt ? U.Common.sprintf(translate('menuDataviewViewApplied'), filterCnt) : '' },
@@ -311,9 +316,7 @@ const MenuViewSettings = observer(class MenuViewSettings extends React.Component
 				width: getSize().width,
 				data,
 				noAnimation: true,
-				onOpen: (context) => {
-					this.menuContext = context;
-				}
+				onOpen: context => this.menuContext = context,
 			};
 
 			if (item.data) {

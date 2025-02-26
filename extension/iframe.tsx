@@ -38,11 +38,11 @@ class RoutePage extends React.Component<RouteComponentProps> {
 		const Component = Components[page];
 
 		return (
-			<React.Fragment>
+			<>
 				<ListMenu key="listMenu" {...this.props} />
 
 				{Component ? <Component /> : null}
-			</React.Fragment>
+			</>
 		);
 	};
 
@@ -70,6 +70,7 @@ class Iframe extends React.Component {
 
 	componentDidMount () {
 		U.Router.init(history);
+		U.Smile.init();
 
 		const win = $(window);
 

@@ -12,7 +12,7 @@ class Dataview {
 
 		const order: any = {};
 
-		let relations = U.Common.objectCopy(S.Record.getObjectRelations(rootId, blockId)).filter(it => it);
+		let relations = U.Common.objectCopy(S.Record.getDataviewRelations(rootId, blockId)).filter(it => it);
 		let o = 0;
 
 		if (!config.debug.hiddenObject) {
@@ -41,7 +41,7 @@ class Dataview {
 		const ret = relations.filter(it => it).map(relation => {
 			const vr = (view.relations || []).filter(it => it).find(it => it.relationKey == relation.relationKey) || {};
 
-			if (relation.relationKey == 'name') {
+			if ((view.type != I.ViewType.Gallery) && (relation.relationKey == 'name')) {
 				vr.isVisible = true;
 			};
 
@@ -97,11 +97,11 @@ class Dataview {
 		param = Object.assign({
 			rootId: '',
 			blockId: '',
+			subId: '',
 			newViewId: '',
 			keys: J.Relation.default,
 			offset: 0,
 			limit: 0,
-			ignoreWorkspace: false,
 			sources: [],
 			clear: false,
 			collectionId: '',
@@ -117,14 +117,14 @@ class Dataview {
 			return;
 		};
 
-		const subId = S.Record.getSubId(rootId, blockId);
+		const subId = param.subId || S.Record.getSubId(rootId, blockId);
 		const { viewId } = S.Record.getMeta(subId, '');
 		const viewChange = newViewId != viewId;
 		const meta: any = { offset };
 		const filters = U.Common.objectCopy(view.filters).concat(param.filters || []);
 		const sorts = U.Common.objectCopy(view.sorts).concat(param.sorts || []);
 
-		filters.push({ relationKey: 'layout', condition: I.FilterCondition.NotIn, value: U.Object.excludeFromSet() });
+		filters.push({ relationKey: 'resolvedLayout', condition: I.FilterCondition.NotIn, value: U.Object.excludeFromSet() });
 
 		if (viewChange) {
 			meta.viewId = newViewId;
@@ -459,22 +459,23 @@ class Dataview {
 		const relations = Relation.getSetOfObjects(rootId, objectId, I.ObjectLayout.Relation);
 		const isAllowedDefaultType = this.isCollection(rootId, blockId) || !!relations.length;
 
-		if (view && view.defaultTypeId && isAllowedDefaultType) {
-			return view.defaultTypeId;
-		};
-
 		let typeId = '';
 
+		if (view && view.defaultTypeId && isAllowedDefaultType) {
+			typeId = view.defaultTypeId;
+		} else
 		if (types.length) {
 			typeId = types[0].id;
 		} else
 		if (relations.length) {
 			for (const item of relations) {
-				if (!item.objectTypes.length) {
+				const objectTypes = Relation.getArrayValue(item.objectTypes);
+
+				if (!objectTypes.length) {
 					continue;
 				};
 
-				const first = S.Record.getTypeById(item.objectTypes[0]);
+				const first = S.Record.getTypeById(objectTypes[0]);
 				if (first && !U.Object.isInFileOrSystemLayouts(first.recommendedLayout)) {
 					typeId = first.id;
 					break;
@@ -482,7 +483,13 @@ class Dataview {
 			};
 		};
 
-		return typeId || S.Common.type;
+		const type = S.Record.getTypeById(typeId);
+
+		if (!type) {
+			typeId = S.Common.type;
+		};
+
+		return typeId;
 	};
 
 	getCreateTooltip (rootId: string, blockId: string, objectId: string, viewId: string): string {
@@ -503,7 +510,7 @@ class Dataview {
 
 	viewUpdate (rootId: string, blockId: string, viewId: string, param: Partial<I.View>, callBack?: (message: any) => void) {
 		const view = U.Common.objectCopy(S.Record.getView(rootId, blockId, viewId));
-		if (view) {
+		if (view && view.id) {
 			C.BlockDataviewViewUpdate(rootId, blockId, view.id, Object.assign(view, param), callBack);
 		};
 	};
@@ -541,6 +548,191 @@ class Dataview {
 
 		if (!ret.coverId && !ret.coverType && !layouts.includes(ret.layout)) {
 			return null;
+		};
+
+		return ret;
+	};
+
+	getFormulaResult (subId: string, viewRelation: I.ViewRelation): any {
+		if (!viewRelation) {
+			return null;
+		};
+
+		const { showRelativeDates } = S.Common;
+		const { formulaType, includeTime, relationKey } = viewRelation;
+		const relation = S.Record.getRelationByKey(relationKey);
+
+		if (!relation) {
+			return null;
+		};
+
+		const { total } = S.Record.getMeta(subId, '');
+		const isDate = relation.format == I.RelationType.Date;
+
+		const isArray = Relation.isArrayType(relation.format);
+		const needRecords = ![ I.FormulaType.None, I.FormulaType.Count ].includes(formulaType);
+		const records = needRecords ? S.Record.getRecords(subId, [ relationKey ], true) : [];
+
+		const date = (t: number) => {
+			const day = showRelativeDates ? U.Date.dayString(t) : null;
+			const date = day ? day : U.Date.dateWithFormat(S.Common.dateFormat, t);
+			const time = U.Date.timeWithFormat(S.Common.timeFormat, t);
+
+			return includeTime ? [ date, time ].join(' ') : date;
+		};
+
+		const min = () => {
+			const map = records.map(it => it[relationKey]).filter(it => !Relation.isEmpty(it));
+			return map.length ? Math.min(...map.map(it => Number(it || 0))) : null;
+		};
+		const max = () => {
+			const map = records.map(it => it[relationKey]).filter(it => !Relation.isEmpty(it));
+			return map.length ? Math.max(...map.map(it => Number(it || 0))) : null;
+		};
+		const float = (v: any): string => {
+			return (v === null) ? null : U.Common.formatNumber(U.Common.round(v, 3));
+		};
+		const filtered = (filterEmpty: boolean) => {
+			return records.filter(it => {
+				let isEmpty = false;
+				if (relationKey == 'name') {
+					isEmpty = Relation.isEmpty(it[relationKey]) || (it[relationKey] == translate('defaultNamePage'));
+				} else {
+					isEmpty = relation.format == I.RelationType.Checkbox ? !it[relationKey] : Relation.isEmpty(it[relationKey]);
+				};
+				return filterEmpty == isEmpty;
+			});
+		};
+
+		let ret = null;
+
+		switch (formulaType) {
+			case I.FormulaType.None: {
+				break;
+			};
+
+			case I.FormulaType.Count: {
+				ret = float(total);
+				break;
+			};
+
+			case I.FormulaType.CountValue: {
+				const items = filtered(false);
+
+				if (isArray || isDate) {
+					const values = new Set();
+
+					items.forEach(it => {
+						values.add(isDate ? 
+							date(it[relationKey]) : 
+							Relation.getArrayValue(it[relationKey]).sort().join(', ')
+						);
+					});
+
+					ret = values.size;
+				} else {
+					ret = U.Common.arrayUniqueObjects(items, relationKey).length;
+				};
+				ret = float(ret);
+				break;
+			};
+
+			case I.FormulaType.CountDistinct: {
+				const items = filtered(false);
+
+				if (isArray || isDate) {
+					const values = new Set();
+
+					items.forEach(it => {
+						if (isDate) {
+							values.add(date(it[relationKey]));
+						} else {
+							Relation.getArrayValue(it[relationKey]).forEach(v => values.add(v));
+						};
+					});
+
+					ret = values.size;
+				} else {
+					ret = U.Common.arrayUniqueObjects(items, relationKey).length;
+				};
+				ret = float(ret);
+				break;
+			};
+
+			case I.FormulaType.CountEmpty: {
+				ret = float(filtered(true).length);
+				break;
+			};
+
+			case I.FormulaType.CountNotEmpty: {
+				ret = float(filtered(false).length);
+				break;
+			};
+
+			case I.FormulaType.PercentEmpty: {
+				ret = float(filtered(true).length / total * 100) + '%';
+				break;
+			};
+
+			case I.FormulaType.PercentNotEmpty: {
+				ret = float(filtered(false).length / total * 100) + '%';
+				break;
+			};
+
+			case I.FormulaType.MathSum: {
+				ret = float(records.reduce((acc, it) => acc + (Number(it[relationKey]) || 0), 0));
+				break;
+			};
+
+			case I.FormulaType.MathAverage: {
+				ret = float(records.reduce((acc, it) => acc + (Number(it[relationKey]) || 0), 0) / total);
+				break;
+			};
+
+			case I.FormulaType.MathMedian: {
+				const data = records.map(it => Number(it[relationKey]) || 0);
+				const n = data.length;
+
+				data.sort((a, b) => a - b);
+    
+				if (n % 2 == 1) {
+					ret = data[Math.floor(n / 2)];
+				} else {
+					ret = (data[n / 2 - 1] + data[n / 2]) / 2;
+				};
+
+				ret = float(ret);
+				break;
+			};
+
+			case I.FormulaType.MathMin: {
+				ret = min();
+				if (isDate) {
+					ret = ret ? date(ret) : '';
+				} else {
+					ret = float(ret);
+				};
+				break;
+			};
+
+			case I.FormulaType.MathMax: {
+				ret = max();
+				if (isDate) {
+					ret = ret ? date(ret) : '';
+				} else {
+					ret = float(ret);
+				};
+				break;
+			};
+
+			case I.FormulaType.Range: {
+				if (isDate) {
+					ret = U.Date.duration(max() - min());
+				} else {
+					ret = float(max() - min());
+				};
+				break;
+			};
 		};
 
 		return ret;

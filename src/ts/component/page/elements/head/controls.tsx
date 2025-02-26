@@ -98,6 +98,7 @@ const Controls = observer(class Controls extends React.Component<Props, State> {
 		const node = $(this.node);
 		const object = S.Detail.get(rootId, rootId, []);
 		const cb = () => S.Menu.update('smile', { element: `#block-icon-${rootId}` });
+		const isType = U.Object.isTypeLayout(object.layout);
 
 		focus.clear(true);
 
@@ -107,10 +108,15 @@ const Controls = observer(class Controls extends React.Component<Props, State> {
 			onOpen: () => node.addClass('hover'),
 			onClose: () => node.removeClass('hover'),
 			data: {
-				noUpload: U.Object.isTypeLayout(object.layout),
+				noUpload: isType,
+				noGallery: isType,
+				withIcons: isType,
 				value: (object.iconEmoji || object.iconImage || ''),
 				onSelect: (icon: string) => {
 					U.Object.setIcon(rootId, icon, '', cb);
+				},
+				onIconSelect: (iconName: string, iconOption: number) => {
+					U.Object.setTypeIcon(rootId, iconName, iconOption);
 				},
 				onUpload (objectId: string) {
 					U.Object.setIcon(rootId, '', objectId, cb);
@@ -137,24 +143,17 @@ const Controls = observer(class Controls extends React.Component<Props, State> {
 		U.Object.setCover(rootId, item.type, item.id, item.coverX, item.coverY, item.coverScale);
 	};
 
-	onLayout (e: any) {
+	onLayout () {
 		const { rootId, onLayoutSelect } = this.props;
 		const node = $(this.node);
-		const object = S.Detail.get(rootId, rootId, []);
 		
 		S.Menu.open('blockLayout', { 
 			element: '.editorControls #button-layout',
-			horizontal: I.MenuDirection.Center,
-			onOpen: () => {
-				node.addClass('hover');
-			},
-			onClose: () => {
-				node.removeClass('hover');
-			},
+			onOpen: () => node.addClass('hover'),
+			onClose: () => node.removeClass('hover'),
 			subIds: J.Menu.layout,
 			data: {
 				rootId,
-				value: object.layout,
 				onLayoutSelect,
 			}
 		});

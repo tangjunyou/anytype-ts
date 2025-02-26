@@ -3,7 +3,7 @@ import $ from 'jquery';
 import { observer } from 'mobx-react';
 import { AutoSizer, CellMeasurer, InfiniteLoader, List, CellMeasurerCache } from 'react-virtualized';
 import { Title, Icon, IconObject, ObjectName, EmptySearch } from 'Component';
-import { I, C, S, U, Action, translate, analytics } from 'Lib';
+import { I, C, S, U, J, Action, translate, analytics, Onboarding } from 'Lib';
 
 interface State {
 	isLoading: boolean;
@@ -58,6 +58,7 @@ const MenuSyncStatus = observer(class MenuSyncStatus extends React.Component<I.M
 					className={cn.join(' ')}
 					onClick={e => this.onPanelIconClick(e, item)}
 				>
+					<div className="iconBg" />
 					<Icon className={id} />
 				</div>
 			);
@@ -82,7 +83,7 @@ const MenuSyncStatus = observer(class MenuSyncStatus extends React.Component<I.M
 					</div>
 					<div className="side right">
 						<Icon className={icon} />
-						<Icon className="more" />
+						<Icon className="more withBackground" onClick={e => this.onContextMenu(e, item)} />
 					</div>
 				</div>
 			);
@@ -93,7 +94,11 @@ const MenuSyncStatus = observer(class MenuSyncStatus extends React.Component<I.M
 
 			let content = null;
 			if (item.isSection) {
-				content = <div className={[ 'sectionName', (index == 0 ? 'first' : '') ].join(' ')} style={style}>{translate(U.Common.toCamelCase([ 'common', item.id ].join('-')))}</div>;
+				content = (
+					<div className={[ 'sectionName', (index == 0 ? 'first' : '') ].join(' ')} style={style}>
+						{item.name}
+					</div>
+				);
 			} else {
 				content = (
 					<div className="row" style={style}>
@@ -174,12 +179,15 @@ const MenuSyncStatus = observer(class MenuSyncStatus extends React.Component<I.M
 	};
 
 	onContextMenu (e, item) {
+		e.stopPropagation();
+
 		const { param } = this.props;
 		const { classNameWrap } = param;
-		const node = $(this.node);
 		const canWrite = U.Space.canMyParticipantWrite();
 		const canDelete = S.Block.isAllowed(item.restrictions, [ I.RestrictionObject.Delete ]);
-		const element = node.find(`#item-${item.id}`);
+		const element = $(e.currentTarget);
+		const node = $(this.node);
+		const itemElement = node.find(`#item-${item.id}`);
 		const options: any[] = [
 			{ id: 'open', name: translate('commonOpen') }
 		];
@@ -193,6 +201,8 @@ const MenuSyncStatus = observer(class MenuSyncStatus extends React.Component<I.M
 			element,
 			horizontal: I.MenuDirection.Center,
 			offsetY: 4,
+			onOpen: () => itemElement.addClass('hover'),
+			onClose: () => itemElement.removeClass('hover'),
 			data: {
 				options,
 				onSelect: (e, option) => {
@@ -253,7 +263,7 @@ const MenuSyncStatus = observer(class MenuSyncStatus extends React.Component<I.M
 		};
 
 		const filters: any[] = [
-			{ relationKey: 'layout', condition: I.FilterCondition.NotIn, value: U.Object.getSystemLayouts() },
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.NotIn, value: U.Object.getSystemLayouts() },
 		];
 		const sorts = [
 			{ relationKey: 'syncStatus', type: I.SortType.Custom, customOrder: [ I.SyncStatusObject.Syncing, I.SyncStatusObject.Queued, I.SyncStatusObject.Synced ] },
@@ -269,7 +279,11 @@ const MenuSyncStatus = observer(class MenuSyncStatus extends React.Component<I.M
 			keys: U.Data.syncStatusRelationKeys(),
 			offset: 0,
 			limit: 30,
-		}, () => this.setState({ isLoading: false }));
+		}, () => {
+			this.setState({ isLoading: false });
+
+			window.setTimeout(() => Onboarding.start('syncStatus', false), J.Constant.delay.menu);
+		});
 	};
 
 	getItems () {

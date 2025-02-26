@@ -1,6 +1,7 @@
 import $ from 'jquery';
 import raf from 'raf';
-import { I, C, S, U, J, keyboard, translate, Dataview, Action, analytics, Relation, Storage, sidebar } from 'Lib';
+import { observable } from 'mobx';
+import { I, C, S, U, J, M, keyboard, translate, Dataview, Action, analytics, Relation, Storage, sidebar } from 'Lib';
 
 class UtilMenu {
 
@@ -108,10 +109,11 @@ class UtilMenu {
 	};
 
 	getBlockObject () {
-		const items = U.Data.getObjectTypesForNewObject({ withSet: true, withCollection: true, withChat: true });
+		const items = U.Data.getObjectTypesForNewObject({ withSet: true, withCollection: true });
 		const ret: any[] = [
 			{ type: I.BlockType.Page, id: 'existingPage', icon: 'existing', lang: 'ExistingPage', arrow: true, aliases: [ 'link' ] },
-			{ type: I.BlockType.File, id: 'existingFile', icon: 'existing', lang: 'ExistingFile', arrow: true, aliases: [ 'file' ] }
+			{ type: I.BlockType.File, id: 'existingFile', icon: 'existing', lang: 'ExistingFile', arrow: true, aliases: [ 'file' ] },
+			{ id: 'date', icon: 'date', lang: 'Date', arrow: true },
 		];
 
 		items.sort((c1, c2) => U.Data.sortByNumericKey('lastUsedDate', c1, c2, I.SortType.Desc));
@@ -134,13 +136,15 @@ class UtilMenu {
 	};
 
 	getBlockOther () {
+		const aliasInline = [ 'grid', 'table', 'gallery', 'list', 'board', 'kanban', 'calendar', 'graph', 'inline', 'collection', 'set' ];
+
 		return [
 			{ type: I.BlockType.Div, id: I.DivStyle.Line, icon: 'divLine', lang: 'Line', aliases: [ 'hr', 'line divider' ] },
 			{ type: I.BlockType.Div, id: I.DivStyle.Dot, icon: 'divDot', lang: 'Dot', aliases: [ 'dot', 'dots divider' ] },
 			{ type: I.BlockType.TableOfContents, id: I.BlockType.TableOfContents, icon: 'tableOfContents', lang: 'TableOfContents', aliases: [ 'tc', 'toc', 'table of contents'] },
 			{ type: I.BlockType.Table, id: I.BlockType.Table, icon: 'table', lang: 'SimpleTable', aliases: [ 'table' ] },
-			{ type: I.BlockType.Dataview, id: 'collection', icon: 'collection', lang: 'Collection', aliases: [ 'grid', 'table', 'gallery', 'list', 'board', 'kanban', 'inline collection' ] },
-			{ type: I.BlockType.Dataview, id: 'set', icon: 'set', lang: 'Set', aliases: [ 'grid', 'table', 'gallery', 'list', 'board', 'kanban', 'inline set' ] },
+			{ type: I.BlockType.Dataview, id: 'collection', icon: 'collection', lang: 'Collection', aliases: aliasInline },
+			{ type: I.BlockType.Dataview, id: 'set', icon: 'set', lang: 'Set', aliases: aliasInline },
 		].map(this.mapperBlock);
 	};
 
@@ -272,6 +276,10 @@ class UtilMenu {
 		});
 	};
 
+	getLayoutIcon (layout: I.ObjectLayout) {
+		return `layout c-${I.ObjectLayout[layout].toLowerCase()}`;
+	};
+
 	getLayouts () {
 		return [
 			{ id: I.ObjectLayout.Page },
@@ -288,7 +296,7 @@ class UtilMenu {
 			{ id: I.ObjectLayout.Note },
 		].map(it => ({ 
 			...it,
-			icon: `layout c-${I.ObjectLayout[it.id].toLowerCase()}`,
+			icon: this.getLayoutIcon(it.id),
 			name: translate(`layout${it.id}`),
 		}));
 	};
@@ -328,15 +336,28 @@ class UtilMenu {
 				options,
 				onSelect: (e, option) => {
 					S.Menu.closeAll([ 'select' ]);
+
 					if (close) {
 						close();
 					};
 
 					window.setTimeout(() => {
 						switch (option.id) {
-							case 'edit': $(`#button-${blockId}-settings`).trigger('click'); break;
-							case 'copy': onCopy(view); break;
-							case 'remove': onRemove(view); break;
+							case 'edit': {
+								$(`#button-${blockId}-settings`).trigger('click');
+								S.Menu.updateData('dataviewViewSettings', { view: observable.box(new M.View(view)) });
+								break;
+							};
+
+							case 'copy': {
+								onCopy(view); 
+								break;
+							};
+
+							case 'remove': {
+								onRemove(view); 
+								break;
+							};
 						};
 					}, S.Menu.getTimeout());
 				}
@@ -345,7 +366,7 @@ class UtilMenu {
 	};
 
 	getRelationTypes () {
-		return [
+		return this.prepareForSelect([
 			{ id: I.RelationType.Object },
 			{ id: I.RelationType.LongText },
 			{ id: I.RelationType.Number },
@@ -361,7 +382,7 @@ class UtilMenu {
 			it.name = translate(`relationName${it.id}`);
 			it.icon = `relation ${Relation.className(it.id)}`;
 			return it;
-		});
+		}));
 	};
 
 	getWidgetLimitOptions (layout: I.WidgetLayout) {
@@ -377,7 +398,7 @@ class UtilMenu {
 				break;
 			};
 		};
-		return options.map(id => ({ id: String(id), name: id }));
+		return this.prepareForSelect(options.map(id => ({ id, name: id })));
 	};
 
 	getWidgetLayoutOptions (id: string, layout: I.ObjectLayout) {
@@ -396,7 +417,7 @@ class UtilMenu {
 			if (!isSystem) {
 				const isSet = U.Object.isInSetLayouts(layout);
 				const setLayouts = U.Object.getSetLayouts();
-				const treeSkipLayouts = setLayouts.concat(U.Object.getFileAndSystemLayouts()).concat([ I.ObjectLayout.Participant ]);
+				const treeSkipLayouts = setLayouts.concat(U.Object.getFileAndSystemLayouts()).concat([ I.ObjectLayout.Participant, I.ObjectLayout.Date ]);
 
 				// Sets can only become Link and List layouts, non-sets can't become List
 				if (treeSkipLayouts.includes(layout)) {
@@ -413,7 +434,6 @@ class UtilMenu {
 			if ([ 
 				J.Constant.widgetId.set, 
 				J.Constant.widgetId.collection,
-				J.Constant.widgetId.chat,
 			].includes(id)) {
 				options = options.filter(it => it != I.WidgetLayout.Tree);
 			};
@@ -546,7 +566,6 @@ class UtilMenu {
 	dashboardSelect (element: string, openRoute?: boolean) {
 		const { space } = S.Common;
 		const { spaceview } = S.Block;
-		const templateType = S.Record.getTemplateType();
 		const subIds = [ 'searchObject' ];
 
 		const onSelect = (object: any, update: boolean) => {
@@ -558,12 +577,14 @@ class UtilMenu {
 				S.Detail.update(J.Constant.subId.space, { id: spaceview, details: { spaceDashboardId: object.id } }, false);
 
 				if (update) {
-					S.Detail.update(J.Constant.subId.space, { id: object.id, details: object }, false);
+					S.Detail.update(U.Space.getSubSpaceSubId(space), { id: object.id, details: object }, false);
 				};
 
-				if (openRoute) {
-					U.Space.openDashboard('route');
-				};
+				U.Data.createSubSpaceSubscriptions([ space ], () => {
+					if (openRoute) {
+						U.Space.openDashboard();
+					};
+				});
 			});
 		};
 
@@ -580,9 +601,10 @@ class UtilMenu {
 			data: {
 				options: [
 					{ id: I.HomePredefinedId.Graph, name: translate('commonGraph') },
+					(U.Object.isAllowedChat() ? { id: I.HomePredefinedId.Chat, name: translate('commonChat') } : null),
 					{ id: I.HomePredefinedId.Last, name: translate('spaceLast') },
 					{ id: I.HomePredefinedId.Existing, name: translate('spaceExisting'), arrow: true },
-				],
+				].filter(it => it),
 				onOver: (e: any, item: any) => {
 					if (!menuContext) {
 						return;
@@ -602,12 +624,13 @@ class UtilMenu {
 								isSub: true,
 								data: {
 									filters: [
-										{ relationKey: 'layout', condition: I.FilterCondition.NotIn, value: U.Object.getFileAndSystemLayouts() },
-										{ relationKey: 'type', condition: I.FilterCondition.NotEqual, value: templateType?.id },
+										{ relationKey: 'resolvedLayout', condition: I.FilterCondition.NotIn, value: U.Object.getFileAndSystemLayouts().concat(I.ObjectLayout.Participant) },
+										{ relationKey: 'type.uniqueKey', condition: I.FilterCondition.NotEqual, value: J.Constant.typeKey.template },
 									],
 									canAdd: true,
 									onSelect: el => {
 										onSelect(el, true);
+										menuContext.close();
 
 										analytics.event('ChangeSpaceDashboard', { type: I.HomePredefinedId.Existing });
 									},
@@ -624,6 +647,7 @@ class UtilMenu {
 
 					switch (item.id) {
 						case I.HomePredefinedId.Graph:
+						case I.HomePredefinedId.Chat:
 						case I.HomePredefinedId.Last: {
 							onSelect({ id: item.id }, false);
 
@@ -695,13 +719,7 @@ class UtilMenu {
 	};
 
 	spaceContext (space: any, param: any) {
-		const { accountSpaceId } = S.Auth;
 		const { targetSpaceId } = space;
-
-		if ((targetSpaceId == accountSpaceId)) {
-			return;
-		};
-
 		const isOwner = U.Space.isMyOwner(targetSpaceId);
 		const isLocalNetwork = U.Data.isLocalNetwork();
 		const { isOnline } = S.Common;
@@ -814,6 +832,11 @@ class UtilMenu {
 	};
 
 	getVaultItems () {
+		const { account } = S.Auth;
+		if (!account) {
+			return [];
+		};
+
 		const ids = Storage.get('spaceOrder') || [];
 		const items = U.Common.objectCopy(U.Space.getList());
 
@@ -840,12 +863,11 @@ class UtilMenu {
 	getFixedWidgets () {
 		return [
 			{ id: J.Constant.widgetId.favorite, name: translate('widgetFavorite'), iconEmoji: '⭐' },
-			{ id: J.Constant.widgetId.chat, name: translate('widgetChat'), iconEmoji: '💬' },
 			{ id: J.Constant.widgetId.set, name: translate('widgetSet'), iconEmoji: '🔍' },
 			{ id: J.Constant.widgetId.collection, name: translate('widgetCollection'), iconEmoji: '🗂️' },
 			{ id: J.Constant.widgetId.recentEdit, name: translate('widgetRecent'), iconEmoji: '📝' },
 			{ id: J.Constant.widgetId.recentOpen, name: translate('widgetRecentOpen'), iconEmoji: '📅', caption: translate('menuWidgetRecentOpenCaption') },
-		];
+		].filter(it => it);
 	};
 
 	sortOrFilterRelationSelect (menuParam: any, param: any) {
@@ -960,7 +982,7 @@ class UtilMenu {
 								if (isClosed) {
 									sidebar.open(width);
 								} else {
-									sidebar.resizePage(width, false);
+									sidebar.resizePage(width, null, false);
 								};
 								break;
 							};
@@ -977,35 +999,43 @@ class UtilMenu {
 		return [ { id: 'plain', name: translate('blockTextPlain') } ].concat(U.Prism.getTitles());
 	};
 
-	getStoreSortOptions (tab: I.StoreTab, view: I.StoreView) {
-		let options: any[] = [
-			{ id: 'nameAsc', name: translate('pageMainStoreSortNameAsc'), relationKey: 'name', icon: 'relation c-shortText', type: I.SortType.Asc },
-			{ id: 'nameDesc', name: translate('pageMainStoreSortNameDesc'), relationKey: 'name', icon: 'relation c-shortText', type: I.SortType.Desc },
+	getObjectContainerSortOptions (type: I.ObjectContainerType, sortId: I.SortId, sortType: I.SortType, withOrphans: boolean, isCompact: boolean): any[] {
+		const appearance = [
+			{ name: translate('commonAppearance'), isSection: true },
+			{ id: I.SortId.List, checkbox: !isCompact, name: translate('widget2Name') },
+			{ id: I.SortId.Compact, checkbox: isCompact, name: translate('widget3Name') },
+			{ isDiv: true },
 		];
 
-		if (view == I.StoreView.Library) {
-			options = options.concat([
+		let ret: any[] = [];
+		let sort = [];
+		let show = [];
+
+		if ([ I.ObjectContainerType.Type, I.ObjectContainerType.Relation ].includes(type)) {
+			sort = [
+				{ name: translate('sidebarObjectSort'), isSection: true },
+				{ id: I.SortId.Name, name: translate('commonName'), relationKey: 'name', isSort: true, defaultType: I.SortType.Asc },
+				{ id: I.SortId.LastUsed, name: translate('sidebarObjectSortLastUsed'), relationKey: 'lastUsedDate', isSort: true, defaultType: I.SortType.Desc },
+			];
+		} else {
+			show = [
+				{ name: translate('sidebarObjectShow'), isSection: true },
+				{ id: I.SortId.All, checkbox: !withOrphans, name: translate('commonAllContent') },
+				{ id: I.SortId.Orphan, checkbox: withOrphans, name: translate('sidebarObjectOrphan') },
 				{ isDiv: true },
-				{ id: 'createdDateDesc', name: translate('pageMainStoreSortCreatedDesc'), relationKey: 'createdDate', icon: 'relation c-date', type: I.SortType.Desc },
-				{ id: 'createdDateAsc', name: translate('pageMainStoreSortCreatedAsc'), relationKey: 'createdDate', icon: 'relation c-date', type: I.SortType.Asc },
-			]);
+			];
+
+			sort = [
+				{ name: translate('sidebarObjectSort'), isSection: true },
+				{ id: I.SortId.Updated, name: translate('sidebarObjectSortUpdated'), relationKey: 'lastModifiedDate', isSort: true, defaultType: I.SortType.Desc },
+				{ id: I.SortId.Created, name: translate('sidebarObjectSortCreated'), relationKey: 'createdDate', isSort: true, defaultType: I.SortType.Desc },
+				{ id: I.SortId.Name, name: translate('commonName'), relationKey: 'name', isSort: true, defaultType: I.SortType.Asc },
+			];
 		};
 
-		if (tab == I.StoreTab.Type) {
-			options = options.concat([
-				{ isDiv: true },
-				{ id: 'lastUsedDateDesc', name: translate('pageMainStoreSortLastUsedDesc'), relationKey: 'lastUsedDate', icon: 'time', type: I.SortType.Desc },
-			]);
-		};
-		return options;
-	};
+		ret = ret.concat(show).concat(appearance).concat(sort);
 
-	getObjectContainerSortOptions (sortId: string, sortType: I.SortType): any[] {
-		return ([
-			{ id: 'updated', name: translate('sidebarObjectSortUpdated'), relationKey: 'lastModifiedDate' },
-			{ id: 'created', name: translate('sidebarObjectSortCreated'), relationKey: 'createdDate' },
-			{ id: 'name', name: translate('commonName'), relationKey: 'name' },
-		] as any[]).map(it => {
+		return ret.map(it => {
 			it.type = I.SortType.Asc;
 			if (it.id == sortId) {
 				it.type = sortType == I.SortType.Asc ? I.SortType.Desc : I.SortType.Asc;
@@ -1013,6 +1043,259 @@ class UtilMenu {
 			};
 			return it;
 		});
+	};
+
+	dateFormatOptions () {
+		return ([
+			{ id: I.DateFormat.Default },
+			{ id: I.DateFormat.MonthAbbrBeforeDay },
+			{ id: I.DateFormat.MonthAbbrAfterDay },
+			{ id: I.DateFormat.Short },
+			{ id: I.DateFormat.ShortUS },
+			{ id: I.DateFormat.ISO },
+			{ id: I.DateFormat.Long },
+			{ id: I.DateFormat.Nordic },
+			{ id: I.DateFormat.European },
+		] as any[]).map(it => {
+			it.name = U.Date.dateWithFormat(it.id, U.Date.now());
+			return it;
+		});
+	};
+
+	timeFormatOptions () {
+		return [
+			{ id: I.TimeFormat.H12, name: translate('timeFormat12') },
+			{ id: I.TimeFormat.H24, name: translate('timeFormat24') },
+		];
+	};
+
+	participant (object: any, param: Partial<I.MenuParam>) {
+		S.Menu.open('participant', {
+			className: 'fixed',
+			classNameWrap: 'fromPopup',
+			horizontal: I.MenuDirection.Center,
+			rect: { 
+				x: keyboard.mouse.page.x, 
+				y: keyboard.mouse.page.y + 10, 
+				width: 0, 
+				height: 0,
+			},
+			...param,
+			data: {
+				object,
+			}
+		});
+	};
+
+	getFormulaSections (relationKey: string) {
+		const relation = S.Record.getRelationByKey(relationKey);
+		const options = Relation.formulaByType(relationKey, relation.format);
+
+		return [
+			{ id: I.FormulaSection.None, name: translate('commonNone') },
+		].concat([
+			{ id: I.FormulaSection.Count, name: translate('formulaCount'), arrow: true },
+			{ id: I.FormulaSection.Percent, name: translate('formulaPercentage'), arrow: true },
+			{ id: I.FormulaSection.Math, name: translate('formulaMath'), arrow: true },
+			{ id: I.FormulaSection.Date, name: translate('formulaDate'), arrow: true },
+		].filter(s => {
+			return options.filter(it => it.section == s.id).length;
+		})).map(it => ({ ...it, checkbox: false }));
+	};
+
+	prepareForSelect (a: any[]) {
+		return a.map(it => ({ ...it, id: String(it.id) }));
+	};
+
+	typeSuggest (param: Partial<I.MenuParam>, details: any, flags: any, route: string, callBack?: (item: any) => void) {
+		details = details || {};
+		flags = flags || {};
+
+		const onImport = (e: MouseEvent) => {
+			e.stopPropagation();
+			U.Object.openAuto({ id: 'importIndex', layout: I.ObjectLayout.Settings });
+		};
+
+		const getClipboardData = async () => {
+			let ret = [];
+			try { ret = await navigator.clipboard.read(); } catch (e) { /**/ };
+			return ret;
+		};
+
+		const onPaste = async () => {
+			const type = S.Record.getTypeById(S.Common.type);
+			const data = await getClipboardData();
+
+			data.forEach(async item => {
+				let text = '';
+				let html = '';
+
+				if (item.types.includes('text/plain')) {
+					const textBlob = await item.getType('text/plain');
+
+					if (textBlob) {
+						text = await textBlob.text();
+					};
+				};
+
+				if (item.types.includes('text/html')) {
+					const htmlBlob = await item.getType('text/html');
+
+					if (htmlBlob) {
+						html = await htmlBlob.text();
+					};
+				};
+
+				if (!text && !html) {
+					return;
+				};
+
+				const url = U.Common.matchUrl(text);
+				const cb = (object: any, time: number) => {
+					if (callBack) {
+						callBack(object);
+					};
+
+					analytics.createObject(object.type, object.layout, route, time);
+				};
+
+				if (url) {
+					const bookmark = S.Record.getBookmarkType();
+
+					C.ObjectCreateBookmark({ ...details, source: url }, S.Common.space, bookmark?.defaultTemplateId, (message: any) => {
+						cb(message.details, message.middleTime);
+					});
+				} else {
+					C.ObjectCreate(details, [], type?.defaultTemplateId, type?.uniqueKey, S.Common.space, (message: any) => {
+						if (message.error.code) {
+							return;
+						};
+
+						const object = message.details;
+						C.BlockPaste (object.id, '', { from: 0, to: 0 }, [], false, { html, text }, '', () => cb(object, message.middleTime));
+					});
+				};
+			});
+		};
+
+		const onMore = (e: MouseEvent, context: any, item: any) => {
+			e.stopPropagation();
+
+			const { props } = context;
+			const { className, classNameWrap } = props.param;
+			const type = S.Record.getTypeById(item.id);
+			const isPinned = Storage.getPinnedTypes().includes(item.id);
+			const canPin = type.isInstalled;
+			const canDefault = type.isInstalled && !U.Object.isInSetLayouts(item.recommendedLayout) && (type.id != S.Common.type);
+			const canDelete = type.isInstalled && S.Block.isAllowed(item.restrictions, [ I.RestrictionObject.Delete ]);
+			const route = '';
+
+			let options: any[] = [
+				canPin ? { id: 'pin', name: (isPinned ? translate('commonUnpin') : translate('commonPin')) } : null,
+				canDefault ? { id: 'default', name: translate('commonSetDefault') } : null,
+				{ id: 'open', name: translate('commonOpenType') },
+			];
+
+			if (canDelete) {
+				options = options.concat([
+					{ isDiv: true },
+					{ id: 'remove', name: translate('commonDelete'), color: 'red' },
+				]);
+			};
+
+			S.Menu.open('select', {
+				element: `#${props.getId()} #item-${item.id} .icon.more`,
+				horizontal: I.MenuDirection.Center,
+				offsetY: 4,
+				className,
+				classNameWrap,
+				data: {
+					options,
+					onSelect: (event: any, element: any) => {
+						switch (element.id) {
+
+							case 'open': {
+								U.Object.openAuto(item);
+								break;
+							};
+
+							case 'pin': {
+								isPinned ? Storage.removePinnedType(item.id) : Storage.addPinnedType(item.id);
+								analytics.event(isPinned ? 'UnpinObjectType' : 'PinObjectType', { objectType: item.uniqueKey, route });
+								context.forceUpdate();
+								break;
+							};
+
+							case 'default': {
+								S.Common.typeSet(item.uniqueKey);
+								analytics.event('DefaultTypeChange', { objectType: item.uniqueKey, route });
+								context.forceUpdate();
+								break;
+							};
+
+							case 'remove': {
+								if (S.Block.isAllowed(item.restrictions, [ I.RestrictionObject.Delete ])) {
+									Action.uninstall(item, true, route);
+								};
+								break;
+							};
+						};
+					}
+				}
+			});
+		};
+
+		const buttons = [
+			flags.withImport ? { id: 'import', icon: 'import', name: translate('commonImport'), onClick: onImport } : null,
+		].filter(it => it);
+
+		const check = async () => {
+			const items = await getClipboardData();
+
+			if (items.length) {
+				buttons.unshift({ id: 'clipboard', icon: 'clipboard', name: translate('widgetItemClipboard'), onClick: onPaste });
+			};
+
+			S.Menu.open('typeSuggest', {
+				...param,
+				data: {
+					noStore: true,
+					onMore,
+					buttons: buttons.map(it => ({ ...it, isButton: true })),
+					filters: [
+						{ relationKey: 'recommendedLayout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts().concat(U.Object.getSetLayouts()) },
+						{ relationKey: 'uniqueKey', condition: I.FilterCondition.NotEqual, value: J.Constant.typeKey.template },
+					],
+					onClick: (item: any) => {
+						const objectFlags: I.ObjectFlag[] = [];
+
+						if (!U.Object.isInSetLayouts(item.recommendedLayout)) {
+							objectFlags.push(I.ObjectFlag.SelectTemplate);
+						};
+						if (flags.deleteEmpty) {
+							objectFlags.push(I.ObjectFlag.DeleteEmpty);
+						};
+
+						C.ObjectCreate(details, objectFlags, item.defaultTemplateId, item.uniqueKey, S.Common.space, (message: any) => {
+							if (message.error.code || !message.details) {
+								return;
+							};
+
+							const object = message.details;
+
+							if (callBack) {
+								callBack(object);
+							};
+
+							analytics.event('SelectObjectType', { objectType: object.type });
+							analytics.createObject(object.type, object.layout, route, message.middleTime);
+						});
+					},
+				},
+			});
+		};
+
+		check();
 	};
 
 };

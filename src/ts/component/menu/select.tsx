@@ -34,7 +34,7 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 	render () {
 		const { param } = this.props;
 		const { data } = param;
-		const { filter, value, disabled, placeholder, noVirtualisation, withDefault, menuLabel } = data;
+		const { filter, value, disabled, placeholder, noVirtualisation, menuLabel } = data;
 		const items = this.getItems(true);
 		const withFilter = this.isWithFilter();
 
@@ -46,22 +46,6 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 			const cn = [];
 
 			let content = null;
-			if (item.isSection) {
-				cn.push('sectionName');
-
-				if (!item.index) {
-					cn.push('first');
-				};
-
-				content = <div className={cn.join(' ')} style={item.style}>{item.name}</div>;
-			} else
-			if (item.isDiv) {
-				content = (
-					<div className="separator" style={item.style}>
-						<div className="inner" />
-					</div>
-				);
-			} else
 			if (item.id == 'add') {
 				content = (
 					<div
@@ -108,11 +92,11 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 		let content = null;
 		if (noVirtualisation) {
 			content = (
-				<React.Fragment>
+				<>
 					{items.map((item, i) => (
 						<Item {...item} key={i} index={i} />
 					))}
-				</React.Fragment>
+				</>
 			);
 		} else {
 			const rowRenderer = (param: any) => (
@@ -157,7 +141,7 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 		};
 		
 		return (
-			<React.Fragment>
+			<>
 				{withFilter ? (
 					<Filter 
 						ref={ref => this.refFilter = ref}
@@ -174,14 +158,10 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 					<Label className="menuLabel" text={menuLabel} />
 				) : ''}
 				
-				{!items.length ? (
-					<div className="item empty">{translate('menuSelectEmpty')}</div>
-				) : ''}
-
 				<div className="items">
 					{content}
 				</div>
-			</React.Fragment>
+			</>
 		);
 	};
 	
@@ -307,6 +287,10 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 			items = items.filter(it => String(it.name || '').match(filter));
 		};
 
+		if (!items.length) {
+			items.push({ id: 'empty', name: translate('menuSelectEmpty'), className: 'empty', isEmpty: true });
+		};
+
 		if (withAdd) {
 			items = items.concat([
 				{ isDiv: true },
@@ -416,7 +400,11 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 		const { data } = param;
 		const value = Relation.getArrayValue(data.value);
 
-		return item.checkbox || value.includes(String(item.id));
+		if (undefined !== item.checkbox) {
+			return item.checkbox;
+		};
+
+		return value.includes(String(item.id));
 	};
 
 	resize () {
@@ -431,9 +419,9 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 		if (!noScroll) {
 			let height = 0;
 			if (withFilter) {
-				height += 60;
+				height += 52;
 			};
-			if (!withFilter || noScroll) {
+			if (!withFilter) {
 				height += 16;
 			};
 
@@ -449,10 +437,10 @@ const MenuSelect = observer(class MenuSelect extends React.Component<I.Menu> {
 			content.css({ height });
 		};
 
-		withFilter ? obj.addClass('withFilter') : obj.removeClass('withFilter');
-		withAdd ? obj.addClass('withAdd') : obj.removeClass('withAdd');
-		noScroll ? obj.addClass('noScroll') : obj.removeClass('noScroll');
-		noVirtualisation ? obj.addClass('noVirtualisation') : obj.removeClass('noVirtualisation');
+		obj.toggleClass('withFilter', Boolean(withFilter));
+		obj.toggleClass('withAdd', Boolean(withAdd));
+		obj.toggleClass('noScroll', Boolean(noScroll));
+		obj.toggleClass('noVirtualisation', Boolean(noVirtualisation));
 
 		position();
 	};

@@ -24,7 +24,14 @@ class UtilEmbed {
 	};
 
 	getYoutubeHtml (content: string): string {
-		return `<iframe src="${content}"  ${IFRAME_PARAM} title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>`;
+		let url = '';
+
+		try {
+			const a = new URL(content);
+			a.search += '&enablejsapi=1&rel=0';
+			url = a.toString();
+		} catch (e) {};
+		return `<iframe id="player" src="${url.toString()}" ${IFRAME_PARAM} title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"></iframe>`;
 	};
 
 	getVimeoHtml (content: string): string {
@@ -71,10 +78,6 @@ class UtilEmbed {
 		return `<iframe src="${content}" ${IFRAME_PARAM}></iframe>`;
 	};
 
-	getKrokiHtml (content: string): string {
-		return `<img src="${content}" />`;
-	};
-
 	getSketchfabHtml (content: string): string {
 		return `<iframe src="${content}" ${IFRAME_PARAM}></iframe>`;
 	};
@@ -90,6 +93,17 @@ class UtilEmbed {
 
 			if (url.match(reg)) {
 				p = Number(i);
+
+				// Restrict youtube channel links
+				if ((p == I.EmbedProcessor.Youtube)) {
+					try {
+						const info = new URL(url);
+
+						if (info.pathname.match(/^\/@/)) {
+							p = null;
+						};
+					} catch (e) { p = null; };
+				};
 				break;
 			};
 		};

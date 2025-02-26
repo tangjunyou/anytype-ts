@@ -70,7 +70,7 @@ const ViewCalendar = observer(class ViewCalendar extends React.Component<I.ViewC
 
 				<div className="wrap">
 					<div className={cn.join(' ')}>
-						<div className="table">
+						<div className="table customScrollbar">
 							<div className="head">
 								{days.map((item, i) => (
 									<div key={i} className="item">
@@ -81,14 +81,13 @@ const ViewCalendar = observer(class ViewCalendar extends React.Component<I.ViewC
 
 							<div className="body">
 								{data.map((item, i) => {
-									const { d, m, y } = item;
 									const cn = [];
-									const current = [ d, m, y ].join('-');
+									const current = [ item.d, item.m, item.y ].join('-');
 
 									if (m != item.m) {
 										cn.push('other');
 									};
-									if ((today.d == d) && (today.m == m) && (today.y == y)) {
+									if ((today.d == item.d) && (today.m == item.m) && (today.y == item.y)) {
 										cn.push('active');
 									};
 									if (i < 7) {
@@ -172,7 +171,7 @@ const ViewCalendar = observer(class ViewCalendar extends React.Component<I.ViewC
 		const start = U.Date.timestamp(first.y, first.m, first.d, 0, 0, 0);
 		const end = U.Date.timestamp(last.y, last.m, last.d, 23, 59, 59);
 		const filters: I.Filter[] = [
-			{ relationKey: 'layout', condition: I.FilterCondition.NotIn, value: U.Object.excludeFromSet() },
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.NotIn, value: U.Object.excludeFromSet() },
 		].concat(view.filters as any[]);
 		const sorts: I.Sort[] = [].concat(view.sorts);
 		const searchIds = getSearchIds();
@@ -239,12 +238,11 @@ const ViewCalendar = observer(class ViewCalendar extends React.Component<I.ViewC
 		const objectId = getTarget().id;
 		const flags: I.ObjectFlag[] = [ I.ObjectFlag.SelectTemplate ];
 		const type = S.Record.getTypeById(getTypeId());
-		const typeKey = type.uniqueKey;
 		const templateId = getTemplateId();
 
 		details = Object.assign(Dataview.getDetails(rootId, J.Constant.blockId.dataview, objectId, view.id), details);
 
-		C.ObjectCreate(details, flags, templateId, typeKey, S.Common.space, (message: any) => {
+		C.ObjectCreate(details, flags, templateId, type?.uniqueKey, S.Common.space, (message: any) => {
 			if (message.error.code) {
 				return;
 			};
@@ -255,8 +253,7 @@ const ViewCalendar = observer(class ViewCalendar extends React.Component<I.ViewC
 				C.ObjectCollectionAdd(objectId, [ object.id ]);
 			};
 
-			U.Object.openAuto(object);
-
+			U.Object.openConfig(object);
 			analytics.createObject(object.type, object.layout, analytics.route.calendar, message.middleTime);
 		});
 	};
@@ -313,13 +310,13 @@ const ViewCalendar = observer(class ViewCalendar extends React.Component<I.ViewC
 		const margin = (cw - mw) / 2;
 		const { top } = node.offset();
 		const day = node.find('.day').first();
-		const menu = S.Menu.get('dataviewCalendarDay');
+		const menu = S.Menu.get('calendarDay');
 
 		wrap.css({ width: cw, height: Math.max(600, ch - top - 130), marginLeft: -margin - 2 });
-		win.trigger('resize.menuDataviewCalendarDay');
+		win.trigger('resize.menuCalendarDay');
 
 		if (menu && !menu.param.data.fromWidget && day.length) {
-			S.Menu.update('dataviewCalendarDay', { width: day.outerWidth() + 8 });
+			S.Menu.update('calendarDay', { width: day.outerWidth() + 8 });
 		};
 	};
 

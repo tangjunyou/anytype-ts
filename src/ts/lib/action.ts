@@ -165,19 +165,38 @@ class Action {
 	};
 
 	openUrl (url: string) {
+		if (!url) {
+			return;
+		};
+
 		url = U.Common.urlFix(url);
 
-		const storageKey = 'openUrl';
 		const scheme = U.Common.getScheme(url);
 		const cb = () => Renderer.send('openUrl', url);
+		const allowedSchemes = J.Constant.allowedSchemes.concat(J.Constant.protocol);
+		const isAllowed = allowedSchemes.includes(scheme);
+		const isDangerous = [ 
+			'javascript', 
+			'data', 
+			'ws', 
+			'wss', 
+			'chrome', 
+			'about', 
+			'ssh', 
+			'blob',
+			'ms-msdt',
+			'search-ms',
+			'ms-officecmd',
+		].includes(scheme);
+		const storageKey = isDangerous ? '' : 'openUrl';
 
-		if (!Storage.get(storageKey) && !scheme.match(new RegExp(`^(${J.Constant.allowedSchemes.join('|')})$`))) {
+		if (isDangerous || (!Storage.get(storageKey) && !isAllowed)) {
 			S.Popup.open('confirm', {
 				data: {
 					icon: 'confirm',
 					bgColor: 'red',
 					title: translate('popupConfirmOpenExternalLinkTitle'),
-					text: translate('popupConfirmOpenExternalLinkText'),
+					text: U.Common.sprintf(translate('popupConfirmOpenExternalLinkText'), U.Common.shorten(url, 120)),
 					textConfirm: translate('commonYes'),
 					storageKey,
 					onConfirm: () => cb(),
@@ -188,16 +207,22 @@ class Action {
 		};
 	};
 
+	openPath (path: string) {
+		if (!path) {
+			return;
+		};
+
+		Renderer.send('openPath', path);
+	};
+
 	openFile (id: string, route: string) {
 		if (!id) {
 			return;
 		};
 
 		C.FileDownload(id, U.Common.getElectron().tmpPath, (message: any) => {
-			if (message.path) {
-				Renderer.send('openPath', message.path);
-				analytics.event('OpenMedia', { route });
-			};
+			this.openPath(message.path);
+			analytics.event('OpenMedia', { route });
 		});
 	};
 
@@ -212,12 +237,20 @@ class Action {
 		analytics.event('DownloadMedia', { route });
 	};
 
-	openFileDialog (extensions: string[], callBack?: (paths: string[]) => void) {
+	openFileDialog (param: any, callBack?: (paths: string[]) => void) {
+		param = Object.assign({
+			extensions: [],
+			properties: [],
+		}, param);
+
+		const properties = param.properties || [];
+		const extensions = param.extensions || [];
+
 		const options: any = { 
-			properties: [ 'openFile' ], 
+			properties: [ 'openFile' ].concat(properties), 
 		};
 
-		if (extensions && extensions.length) {
+		if (extensions.length) {
 			options.filters = [ 
 				{ name: 'Filtered extensions', extensions },
 			];
@@ -400,7 +433,7 @@ class Action {
 		const { dataPath } = S.Common;
 		const { mode, path } = networkConfig;
 
-		this.openFileDialog([ 'zip' ], paths => {
+		this.openFileDialog({ extensions: [ 'zip' ] }, paths => {
 			C.AccountRecoverFromLegacyExport(paths[0], dataPath, U.Common.rand(1, J.Constant.count.icon), (message: any) => {
 				if (onError(message.error)) {
 					return;
@@ -414,14 +447,14 @@ class Action {
 					};
 
 					C.AccountSelect(accountId, dataPath, mode, path, (message: any) => {
-						if (onError(message.error) || !message.account) {
+						const { account } = message;
+
+						if (onError(message.error) || !account) {
 							return;
 						};
 
-						S.Auth.accountSet(message.account);
-						S.Common.configSet(message.account.config, false);
-
-						U.Data.onInfo(message.account.info);
+						S.Auth.accountSet(account);
+						S.Common.configSet(account.config, false);
 
 						const routeParam = {
 							replace: true,
@@ -432,7 +465,8 @@ class Action {
 							},
 						};
 
-						U.Data.onAuth({ routeParam });
+						U.Data.onInfo(account.info);
+						U.Data.onAuthWithoutSpace(routeParam);
 						U.Data.onAuthOnce(true);
 					});
 				});
@@ -440,14 +474,14 @@ class Action {
 		});
 	};
 
-	archive (ids: string[], callBack?: () => void) {
+	archive (ids: string[], route: string, callBack?: () => void) {
 		C.ObjectListSetIsArchived(ids, true, (message: any) => {
 			if (message.error.code) {
 				return;
 			};
 
 			Preview.toastShow({ action: I.ToastAction.Archive, ids });
-			analytics.event('MoveToBin', { count: ids.length });
+			analytics.event('MoveToBin', { route, count: ids.length });
 
 			if (callBack) {
 				callBack();
@@ -455,13 +489,15 @@ class Action {
 		});
 	};
 
-	restore (ids: string[], callBack?: () => void) {
+	restore (ids: string[], route: string, callBack?: () => void) {
+		ids = ids || [];
+
 		C.ObjectListSetIsArchived(ids, false, (message: any) => {
 			if (message.error.code) {
 				return;
 			};
 
-			analytics.event('RestoreFromBin', { count: ids.length });
+			analytics.event('RestoreFromBin', { route, count: ids.length });
 
 			if (callBack) {
 				callBack();
@@ -516,7 +552,7 @@ class Action {
 					return;
 				};
 
-				Renderer.send('openPath', paths[0]);
+				this.openPath(paths[0]);
 				analytics.event('Export', { type, middleTime: message.middleTime, route });
 
 				if (callBack) {
@@ -555,6 +591,9 @@ class Action {
 		blocks = U.Common.arrayUniqueObjects(blocks, 'id');
 		blocks = blocks.map((it: I.Block) => {
 			const element = S.Block.getMapElement(rootId, it.id);
+			if (!element) {
+				return null;
+			};
 
 			if (it.type == I.BlockType.Dataview) {
 				it.content.views = S.Record.getViews(rootId, it.id);
@@ -562,7 +601,7 @@ class Action {
 
 			it.childrenIds = element.childrenIds;
 			return it;
-		});
+		}).filter(it => it);
 
 		if (isCut) {
 			next = S.Block.getNextBlock(rootId, focused, -1, it => it.isFocusable());
@@ -593,6 +632,16 @@ class Action {
 		analytics.event(isCut ? 'CutBlock' : 'CopyBlock', { count: blocks.length });
 	};
 
+	createSpace (route: string) {
+		if (!U.Space.canCreateSpace()) {
+			return;
+		};
+
+		S.Popup.closeAll(null, () => {
+			S.Popup.open('spaceCreate', { data: { route } });
+		});
+	};
+
 	removeSpace (id: string, route: string, callBack?: (message: any) => void) {
 		const deleted = U.Space.getSpaceviewBySpaceId(id);
 
@@ -600,8 +649,6 @@ class Action {
 			return;
 		};
 
-		const { accountSpaceId } = S.Auth;
-		const { space } = S.Common;
 		const isOwner = U.Space.isMyOwner(id);
 		const name = U.Common.shorten(deleted.name, 32);
 		const suffix = isOwner ? 'Delete' : 'Leave';
@@ -620,24 +667,16 @@ class Action {
 				onConfirm: () => {
 					analytics.event(`Click${suffix}SpaceWarning`, { type: suffix, route });
 
-					const cb = () => {
-						C.SpaceDelete(id, (message: any) => {
-							if (callBack) {
-								callBack(message);
-							};
+					C.SpaceDelete(id, (message: any) => {
+						if (callBack) {
+							callBack(message);
+						};
 
-							if (!message.error.code) {
-								Preview.toastShow({ text: toast });
-								analytics.event(`${suffix}Space`, { type: deleted.spaceAccessType, route });
-							};
-						});
-					};
-
-					if (space == id) {
-						U.Router.switchSpace(accountSpaceId, '', false, cb);
-					} else {
-						cb();
-					};
+						if (!message.error.code) {
+							Preview.toastShow({ text: toast });
+							analytics.event(`${suffix}Space`, { type: deleted.spaceAccessType, route });
+						};
+					});
 				},
 				onCancel: () => {
 					analytics.event(`Click${suffix}SpaceWarning`, { type: 'Cancel', route });
@@ -711,7 +750,7 @@ class Action {
 		let layout = I.WidgetLayout.Link;
 
 		if (object && !object._empty_) {
-			if (U.Object.isInFileOrSystemLayouts(object.layout)) {
+			if (U.Object.isInFileOrSystemLayouts(object.layout) || U.Object.isDateLayout(object.layout)) {
 				layout = I.WidgetLayout.Link;
 			} else 
 			if (U.Object.isInSetLayouts(object.layout)) {
@@ -754,13 +793,20 @@ class Action {
 				text: translate('popupConfirmRevokeLinkText'),
 				textConfirm: translate('popupConfirmRevokeLinkConfirm'),
 				colorConfirm: 'red',
+				noCloseOnConfirm: true,
 				onConfirm: () => {
-					C.SpaceInviteRevoke(spaceId, () => {
+					C.SpaceInviteRevoke(spaceId, (message: any) => {
+						if (message.error.code) {
+							S.Popup.updateData('confirm', { error: message.error.description });
+							return;
+						};
+
 						if (callBack) {
 							callBack();
 						};
 
 						Preview.toastShow({ text: translate('toastInviteRevoke') });
+						S.Popup.close('confirm');
 						analytics.event('RevokeShareLink');
 					});
 				},
@@ -768,28 +814,6 @@ class Action {
 		});
 
 		analytics.event('ScreenRevokeShareLink');
-	};
-
-	welcome () {
-		S.Popup.open('confirm', {
-			className: 'welcome',
-			preventCloseByClick: true,
-			preventCloseByEscape: true,
-			data: {
-				icon: 'welcome',
-				title: translate('popupConfirmWelcomeTitle'),
-				text: translate('popupConfirmWelcomeText'),
-				textConfirm: translate('popupConfirmWelcomeButton'),
-				canCancel: false,
-				onConfirm: () => {
-					S.Popup.replace('confirm', 'usecase', {
-						onClose: () => {
-							Onboarding.start('dashboard', false, false);
-						}
-					});
-				},
-			},
-		});
 	};
 
 	addToCollection (targetId: string, objectIds: string[]) {
@@ -811,6 +835,21 @@ class Action {
 		analytics.event('ThemeSet', { id });
 	};
 
+	toggleFeatureRelation (rootId: string, relationKey: string) {
+		const object = S.Detail.get(rootId, rootId, [ 'featuredRelations' ], true);
+		const featured = U.Common.objectCopy(object.featuredRelations || []);
+		const relation = S.Record.getRelationByKey(relationKey);
+
+		if (!relation) {
+			return null;
+		};
+
+		if (!featured.includes(relationKey)) {
+			C.ObjectRelationAddFeatured(rootId, [ relationKey ], () => analytics.event('FeatureRelation', { relationKey, format: relation.format }));
+		} else {
+			C.ObjectRelationRemoveFeatured(rootId, [ relationKey ], () => analytics.event('UnfeatureRelation', { relationKey, format: relation.format }));
+		};
+	};
 };
 
 export default new Action();

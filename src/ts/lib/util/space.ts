@@ -1,32 +1,42 @@
-import { I, S, U, J, Storage, translate } from 'Lib';
+import { I, C, S, U, J, Storage, translate } from 'Lib';
 
 class UtilSpace {
 
-	openDashboard (type: string, param?: any) {
-		const fn = U.Common.toCamelCase(`open-${type}`);
+	openDashboard (param?: any) {
+		param = param || {};
+
+		const space = this.getSpaceview();
+
+		if (!space || space._empty_ || space.isAccountDeleted || !space.isLocalOk) {
+			this.openFirstSpaceOrVoid(null, param);
+			return;
+		};
 		
 		let home = this.getDashboard();
-
 		if (home && (home.id == I.HomePredefinedId.Last)) {
-			home = Storage.getLastOpened(U.Common.getCurrentElectronWindowId());
-
-			// Invalid data protection
-			if (!home || !home.id) {
-				home = null;
-			};
-
-			if (home) {
-				home.spaceId = S.Common.space;
-			};
+			home = this.getLastObject();
 		};
 
 		if (!home) {
 			U.Object.openRoute({ layout: I.ObjectLayout.Empty }, param);
-			return;
+		} else {
+			U.Object.openRoute(home, param);
+		};
+	};
+
+	openFirstSpaceOrVoid (filter?: (it: any) => boolean, param?: Partial<I.RouteParam>) {
+		param = param || {};
+
+		let spaces = this.getList();
+
+		if (filter) {
+			spaces = spaces.filter(filter);
 		};
 
-		if (U.Object[fn]) {
-			U.Object[fn](home, param);
+		if (spaces.length) {
+			U.Router.switchSpace(spaces[0].targetSpaceId, '', false, param);
+		} else {
+			U.Router.go('/main/void', param);
 		};
 	};
 
@@ -42,10 +52,13 @@ class UtilSpace {
 		if (id == I.HomePredefinedId.Graph) {
 			ret = this.getGraph();
 		} else
+		if (id == I.HomePredefinedId.Chat) {
+			ret = this.getChat();
+		} else
 		if (id == I.HomePredefinedId.Last) {
 			ret = this.getLastOpened();
 		} else {
-			ret = S.Detail.get(J.Constant.subId.space, id);
+			ret = S.Detail.get(U.Space.getSubSpaceSubId(space.targetSpaceId), id);
 		};
 
 		if (!ret || ret._empty_ || ret.isDeleted) {
@@ -54,11 +67,14 @@ class UtilSpace {
 		return ret;
 	};
 
+	getSystemDashboardIds () {
+		return [ I.HomePredefinedId.Graph, I.HomePredefinedId.Chat, I.HomePredefinedId.Last ];
+	};
+
 	getGraph () {
 		return { 
 			id: I.HomePredefinedId.Graph, 
 			name: translate('commonGraph'), 
-			iconEmoji: ':earth_americas:',
 			layout: I.ObjectLayout.Graph,
 		};
 	};
@@ -70,8 +86,31 @@ class UtilSpace {
 		};
 	};
 
+	getLastObject () {
+		let home = Storage.getLastOpened(U.Common.getCurrentElectronWindowId());
+
+		// Invalid data protection
+		if (!home || !home.id) {
+			home = null;
+		};
+
+		if (home) {
+			home.spaceId = S.Common.space;
+		};
+
+		return home;
+	};
+
+	getChat () {
+		return { 
+			id: S.Block.workspace,
+			name: translate('commonChat'),
+			layout: I.ObjectLayout.Chat,
+		};
+	};
+
 	getList () {
-		return S.Record.getRecords(J.Constant.subId.space, U.Data.spaceRelationKeys()).filter(it => it.isAccountActive && it.isLocalOk);
+		return S.Record.getRecords(J.Constant.subId.space, U.Data.spaceRelationKeys()).filter(it => it.isAccountActive);
 	};
 
 	getSpaceview (id?: string) {
@@ -113,6 +152,10 @@ class UtilSpace {
 		return object._empty_ ? null : object;
 	};
 
+	getSubSpaceSubId (spaceId: string) {
+		return [ J.Constant.subId.subSpace, spaceId ].join('-');
+	};
+
 	getMyParticipant (spaceId?: string) {
 		const { account } = S.Auth;
 		const { space } = S.Common;
@@ -121,8 +164,16 @@ class UtilSpace {
 			return null;
 		};
 
-		const object = S.Detail.get(J.Constant.subId.myParticipant, this.getParticipantId(spaceId || space, account.id));
+		spaceId = spaceId || space;
+
+		const subId = this.getSubSpaceSubId(spaceId);
+		const object = S.Detail.get(subId, this.getParticipantId(spaceId, account.id));
+
 		return object._empty_ ? null : object;
+	};
+
+	getCreator (spaceId: string, id: string) {
+		return S.Detail.get(this.getSubSpaceSubId(spaceId), id);
 	};
 
 	canMyParticipantWrite (spaceId?: string): boolean {
@@ -137,6 +188,17 @@ class UtilSpace {
 
 	isShareActive () {
 		return S.Common.isOnline && !U.Data.isLocalNetwork();
+	};
+
+	hasShareBanner () {
+		/*
+		const hasShared = !!this.getList().find(it => it.isShared && this.isMyOwner(it.targetSpaceId));
+		const space = this.getSpaceview();
+		const closed = Storage.get('shareBannerClosed');
+
+		return !space.isPersonal && !space.isShared && !closed && this.isMyOwner() && !hasShared;
+		*/
+		return false;
 	};
 
 	getReaderLimit () {
@@ -179,6 +241,54 @@ class UtilSpace {
 		const length = items.length;
 
 		return length < J.Constant.limit.space;
+	};
+
+	initSpaceState () {
+		const { widgets } = S.Block;
+		const blocks = S.Block.getChildren(widgets, widgets);
+
+		Storage.initPinnedTypes();
+
+		if (!blocks.length) {
+			return;
+		};
+
+		blocks.forEach(block => Storage.setToggle('widget', block.id, false));
+
+		const first = blocks[0];
+		const children = S.Block.getChildren(widgets, first.id);
+
+		if (children.length) {
+			const object = S.Detail.get(widgets, children[0].getTargetObjectId());
+
+			if (!object._empty_) {
+				Storage.setLastOpened(U.Common.getCurrentElectronWindowId(), { id: object.id, layout: object.layout });
+				U.Space.openDashboard();
+			};
+		};
+	};
+
+	getInvite (id: string, callBack: (cid: string, key: string) => void) {
+		C.SpaceInviteGetCurrent(id, (message: any) => {
+			callBack(message.inviteCid, message.inviteKey);
+		});
+	};
+
+	getPublishDomain (): string {
+		const participant = this.getMyParticipant();
+
+		let domain = '';
+		if (participant.globalName) {
+			domain = U.Common.sprintf(J.Url.publishDomain, participant.globalName);
+		} else {
+			domain = U.Common.sprintf(J.Url.publish, participant.identity);
+		};
+
+		return domain;
+	};
+
+	getPublishUrl (slug: string): string {
+		return [ this.getPublishDomain(), slug ].join('/');
 	};
 
 };

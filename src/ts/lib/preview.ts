@@ -1,6 +1,5 @@
 import $ from 'jquery';
-import raf from 'raf';
-import { I, S, U, J, keyboard, sidebar } from 'Lib';
+import { I, S, U, J, keyboard } from 'Lib';
 
 const BORDER = 12;
 const DELAY_TOOLTIP = 650;
@@ -8,7 +7,7 @@ const DELAY_PREVIEW = 300;
 
 interface TooltipParam {
 	text: string;
-	element: JQuery<HTMLElement>;
+	element: any;
 	typeX: I.MenuDirection.Left | I.MenuDirection.Center | I.MenuDirection.Right;
 	typeY: I.MenuDirection.Top | I.MenuDirection.Center | I.MenuDirection.Bottom;
 	offsetX: number;
@@ -46,16 +45,22 @@ class Preview {
 		const { element } = param;
 		const typeX = Number(param.typeX) || I.MenuDirection.Center;
 		const typeY = Number(param.typeY) || I.MenuDirection.Top;
-		const delay = Number(param.delay) || DELAY_TOOLTIP;
 		const offsetX = Number(param.offsetX) || 0;
 		const offsetY = Number(param.offsetY) || 0;
-		const text = String(param.text || '').replace(/\\n/g, '\n');
 
+		let delay = DELAY_TOOLTIP;
+		if (undefined !== param.delay) {
+			delay = param.delay;
+		};
+		
 		if (!element.length || keyboard.isResizing) {
 			return;
 		};
 
-		this.delayTooltip = delay;
+		let text = String(param.text || '').replace(/\\n/g, '\n');
+		text = U.Common.lbBr(U.Common.sanitize(text));
+
+		this.delayTooltip = Number(delay) || 0;
 
 		window.clearTimeout(this.timeout.tooltip);
 		this.timeout.tooltip = window.setTimeout(() => {
@@ -66,7 +71,7 @@ class Preview {
 			const ew = element.outerWidth();
 			const eh = element.outerHeight();
 			const { ww } = U.Common.getWindowDimensions();
-			const node = $(`<div class="tooltip anim"><div class="txt">${U.Common.lbBr(text)}</div></div>`);
+			const node = $(`<div class="tooltip anim"><div class="txt">${text}</div></div>`);
 
 			if (param.className) {
 				node.addClass(param.className);
@@ -127,6 +132,13 @@ class Preview {
 			window.clearTimeout(this.timeout.delay);
 			this.timeout.delay = window.setTimeout(() => this.delayTooltip = delay, 500);
 			this.delayTooltip = 100;
+
+			win.off('click.tooltip').on('click.tooltip', () => {
+				this.tooltipHide(true);
+
+				win.off('click.tooltip');
+			});
+
 		}, this.delayTooltip);
 	};
 
@@ -162,7 +174,12 @@ class Preview {
 	 * Display a preview
 	 */
 	previewShow (param: I.Preview) {
-		if (keyboard.isPreviewDisabled) {
+		if (
+			keyboard.isPreviewDisabled || 
+			keyboard.isResizing || 
+			keyboard.isDragging
+		) {
+			window.clearTimeout(this.timeout.preview);
 			return;
 		};
 
@@ -200,9 +217,7 @@ class Preview {
 			});
 		};
 
-		passThrough ? obj.addClass('passThrough') : obj.removeClass('passThrough');
-		obj.off('mouseleave.preview').on('mouseleave.preview', () => this.previewHide(true));
-
+		obj.toggleClass('passThrough', Boolean(passThrough));
 		this.previewHide(true);
 
 		if (param.delay) {
@@ -282,44 +297,12 @@ class Preview {
 	};
 
 	/**
-	 * This method is used by toast to position itself on the screen
-	 */
-	toastPosition () {
-		const obj = $('#toast');
-		const { ww } = U.Common.getWindowDimensions();
-		const y = 32;
-		const sw = sidebar.getDummyWidth();;
-		const x = (ww - sw) / 2 - obj.outerWidth() / 2 + sw;
-
-		obj.show().css({ opacity: 0, transform: 'scale3d(0.7,0.7,1)' });
-
-		raf(() => {
-			obj.css({ left: x, top: y, opacity: 1, transform: 'scale3d(1,1,1)' });
-		});
-	};
-
-	/**
-	 * Show the share app tooltip
-	 */
-	shareTooltipShow () {
-		S.Common.shareTooltipSet(true);
-	};
-
-	/**
-	 * Hide the share app tooltip
-	 */
-	shareTooltipHide () {
-		S.Common.shareTooltipSet(false);
-	};
-
-	/**
 	 * Force hides all tooltips, previews, and toasts.
 	 */
 	hideAll () {
 		this.tooltipHide(true);
 		this.previewHide(true);
 		this.toastHide(true);
-		this.shareTooltipHide();
 	};
 
 };

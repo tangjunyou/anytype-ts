@@ -2,8 +2,8 @@ import * as React from 'react';
 import $ from 'jquery';
 import raf from 'raf';
 import { observer } from 'mobx-react';
+import { Label, Frame, SidebarRight } from 'Component';
 import { I, S, U, Onboarding, Storage, analytics, keyboard, sidebar, Preview, Highlight, translate } from 'Lib';
-import { Label, Frame } from 'Component';
 
 import PageAuthSelect from './auth/select';
 import PageAuthLogin from './auth/login';
@@ -11,25 +11,28 @@ import PageAuthPinCheck from './auth/pinCheck';
 import PageAuthSetup from './auth/setup';
 import PageAuthOnboard from './auth/onboard';
 import PageAuthDeleted from './auth/deleted';
+import PageAuthMigrate from './auth/migrate';
 
 import PageMainBlank from './main/blank';
 import PageMainEmpty from './main/empty';
+import PageMainVoid from './main/void';
 import PageMainEdit from './main/edit';
 import PageMainHistory from './main/history';
 import PageMainSet from './main/set';
 import PageMainType from './main/type';
 import PageMainMedia from './main/media';
 import PageMainRelation from './main/relation';
-import PageMainStore from './main/store';
 import PageMainGraph from './main/graph';
 import PageMainNavigation from './main/navigation';
-import PageMainCreate from './main/create';
 import PageMainArchive from './main/archive';
 import PageMainImport from './main/import';
 import PageMainInvite from './main/invite';
 import PageMainMembership from './main/membership';
 import PageMainObject from './main/object';
+import PageMainOnboarding from './main/onboarding';
 import PageMainChat from './main/chat';
+import PageMainDate from './main/date';
+import PageMainSettings from './main/settings';
 
 const Components = {
 	'index/index':			 PageAuthSelect,
@@ -40,6 +43,7 @@ const Components = {
 	'auth/setup':			 PageAuthSetup,
 	'auth/onboard':			 PageAuthOnboard,
 	'auth/deleted':			 PageAuthDeleted,
+	'auth/migrate':			 PageAuthMigrate,
 
 	'main/blank':			 PageMainBlank,		
 	'main/empty':			 PageMainEmpty,		
@@ -49,16 +53,18 @@ const Components = {
 	'main/type':			 PageMainType,
 	'main/media':			 PageMainMedia,
 	'main/relation':		 PageMainRelation,
-	'main/store':			 PageMainStore,
 	'main/graph':			 PageMainGraph,
 	'main/navigation':		 PageMainNavigation,
-	'main/create':			 PageMainCreate,
 	'main/archive':			 PageMainArchive,
 	'main/import':			 PageMainImport,
 	'main/invite':			 PageMainInvite,
 	'main/membership':		 PageMainMembership,
 	'main/object':			 PageMainObject,
+	'main/onboarding':		 PageMainOnboarding,
 	'main/chat':			 PageMainChat,
+	'main/void':			 PageMainVoid,
+	'main/date':			 PageMainDate,
+	'main/settings':		 PageMainSettings,
 };
 
 const Page = observer(class Page extends React.Component<I.PageComponent> {
@@ -74,7 +80,8 @@ const Page = observer(class Page extends React.Component<I.PageComponent> {
 		const { page, action } = this.getMatchParams();
 		const path = [ page, action ].join('/');
 		const isMain = this.isMain();
-		const showSidebar = isMain;
+		const Component = Components[path];
+		const namespace = U.Common.getEventNamespace(isPopup);
 
 		if (account) {
 			const { status } = account || {};
@@ -85,33 +92,28 @@ const Page = observer(class Page extends React.Component<I.PageComponent> {
 			return null;
 		};
 
-		const Component = Components[path];
-		if (!Component) {
-			return (
-				<Frame>
-					<Label text={U.Common.sprintf(translate('pageMainIndexComponentNotFound'), path)} />
-				</Frame>
-			);
-		};
-
-		const wrap = (
-			<div id="page" className={`page ${this.getClass('page')}`}>
-				<Component ref={ref => this.refChild = ref} {...this.props} />
+		return (
+			<div 
+				id="pageFlex" 
+				className={[ 'pageFlex', (isPopup ? 'isPopup' : 'isFull') ].join(' ')}
+			>
+				<div id="sidebarDummyLeft" className="sidebarDummy" />
+				<div id="page" className={`page ${this.getClass('page')}`}>
+					{Component ? (
+						<Component ref={ref => this.refChild = ref} {...this.props} />
+					) : (
+						<Frame>
+							<Label text={U.Common.sprintf(translate('pageMainIndexComponentNotFound'), path)} />
+						</Frame>
+					)}
+				</div>
+				<SidebarRight 
+					ref={ref => S.Common.refSet(`sidebarRight${namespace}`, ref)} 
+					key="sidebarRight" 
+					{...this.props} 
+				/>
 			</div>
 		);
-
-		let content = null;
-		if (isPopup || !showSidebar) {
-			content = wrap;
-		} else {
-			content = (
-				<div id="pageFlex" className="pageFlex">
-					<div id="sidebarDummy" className="sidebarDummy" />
-					{wrap}
-				</div>
-			);
-		};
-		return content;
 	};
 	
 	componentDidMount () {
@@ -146,21 +148,23 @@ const Page = observer(class Page extends React.Component<I.PageComponent> {
 		const ret = (isPopup ? matchPopup : match) || { params: {} };
 
 		// Universal object route
-		if (pathname.match('/object')) {
+		if (pathname.match(/^\/object/)) {
 			ret.params.page = 'main';
 			ret.params.action = 'object';
 			ret.params.id = data.objectId;
 			ret.params.spaceId = data.spaceId;
+			ret.params.cid = data.cid;
+			ret.params.key = data.key;
 		};
 
 		// Invite route
-		if (pathname.match('/invite')) {
+		if (pathname.match(/^\/invite/)) {
 			ret.params.page = 'main';
 			ret.params.action = 'invite';
 		};
 
 		// Membership route
-		if (pathname.match('/membership')) {
+		if (pathname.match(/^\/membership/)) {
 			ret.params.page = 'main';
 			ret.params.action = 'membership';
 		};
@@ -187,22 +191,25 @@ const Page = observer(class Page extends React.Component<I.PageComponent> {
 
 	init () {
 		const { account } = S.Auth;
+		const { pin } = S.Common;
 		const { isPopup } = this.props;
+		const showSidebarRight = S.Common.getShowSidebarRight(isPopup);
 		const match = this.getMatch();
 		const { page, action } = this.getMatchParams();
 		const isIndex = this.isIndex();
 		const isAuth = this.isAuth();
 		const isMain = this.isMain();
 		const isPinCheck = this.isAuthPinCheck();
-		const pin = Storage.getPin();
 		const win = $(window);
 		const path = [ page, action ].join('/');
 		const Component = Components[path];
 		const routeParam = { replace: true };
+		const refSidebar = sidebar.rightPanelRef(isPopup);
 
 		Preview.tooltipHide(true);
 		Preview.previewHide(true);
 		keyboard.setWindowTitle();
+		sidebar.rightPanelToggle(false, false, isPopup);
 
 		if (!Component) {
 			return;
@@ -221,6 +228,10 @@ const Page = observer(class Page extends React.Component<I.PageComponent> {
 		if (isMain && (S.Auth.accountIsDeleted() || S.Auth.accountIsPending())) {
 			U.Router.go('/auth/deleted', routeParam);
 			return;
+		};
+
+		if (refSidebar && showSidebarRight) {
+			refSidebar.setState({ rootId: this.getRootId() });
 		};
 
 		this.setBodyClass();
@@ -298,7 +309,7 @@ const Page = observer(class Page extends React.Component<I.PageComponent> {
 		return [ 
 			U.Common.toCamelCase([ prefix, page ].join('-')),
 			this.getId(prefix),
-			(isPopup ? 'isPopup' : 'isFull'),
+			isPopup ? 'isPopup' : 'isFull',
 		].join(' ');
 	};
 	
@@ -355,7 +366,7 @@ const Page = observer(class Page extends React.Component<I.PageComponent> {
 				this.refChild.resize();			
 			};
 
-			sidebar.resizePage(null, false);
+			sidebar.resizePage(null, null, false);
 		});
 	};
 	

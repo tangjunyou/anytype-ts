@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { observer } from 'mobx-react';
-import { IconObject, ObjectName } from 'Component';
+import { IconObject, ObjectName, Icon } from 'Component';
 import { I, S, U, translate, Preview } from 'Lib';
 
 interface Props extends I.ViewComponent {
@@ -21,10 +21,11 @@ const Item = observer(class Item extends React.Component<Props> {
 		super(props);
 
 		this.onOpen = this.onOpen.bind(this);
+		this.onOpenDate = this.onOpenDate.bind(this);
 		this.onMore = this.onMore.bind(this);
 		this.onContext = this.onContext.bind(this);
 		this.canCreate = this.canCreate.bind(this);
-		this.onDoubleClick = this.onDoubleClick.bind(this);
+		this.onCreate = this.onCreate.bind(this);
 	};
 
 	render () {
@@ -34,6 +35,7 @@ const Item = observer(class Item extends React.Component<Props> {
 		const slice = items.slice(0, LIMIT);
 		const length = items.length;
 		const cn = [ 'day' ];
+		const canCreate = this.canCreate();
 
 		if (className) {
 			cn.push(className);
@@ -49,12 +51,8 @@ const Item = observer(class Item extends React.Component<Props> {
 		};
 
 		const Item = (item: any) => {
-			const canEdit = !item.isReadonly && S.Block.isAllowed(item.restrictions, [ I.RestrictionObject.Details ]);
-
-			let icon = null;
-			if (!hideIcon) {
-				icon = <IconObject object={item} size={16} canEdit={canEdit} />;
-			};
+			const canEdit = !item.isReadonly && S.Block.isAllowed(item.restrictions, [ I.RestrictionObject.Details ]) && U.Object.isTaskLayout(item.layout);
+			const icon = hideIcon ? null : <IconObject id={`item-${item.id}-icon`} object={item} size={16} canEdit={canEdit} />;
 
 			return (
 				<div 
@@ -75,11 +73,23 @@ const Item = observer(class Item extends React.Component<Props> {
 				ref={node => this.node = node}
 				className={cn.join(' ')}
 				onContextMenu={this.onContext}
-				onDoubleClick={this.onDoubleClick}
+				onDoubleClick={this.onCreate}
 			>
-				<div className="number">
-					<div className="inner">{d}</div>
+				<div className="head">
+					{canCreate ? (
+						<Icon 
+							className="plus withBackground" 
+							tooltip={translate(`commonNewObject`)} 
+							tooltipY={I.MenuDirection.Top}
+							onClick={this.onCreate} 
+						/> 
+					) : ''}
+
+					<div className="number" onClick={this.onOpenDate}>
+						<div className="inner">{d}</div>
+					</div>
 				</div>
+
 				<div className="items">
 					{slice.map((item, i) => (
 						<Item key={[ y, m, d, item.id ].join('-')} {...item} />
@@ -111,8 +121,8 @@ const Item = observer(class Item extends React.Component<Props> {
 		const node = $(this.node);
 		const view = getView();
 
-		S.Menu.closeAll([ 'dataviewCalendarDay' ], () => {
-			S.Menu.open('dataviewCalendarDay', {
+		S.Menu.closeAll([ 'calendarDay' ], () => {
+			S.Menu.open('calendarDay', {
 				element: node,
 				horizontal: I.MenuDirection.Center,
 				width: node.outerWidth() + 8,
@@ -125,21 +135,20 @@ const Item = observer(class Item extends React.Component<Props> {
 					relationKey: view.groupRelationKey,
 					hideIcon: view.hideIcon,
 					readonly,
+					onCreate: this.onCreate,
 				}
 			});
 		});
 	};
 
-	onContext () {
+	onContext (e: any) {
 		const node = $(this.node);
-		const options = [];
+		const options = [
+			{ id: 'open', icon: 'expand', name: translate('commonOpenObject') }
+		] as I.Option[];
 
 		if (this.canCreate()) {
 			options.push({ id: 'add', name: translate('commonNewObject') });
-		};
-
-		if (!options.length) {
-			return;
 		};
 
 		S.Menu.open('select', {
@@ -154,22 +163,22 @@ const Item = observer(class Item extends React.Component<Props> {
 				options,
 				noVirtualisation: true,
 				onSelect: (e: any, item: any) => {
-					if (item.id == 'add') {
-						this.onCreate();
-					}
+					switch (item.id) {
+						case 'open': this.onOpenDate(); break;
+						case 'add': this.onCreate(e); break;
+					};
 				},
 			}
 		});
 	};
 
-	onDoubleClick () {
+	onCreate (e: any) {
 		if (!this.canCreate()) {
 			return;
 		};
-		this.onCreate();
-	};
 
-	onCreate () {
+		e?.stopPropagation();
+
 		const { d, m, y, getView, onCreate } = this.props;
 		const view = getView();
 		const details = {};
@@ -178,12 +187,23 @@ const Item = observer(class Item extends React.Component<Props> {
 		onCreate(details);
 	};
 
-	canCreate () {
+	onOpenDate () {
+		const { d, m, y, getView } = this.props;
+		const view = getView();
+
+		U.Object.openDateByTimestamp(view.groupRelationKey, U.Date.timestamp(y, m, d, 12, 0, 0), 'config');
+	};
+
+	canCreate (): boolean {
 		const { getView, isAllowedObject } = this.props;
 		const view = getView();
-		const groupRelation = S.Record.getRelationByKey(view.groupRelationKey);
 
-		return !groupRelation.isReadonlyValue && isAllowedObject();
+		if (!view) {
+			return false;
+		};
+
+		const groupRelation = S.Record.getRelationByKey(view.groupRelationKey);
+		return groupRelation && !groupRelation.isReadonlyValue && isAllowedObject();
 	};
 
 });

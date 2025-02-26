@@ -1,62 +1,31 @@
-import * as React from 'react';
+import React, { forwardRef, useRef, useState, useImperativeHandle, useEffect } from 'react';
+import { observer } from 'mobx-react';
 import { Loader, Frame, Title, Error, Button } from 'Component';
-import { I, S, U, J, translate, analytics } from 'Lib';
+import { I, S, U, J, translate, analytics, sidebar } from 'Lib';
 
-interface State {
-	error: string;
-};
+const PageMainMembership = observer(forwardRef<I.PageRef, I.PageComponent>((props, ref) => {
 
-class PageMainMembership extends React.Component<I.PageComponent, State> {
+	const nodeRef = useRef(null);
+	const { isPopup } = props;
+	const [ error, setError ] = useState('');
+	const { membership } = S.Auth;
+	const { status, tier } = membership;
 
-	state = {
-		error: '',
-	};
-	node = null;
-
-	render () {
-		const { error } = this.state;
-
-		return (
-			<div 
-				ref={ref => this.node = ref}
-				className="wrapper"
-			>
-				<Frame>
-					<Title text={error ? translate('commonError') : translate('pageMainMembershipTitle')} />
-					<Error text={error} />
-
-					{error ? (
-						<div className="buttons">
-							<Button 
-								text={translate('commonBack')} 
-								color="blank" 
-								className="c36" 
-								onClick={() => U.Space.openDashboard('route')} 
-							/>
-						</div>
-					) : <Loader />}
-				</Frame>
-			</div>
-		);
-	};
-
-	componentDidMount (): void {
-		this.init();
-	};
-
-	init () {
+	const init = () => {
 		const data = U.Common.searchParam(U.Router.history.location.search);
 	
 		let { tier } = data;
 
 		U.Data.getMembershipStatus((membership: I.Membership) => {
 			if (!membership || membership.isNone) {
-				this.setState({ error: translate('pageMainMembershipError') });
+				setError(translate('pageMainMembershipError'));
 				return;
 			};
 
-			U.Space.openDashboard('route', {
-				onRouteChange: () => {
+			U.Space.openDashboard({
+				replace: true,
+				animate: true,
+				onFadeIn: () => {
 					if (tier && (tier != I.TierType.None)) {
 						if (!membership.isNone && !membership.isExplorer) {
 							tier = membership.tier;
@@ -64,52 +33,76 @@ class PageMainMembership extends React.Component<I.PageComponent, State> {
 
 						S.Popup.open('membership', { data: { tier } });
 					} else {
-						this.finalise();
+						finalise();
 					};
 				},
 			});
 		});
 
-		this.resize();
+		resize();
 	};
 
-	finalise () {
-		const { membership } = S.Auth;
-		const { status, tier } = membership;
-
+	const finalise = () => {
 		S.Popup.closeAll(null, () => {
-			if (status == I.MembershipStatus.Finalization) {
-				S.Popup.open('membershipFinalization', { data: { tier } });
-			} else {
-				S.Popup.open('membership', {
-					onClose: () => {
-						window.setTimeout(() => S.Popup.open('settings', { data: { page: 'membership' } }), J.Constant.delay.popup * 2);
-					},
-					data: {
-						tier: membership.tier,
-						success: true,
-					},
-				});
+			U.Data.getMembershipStatus((membership: I.Membership) => {
+				const { status, tier } = membership;
 
-				analytics.event('ChangePlan', { params: { tier }});
-			};
+				if (status == I.MembershipStatus.Finalization) {
+					S.Popup.open('membershipFinalization', { data: { tier } });
+				} else {
+					S.Popup.open('membership', {
+						onClose: () => {
+							U.Object.openAuto({ id: 'membership', layout: I.ObjectLayout.Settings });
+						},
+						data: {
+							tier: membership.tier,
+							success: true,
+						},
+					});
+
+					analytics.event('ChangePlan', { params: { tier }});
+				};
+			});
 		});
 	};
 
-	resize () {
-		const { isPopup } = this.props;
+	const resize = () => {
 		const win = $(window);
-		const obj = U.Common.getPageContainer(isPopup);
-		const node = $(this.node);
-		const wrapper = obj.find('.wrapper');
-		const oh = obj.height();
-		const header = node.find('#header');
-		const hh = header.height();
-		const wh = isPopup ? oh - hh : win.height();
+		const node = $(nodeRef.current);
+		const obj = U.Common.getPageFlexContainer(isPopup);
 
-		wrapper.css({ height: wh, paddingTop: isPopup ? 0 : hh });
+		node.css({ height: (isPopup ? obj.height() : win.height()) });
 	};
 
-};
+	useEffect(() => init(), []);
+
+	useImperativeHandle(ref, () => ({
+		resize,
+	}));
+
+	return (
+		<div 
+			ref={nodeRef}
+			className="wrapper"
+		>
+			<Frame>
+				<Title text={error ? translate('commonError') : translate('pageMainMembershipTitle')} />
+				<Error text={error} />
+
+				{error ? (
+					<div className="buttons">
+						<Button 
+							text={translate('commonBack')} 
+							color="blank" 
+							className="c36" 
+							onClick={() => U.Space.openDashboard()} 
+						/>
+					</div>
+				) : <Loader />}
+			</Frame>
+		</div>
+	);
+
+}));
 
 export default PageMainMembership;

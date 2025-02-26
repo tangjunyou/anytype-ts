@@ -253,7 +253,7 @@ const MenuDataviewObjectList = observer(class MenuDataviewObjectList extends Rea
 		const value = Relation.getArrayValue(data.value);
 
 		const filters: I.Filter[] = [
-			{ relationKey: 'layout', condition: I.FilterCondition.NotIn, value: U.Object.excludeFromSet() },
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.NotIn, value: U.Object.excludeFromSet() },
 		].concat(data.filters || []);
 		const sorts = [
 			{ relationKey: 'lastOpenedDate', type: I.SortType.Desc },
@@ -308,7 +308,7 @@ const MenuDataviewObjectList = observer(class MenuDataviewObjectList extends Rea
 	getItems () {
 		const { param } = this.props;
 		const { data } = param;
-		const { canAdd, canEdit } = data;
+		const { canAdd, canEdit, nameCreate } = data;
 		const value = Relation.getArrayValue(data.value);
 		const typeNames = this.getTypeNames();
 
@@ -324,7 +324,7 @@ const MenuDataviewObjectList = observer(class MenuDataviewObjectList extends Rea
 			if (ret.length || typeNames) {
 				ret.push({ isDiv: true });
 			};
-			ret.push({ id: 'add', name: U.Common.sprintf(translate('commonCreateObjectWithName'), data.filter) });
+			ret.push({ id: 'add', name: U.Common.sprintf(nameCreate || translate('commonCreateObjectWithName'), data.filter) });
 		};
 
 		return ret;
@@ -358,7 +358,7 @@ const MenuDataviewObjectList = observer(class MenuDataviewObjectList extends Rea
 	};
 
 	loadMoreRows ({ startIndex, stopIndex }) {
-        return new Promise((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			this.offset += J.Constant.limit.menuRecords;
 			this.load(false, resolve);
 		});

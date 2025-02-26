@@ -5,7 +5,6 @@ import { AutoSizer, CellMeasurer, InfiniteLoader, List, CellMeasurerCache } from
 import { I, S, U, J, keyboard } from 'Lib';
 
 const katex = require('katex');
-
 require('katex/dist/contrib/mhchem');
 
 const HEIGHT_SECTION = 28;
@@ -307,14 +306,6 @@ const MenuBlockLatex = observer(class MenuBlockLatex extends React.Component<I.M
 			return HEIGHT_SECTION;
 		};
 		return isTemplate ? HEIGHT_ITEM_BIG : HEIGHT_ITEM_SMALL;
-	};
-
-	recalcIndex () {
-		const itemsWithSection = this.getItems(true);
-		const itemsWithoutSection = itemsWithSection.filter(it => !it.isSection);
-		const active: any = itemsWithoutSection[this.n] || {};
-
-		return itemsWithSection.findIndex(it => it.id == active.id);
 	};
 
 	resize () {

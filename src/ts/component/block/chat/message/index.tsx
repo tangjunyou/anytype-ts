@@ -5,43 +5,35 @@ import { IconObject, Icon, ObjectName, Label } from 'Component';
 import { I, S, U, C, J, Mark, translate, Preview } from 'Lib';
 
 import Attachment from '../attachment';
-
-interface Props extends I.BlockComponent {
-	blockId: string;
-	id: string;
-	isThread: boolean;
-	isNew: boolean;
-	onThread: (id: string) => void;
-	onContextMenu: (e: any) => void;
-	onMore: (e: any) => void;
-	onReply: (e: any) => void;
-};
+import Reply from './reply';
 
 const LINES_LIMIT = 10;
 
-const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
+const ChatMessage = observer(class ChatMessage extends React.Component<I.ChatMessageComponent> {
 
 	node = null;
 	refText = null;
+	attachmentRefs: any = {};
+	isExpanded = false;
 
-	constructor (props: Props) {
+	constructor (props: I.ChatMessageComponent) {
 		super(props);
 
 		this.onExpand = this.onExpand.bind(this);
 		this.onReactionAdd = this.onReactionAdd.bind(this);
 		this.onReactionEnter = this.onReactionEnter.bind(this);
 		this.onReactionLeave = this.onReactionLeave.bind(this);
+		this.onPreview = this.onPreview.bind(this);
 	};
 
 	render () {
-		const { rootId, blockId, id, isThread, isNew, readonly, onThread, onContextMenu, onMore, onReply } = this.props;
+		const { rootId, id, isNew, readonly, subId, scrollToBottom, onContextMenu, onMore, onReplyEdit } = this.props;
 		const { space } = S.Common;
 		const { account } = S.Auth;
 		const message = S.Chat.getMessage(rootId, id);
 		const { creator, content, createdAt, modifiedAt, reactions, isFirst, isLast, replyToMessageId } = message;
-		const subId = S.Record.getSubId(rootId, blockId);
 		const author = U.Space.getParticipant(U.Space.getParticipantId(space, creator));
-		const attachments = (message.attachments || []).map(it => S.Detail.get(subId, it.target)).filter(it => !it.isDeleted);
+		const attachments = this.getAttachments();
 		const hasReactions = reactions.length;
 		const hasAttachments = attachments.length;
 		const isSelf = creator == account.id;
@@ -49,24 +41,10 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 		const canAddReaction = this.canAddReaction();
 		const cn = [ 'message' ];
 		const ca = [ 'attachments', attachmentsLayout ];
+		const ct = [ 'textWrapper' ];
 
-		let reply = null;
-		if (replyToMessageId) {
-			const replyToMessage = S.Chat.getReply(rootId, replyToMessageId);
-			if (replyToMessage) {
-				const author = U.Space.getParticipant(U.Space.getParticipantId(space, replyToMessage.creator));
-				const text = U.Common.sanitize(U.Common.lbBr(Mark.toHtml(replyToMessage.content.text, replyToMessage.content.marks)));
-
-				reply = (
-					<div className="reply">
-						<ObjectName object={author} />
-						<div className="text" dangerouslySetInnerHTML={{ __html: text }} />
-					</div>
-				);
-			};
-		};
-
-		let text = U.Common.sanitize(U.Common.lbBr(Mark.toHtml(content.text, content.marks)));
+		let text = content.text.replace(/\r?\n$/, '');
+		text = U.Common.sanitize(U.Common.lbBr(Mark.toHtml(text, content.marks)));
 
 		if (modifiedAt) {
 			const cnl = [ 'label', 'small' ];
@@ -95,6 +73,12 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 		};
 		if (text) {
 			cn.push('withText');
+		};
+		if (this.isExpanded) {
+			cn.push('isExpanded');
+		};
+		if (U.Common.checkRtl(text)) {
+			ct.push('isRtl');
 		};
 
 		// Subscriptions
@@ -137,18 +121,21 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 			>
 				<div className="flex">
 					<div className="side left">
-						<IconObject object={author} size={40} onClick={e => U.Object.openConfig(author)} />
+						<IconObject 
+							object={{ ...author, layout: I.ObjectLayout.Participant }} 
+							size={40} 
+							onClick={e => U.Object.openConfig(author)} 
+						/>
 					</div>
 					<div className="side right">
-
 						<div className="author" onClick={e => U.Object.openConfig(author)}>
 							<ObjectName object={author} />
 							<div className="time">{U.Date.date('H:i', createdAt)}</div>
 						</div>
 
-						{reply}
+						<Reply {...this.props} id={replyToMessageId} />
 
-						<div className="textWrapper">
+						<div className={ct.join(' ')}>
 							<div 
 								ref={ref => this.refText = ref} 
 								className="text" 
@@ -156,14 +143,24 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 							/>
 
 							<div className="expand" onClick={this.onExpand}>
-								{translate('blockChatMessageExpand')}
+								{translate(this.isExpanded ? 'blockChatMessageCollapse' : 'blockChatMessageExpand')}
 							</div>
 						</div>
 
 						{hasAttachments ? (
 							<div className={ca.join(' ')}>
 								{attachments.map((item: any, i: number) => (
-									<Attachment key={i} object={item} onRemove={() => this.onAttachmentRemove(item.id)} showAsFile={!attachmentsLayout} />
+									<Attachment
+										ref={ref => this.attachmentRefs[item.id] = ref}
+										key={i}
+										object={item}
+										subId={subId}
+										scrollToBottom={scrollToBottom}
+										onRemove={() => this.onAttachmentRemove(item.id)}
+										onPreview={(preview) => this.onPreview(preview)}
+										showAsFile={!attachmentsLayout}
+										bookmarkAsDefault={attachments.length > 1}
+									/>
 								))}
 							</div>
 						) : ''}
@@ -178,16 +175,12 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 								) : ''}
 							</div>
 						) : ''}
-
-						<div className="sub" onClick={() => onThread(id)}>
-							{!isThread ? <div className="item">0 replies</div> : ''}
-						</div>
 					</div>
 
 					{!readonly ? (
 						<div className="controls">
 							{!hasReactions && canAddReaction ? <Icon id="reaction-add" className="reactionAdd" onClick={this.onReactionAdd} tooltip={translate('blockChatReactionAdd')} /> : ''}
-							<Icon id="message-reply" className="messageReply" onClick={onReply} tooltip={translate('blockChatReply')} />
+							<Icon id="message-reply" className="messageReply" onClick={onReplyEdit} tooltip={translate('blockChatReply')} />
 							<Icon className="more" onClick={onMore} />
 						</div>
 					) : ''}
@@ -219,18 +212,17 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 		const isSelf = creator == account.id;
 		const readonly = this.props.readonly || !isSelf;
 
-		renderMentions(rootId, this.node, marks, text);
-		renderObjects(rootId, this.node, marks, text, { readonly });
-		renderLinks(this.node, marks, text, { readonly });
+		renderMentions(rootId, this.node, marks, () => text);
+		renderObjects(rootId, this.node, marks, () => text, { readonly });
+		renderLinks(this.node, marks, () => text, { readonly });
 		renderEmoji(this.node);
 
 		this.checkLinesLimit();
 	};
 
 	onExpand () {
-		const node = $(this.node);
-
-		node.toggleClass('isExpanded');
+		this.isExpanded = !this.isExpanded;
+		this.forceUpdate();
 	};
 
 	checkLinesLimit () {
@@ -262,14 +254,22 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 	};
 
 	onReactionAdd () {
+		const { isPopup } = this.props;
 		const node = $(this.node);
+		const container = isPopup ? U.Common.getScrollContainer(isPopup) : $('body');
 
 		S.Menu.open('smile', { 
 			element: node.find('#reaction-add'),
 			horizontal: I.MenuDirection.Center,
 			noFlipX: true,
-			onOpen: () => node.addClass('hover'),
-			onClose: () => node.removeClass('hover'),
+			onOpen: () => {
+				node.addClass('hover');
+				container.addClass('over');
+			},
+			onClose: () => {
+				node.removeClass('hover');
+				container.removeClass('over');
+			},
 			data: {
 				noHead: true,
 				noUpload: true,
@@ -286,11 +286,27 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 	};
 
 	onAttachmentRemove (attachmentId: string) {
-		const { rootId, id } = this.props;
-		const message = S.Chat.getMessage(rootId, id);
-		const attachments = (message.attachments || []).filter(it => it.target != attachmentId);
+		this.update({ attachments: this.getAttachments().filter(it => it.target != attachmentId) });
+	};
 
-		this.update({ attachments });
+	onPreview (preview: any) {
+		const data: any = { ...preview };
+		const gallery = [];
+
+		Object.keys(this.attachmentRefs).forEach(key => {
+			const ref = this.attachmentRefs[key];
+			if (ref) {
+				const item = ref.getPreviewItem();
+				if (item) {
+					gallery.push(item);
+				};
+			};
+		});
+
+		data.gallery = gallery;
+		data.initialIdx = gallery.findIndex(it => it.src == preview.src);
+
+		S.Popup.open('preview', { data });
 	};
 
 	update (param: Partial<I.ChatMessage>) {
@@ -300,11 +316,16 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 		C.ChatEditMessageContent(rootId, id, message);
 	};
 
-	getAttachmentsClass (): string {
+	getAttachments (): any[] {
 		const { rootId, blockId, id } = this.props;
 		const subId = S.Record.getSubId(rootId, blockId);
 		const message = S.Chat.getMessage(rootId, id);
-		const attachments = (message.attachments || []).map(it => S.Detail.get(subId, it.target));
+
+		return (message.attachments || []).map(it => S.Detail.get(subId, it.target)).filter(it => !it._empty_);
+	};
+
+	getAttachmentsClass (): string {
+		const attachments = this.getAttachments();
 		const mediaLayouts = [ I.ObjectLayout.Image, I.ObjectLayout.Video ];
 		const media = attachments.filter(it => mediaLayouts.includes(it.layout));
 		const al = attachments.length;
@@ -314,6 +335,7 @@ const ChatMessage = observer(class ChatMessage extends React.Component<Props> {
 		if (ml && (ml == al)) {
 			c.push(`withLayout ${ml >= 10 ? `layout-10` : `layout-${ml}`}`);
 		};
+
 		return c.join(' ');
 	};
 

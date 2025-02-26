@@ -18,6 +18,7 @@ export interface MenuParam {
 	type?: MenuType;
 	vertical?: MenuDirection;
 	horizontal?: MenuDirection;
+	stickToElementEdge?: MenuDirection;
 	fixedX?: number;
 	fixedY?: number;
 	offsetX?: any;
@@ -27,6 +28,7 @@ export interface MenuParam {
 	initialTab?: string;
 	data?: any;
 	isSub?: boolean;
+	parentId?: string;
 	subIds?: string[];
 	passThrough?: boolean;
 	commonFilter?: boolean;
@@ -36,6 +38,8 @@ export interface MenuParam {
 	withBack?: boolean;
 	noAnimation?: boolean;
 	noDimmer?: boolean;
+	highlightElements?: string[];
+	hiddenElements?: string[];
 	noFlipX?: boolean;
 	noFlipY?: boolean;
 	noClose?: boolean;
@@ -43,6 +47,7 @@ export interface MenuParam {
 	recalcRect?(): { width: number, height: number, x: number, y: number };
 	onClose?(): void;
 	onOpen?(component?: any): void;
+	rebind?(): void;
 	onBack?(id: string): void;
 	getTabs?(): I.MenuTab[];
 };
@@ -50,7 +55,6 @@ export interface MenuParam {
 export interface Menu {
 	id: string;
 	param: MenuParam;
-	history?: any;
 	setActive?(item?: any, scroll?: boolean): void;
 	setHover?(item?: any, scroll?: boolean): void;
 	onKeyDown?(e: any): void;
@@ -61,6 +65,16 @@ export interface Menu {
 	getPosition?(): DOMRect;
 	position? (): void;
 	close? (callBack?: () => void): void;
+};
+
+export interface MenuRef {
+	rebind: () => void,
+	unbind: () => void,
+	getItems: () => any[];
+	getIndex: () => number,
+	setIndex: (i: number) => void,
+	onClick?: (e: any, item: any) => void,
+	onOver?: (e: any, item: any) => void,
 };
 
 export interface MenuItem {
@@ -80,10 +94,12 @@ export interface MenuItem {
 	readonly?: boolean;
 	style?: any;
 	iconSize?: number;
-	withDefault?: boolean;
 	options?: I.Option[];
 	selectMenuParam?: any;
 	isActive?: boolean;
+	isDiv?: boolean;
+	isSection?: boolean;
+	index?: number;
 	withDescription?: boolean;
 	withSwitch?: boolean;
 	withSelect?: boolean;

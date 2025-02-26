@@ -2,7 +2,7 @@ import * as React from 'react';
 import $ from 'jquery';
 import { observer } from 'mobx-react';
 import { I, M, C, S, U, keyboard } from 'Lib';
-import { Block, Drag } from 'Component';
+import { Block, DragHorizontal } from 'Component';
 
 interface Props extends I.BlockComponent {
 	setLayoutWidth?(v: number): void;
@@ -30,24 +30,21 @@ const PageHeadEditor = observer(class PageHeadEditor extends React.Component<Pro
 			return null;
 		};
 
-		const check = U.Data.checkDetails(rootId);
-		const object = S.Detail.get(rootId, rootId, [ 'layoutAlign' ], true);
+		const check = U.Data.checkDetails(rootId, rootId, []);
 		const header = S.Block.getLeaf(rootId, 'header');
-		const cover = new M.Block({ id: rootId + '-cover', type: I.BlockType.Cover, hAlign: object.layoutAlign, childrenIds: [], fields: {}, content: {} });
-		const icon: any = new M.Block({ id: rootId + '-icon', type: I.BlockType.IconPage, hAlign: object.layoutAlign, childrenIds: [], fields: {}, content: {} });
-		const isHuman = U.Object.isHumanLayout(object.layout);
-		const isParticipant = U.Object.isParticipantLayout(object.layout);
+		const cover = new M.Block({ id: rootId + '-cover', type: I.BlockType.Cover, hAlign: check.layoutAlign, childrenIds: [], fields: {}, content: {} });
+		const icon: any = new M.Block({ id: rootId + '-icon', type: I.BlockType.IconPage, hAlign: check.layoutAlign, childrenIds: [], fields: {}, content: {} });
 
-		if (isHuman || isParticipant) {
+		if (U.Object.isInHumanLayouts(check.layout)) {
 			icon.type = I.BlockType.IconUser;
 		};
 
 		return (
 			<div ref={node => this.node = node}>
 				<div id="editorSize" className="dragWrap">
-					<Drag 
+					<DragHorizontal 
 						ref={ref => this.refDrag = ref} 
-						value={root.fields.width}
+						value={check.layoutWidth}
 						snaps={[ 0.25, 0.5, 0.75 ]}
 						onStart={this.onScaleStart} 
 						onMove={this.onScaleMove} 
@@ -65,12 +62,13 @@ const PageHeadEditor = observer(class PageHeadEditor extends React.Component<Pro
 					readonly={readonly}
 					index={0}
 					block={header}
+					blockContextParam={{ hAlign: check.layoutAlign }}
 					onKeyDown={onKeyDown}
 					onKeyUp={onKeyUp}  
 					onMenuAdd={onMenuAdd}
 					onPaste={onPaste}
-					onMouseEnter={() => { $(`#editor-controls-${rootId}`).addClass('hover'); }}
-					onMouseLeave={() => { $(`#editor-controls-${rootId}`).removeClass('hover'); }}
+					onMouseEnter={() => $(`#editor-controls-${rootId}`).addClass('hover')}
+					onMouseLeave={() => $(`#editor-controls-${rootId}`).removeClass('hover')}
 				/>
 			</div>
 		);

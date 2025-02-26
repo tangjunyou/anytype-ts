@@ -67,24 +67,17 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 						<div className="name">{item.name}</div>
 					</div>
 				);
-			} else
-			if (item.isDiv) {
-				content = (
-					<div className="separator" style={param.style}>
-						<div className="inner" />
-					</div>
-				);
-			} else
-			if (item.isSection) {
-				content = <div className={[ 'sectionName', (param.index == 0 ? 'first' : '') ].join(' ')} style={param.style}>{item.name}</div>;
 			} else {
 				content = (
 					<MenuItemVertical 
 						{...item}
+						index={param.index}
 						className={item.isHidden ? 'isHidden' : ''}
 						style={param.style}
 						onMouseEnter={e => this.onMouseEnter(e, item)} 
 						onClick={e => this.onClick(e, item)}
+						withMore={item.isInstalled}
+						onMore={e => this.onEdit(e, item)}
 					/>
 				);
 			};
@@ -114,8 +107,6 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 						focusOnMount={true}
 					/>
 				) : ''}
-
-				{isLoading ? <Loader /> : ''}
 
 				{!items.length && !isLoading ? (
 					<EmptySearch readonly={!canWrite} filter={filter} />
@@ -166,7 +157,7 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 	componentDidUpdate () {
 		const { param } = this.props;
 		const { data } = param;
-		const { filter } = data;
+		const filter = String(data.filter || '');
 		const items = this.getItems();
 
 		if (filter != this.filter) {
@@ -205,7 +196,7 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 	};
 
 	loadMoreRows ({ startIndex, stopIndex }) {
-        return new Promise((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			this.offset += J.Constant.limit.menuRecords;
 			this.load(false, resolve);
 		});
@@ -220,51 +211,53 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 		const { data } = param;
 		const filter = String(data.filter || '');
 		const filters: any[] = [
-			{ relationKey: 'spaceId', condition: I.FilterCondition.In, value: [ J.Constant.storeSpaceId, S.Common.space ] },
-			{ relationKey: 'layout', condition: I.FilterCondition.In, value: I.ObjectLayout.Relation },
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: I.ObjectLayout.Relation },
 			{ relationKey: 'relationKey', condition: I.FilterCondition.NotIn, value: data.skipKeys || [] },
 		];
 		const sorts = [
-			{ relationKey: 'spaceId', type: I.SortType.Desc },
+			{ relationKey: 'lastUsedDate', type: I.SortType.Desc },
 			{ relationKey: 'name', type: I.SortType.Asc },
 		];
 
 		if (clear) {
 			this.setState({ isLoading: true });
+			this.items = [];
 		};
 
-		U.Data.search({
+		const requestParam = {
 			filters,
 			sorts,
 			keys: J.Relation.relation,
 			fullText: filter,
 			offset: this.offset,
 			limit: J.Constant.limit.menuRecords,
-			ignoreWorkspace: true,
-		}, (message: any) => {
-			if (!this._isMounted) {
-				return;
-			};
+		};
 
-			if (message.error.code) {
-				this.setState({ isLoading: false });
-				return;
-			};
+		this.loadRequest(requestParam, () => {
+			this.loadRequest({ ...requestParam, spaceId: J.Constant.storeSpaceId }, (message: any) => {
+				if (!this._isMounted) {
+					return;
+				};
+
+				if (callBack) {
+					callBack(message);
+				};
+
+				if (clear) {
+					this.setState({ isLoading: false });
+				} else {
+					this.forceUpdate();
+				};
+			});
+		});
+	};
+
+	loadRequest (param: any, callBack?: (message: any) => void) {
+		U.Data.search(param, (message: any) => {
+			this.items = this.items.concat(message.records || []);
 
 			if (callBack) {
 				callBack(message);
-			};
-
-			if (clear) {
-				this.items = [];
-			};
-
-			this.items = this.items.concat(message.records || []);
-
-			if (clear) {
-				this.setState({ isLoading: false });
-			} else {
-				this.forceUpdate();
 			};
 		});
 	};
@@ -331,10 +324,12 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 	};
 
 	onFilterChange (v: string) {
-		window.clearTimeout(this.timeoutFilter);
-		this.timeoutFilter = window.setTimeout(() => {
-			this.props.param.data.filter = this.refFilter.getValue();
-		}, J.Constant.delay.keyboard);
+		if (v != this.filter) {
+			window.clearTimeout(this.timeoutFilter);
+			this.timeoutFilter = window.setTimeout(() => {
+				this.props.param.data.filter = this.refFilter.getValue();
+			}, J.Constant.delay.keyboard);
+		};
 	};
 
 	onMouseEnter (e: any, item: any) {
@@ -356,12 +351,11 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 			return;
 		};
 
-		const { getId, getSize, param, close } = this.props;
+		const { id, getId, getSize, param, close } = this.props;
 		const { classNameWrap, data } = param;
 		const skipKeys = data.skipKeys || [];
-
 		const sources = this.getLibrarySources();
-		let menuId = '';
+
 		const menuParam: I.MenuParam = {
 			menuKey: item.id,
 			element: `#${getId()} #item-${item.id}`,
@@ -371,11 +365,12 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 			isSub: true,
 			noFlipY: true,
 			classNameWrap,
-			data: {
-				rebind: this.rebind,
-				ignoreWorkspace: true,
-			},
+			rebind: this.rebind,
+			parentId: id,
+			data: {},
 		};
+
+		let menuId = '';
 
 		switch (item.id) {
 			case 'store': {
@@ -383,8 +378,7 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 				menuParam.className = 'single';
 
 				const filters: I.Filter[] = [
-					{ relationKey: 'spaceId', condition: I.FilterCondition.Equal, value: J.Constant.storeSpaceId },
-					{ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Relation },
+					{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Relation },
 					{ relationKey: 'id', condition: I.FilterCondition.NotIn, value: sources },
 					{ relationKey: 'relationKey', condition: I.FilterCondition.NotIn, value: skipKeys },
 				];
@@ -392,6 +386,7 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 				menuParam.data = Object.assign(menuParam.data, {
 					keys: U.Data.typeRelationKeys(),
 					filters,
+					spaceId: J.Constant.storeSpaceId,
 					sorts: [
 						{ relationKey: 'name', type: I.SortType.Asc },
 					],
@@ -425,10 +420,19 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 			return;
 		};
 
-		const { close, param, getId, getSize } = this.props;
+		const { id, close, param, getId, getSize } = this.props;
 		const { data, classNameWrap } = param;
 		const { rootId, blockId, menuIdEdit, addCommand, ref, noInstall } = data;
 		const object = S.Detail.get(rootId, rootId, [ 'type' ], true);
+		const onAdd = (item: any) => {
+			close();
+
+			if (addCommand && item) {
+				addCommand(rootId, blockId, item);
+			};
+
+			U.Object.setLastUsedDate(item.id, U.Date.now());
+		};
 
 		if (item.id == 'add') {
 			S.Menu.open(menuIdEdit, { 
@@ -437,31 +441,49 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 				offsetY: -80,
 				noAnimation: true,
 				classNameWrap,
+				rebind: this.rebind,
+				parentId: id,
 				data: {
 					...data,
-					rebind: this.rebind,
-					onChange: () => { 
-						close(); 
-					},
+					onChange: () => close(),
+					addCommand: (rootId: string, blockId: string, item: any) => onAdd(item),
 				}
 			});
-		} else 
-		if (addCommand) {
-			const cb = (item: any) => {
-				close(); 
-				addCommand(rootId, blockId, item);
-			};
-
+		} else {
 			if (item.isInstalled || noInstall) {
-				cb(item);
+				onAdd(item);
 
 				if (!noInstall) {
 					analytics.event('AddExistingRelation', { format: item.format, type: ref, objectType: object.type, relationKey: item.relationKey });
 				};
 			} else {
-				Action.install(item, true, message => cb(message.details));
+				Action.install(item, true, message => onAdd(message.details));
 			};
 		};
+	};
+
+	onEdit (e: any, item: any) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		const { param, getId, getSize } = this.props;
+		const { data, classNameWrap } = param;
+		const { rootId, menuIdEdit } = data;
+
+		S.Menu.open(menuIdEdit, { 
+			element: `#${getId()} #item-${item.id}`,
+			offsetX: getSize().width,
+			vertical: I.MenuDirection.Center,
+			noAnimation: true,
+			classNameWrap,
+			data: {
+				...data,
+				rootId,
+				relationId: item.id,
+				noUnlink: true,
+				saveCommand: () => this.load(true),
+			}
+		});
 	};
 
 	getRowHeight (item: any) {
@@ -473,7 +495,6 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 	};
 
 	resize () {
-		const { isLoading } = this.state;
 		const { getId, position, param } = this.props;
 		const { data } = param;
 		const { noFilter } = data;
@@ -482,7 +503,7 @@ const MenuRelationSuggest = observer(class MenuRelationSuggest extends React.Com
 
 		let height = 16 + (noFilter ? 0 : 42);
 		if (!items.length) {
-			height = isLoading ? height + 40 : 160;
+			height = 160;
 		} else {
 			height = items.reduce((res: number, current: any) => res + this.getRowHeight(current), height);
 		};

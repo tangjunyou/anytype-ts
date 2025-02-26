@@ -58,27 +58,6 @@ const MenuDataviewFileList = observer(class MenuDataviewFileList extends React.C
 
 			const type = S.Record.getTypeById(item.type);
 
-			let content = null;
-			if (item.isDiv) {
-				content = (
-					<div className="separator" style={param.style}>
-						<div className="inner" />
-					</div>
-				);
-			} else {
-				content = (
-					<MenuItemVertical 
-						id={item.id}
-						object={item}
-						name={item.name}
-						onMouseEnter={e => this.onOver(e, item)} 
-						onClick={e => this.onClick(e, item)}
-						caption={type ? type.name : undefined}
-						style={param.style}
-					/>
-				);
-			};
-
 			return (
 				<CellMeasurer
 					key={param.key}
@@ -87,7 +66,15 @@ const MenuDataviewFileList = observer(class MenuDataviewFileList extends React.C
 					columnIndex={0}
 					rowIndex={param.index}
 				>
-					{content}
+					<MenuItemVertical 
+						{...item}
+						object={item}
+						name={item.name}
+						onMouseEnter={e => this.onOver(e, item)} 
+						onClick={e => this.onClick(e, item)}
+						caption={type?.name}
+						style={param.style}
+					/>
 				</CellMeasurer>
 			);
 		};
@@ -233,7 +220,7 @@ const MenuDataviewFileList = observer(class MenuDataviewFileList extends React.C
 		];
 
 		let filters: I.Filter[] = [
-			{ relationKey: 'layout', condition: I.FilterCondition.In, value: U.Object.getFileLayouts() }
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: U.Object.getFileLayouts() }
 		];
 		if (data.filters) {
 			filters = Object.assign(data.filters);
@@ -274,7 +261,7 @@ const MenuDataviewFileList = observer(class MenuDataviewFileList extends React.C
 	};
 
 	loadMoreRows ({ startIndex, stopIndex }) {
-        return new Promise((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			this.offset += J.Constant.limit.menuRecords;
 			this.load(false, resolve);
 		});
@@ -306,7 +293,7 @@ const MenuDataviewFileList = observer(class MenuDataviewFileList extends React.C
 	};
 
 	onUpload () {
-		Action.openFileDialog([], paths => {
+		Action.openFileDialog({}, paths => {
 			C.FileUpload(S.Common.space, '', paths[0], I.FileType.None, {}, (message: any) => {
 				if (!message.error.code) {
 					this.onChange(message.objectId);

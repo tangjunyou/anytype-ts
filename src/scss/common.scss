@@ -1,5 +1,5 @@
-@import "~scss/_vars";
-@import "~scss/_mixins";
+@import "~./_vars";
+@import "~./_mixins";
 
 * { padding: 0px; margin: 0px; border: 0px; box-sizing: border-box; }
 html, body { height: 100%; }
@@ -58,6 +58,10 @@ input, textarea, select { font-family: 'Inter'; }
 #globalFade.show { opacity: 1; }
 #graphPreview { position: fixed; z-index: 1000; }
 
+.onboardingDimmer { content: ''; position: fixed; left: 0px; top: 0px; width: 100%; height: 100%; background: rgba(0,0,0,0.4); -webkit-app-region: no-drag; z-index: 999; pointer-events: none; }
+
+.ReactVirtualized__List { overscroll-behavior: none; }
+
 html.platformWindows {
 	body { overflow-y: overlay; }
 }
@@ -66,9 +70,19 @@ html.platformLinux {
 	body { overflow-y: auto; }
 }
 
+.customScrollbar {
+	::-webkit-scrollbar { width: 6px; height: 6px; }
+	::-webkit-scrollbar-thumb { background: transparent; border-radius: 6px; }
+	::-webkit-scrollbar-corner { background-color: transparent; }
+	::-webkit-scrollbar-button { display: none; }
+}
+.customScrollbar:hover {
+	::-webkit-scrollbar-thumb { background: var(--color-control-active); }
+}
+
 html.platformWindows, html.platformLinux {
 	::-webkit-scrollbar { width: 6px; height: 6px; }
-	::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.5); border-radius: 6px; }
+	::-webkit-scrollbar-thumb { background: var(--color-control-active); border-radius: 6px; }
 	::-webkit-scrollbar-corner { background-color: transparent; }
 	::-webkit-scrollbar-button { display: none; }
 }
@@ -94,6 +108,8 @@ html.platformWindows, html.platformLinux {
 ::-webkit-input-placeholder { color: var(--color-text-tertiary) !important; }
 .isBlurred { filter: blur(7px); }
 .animationWord { display: inline-block; }
+.isRtl { direction: rtl; }
+.isOnboardingHidden { visibility: hidden; }
 
 .fileWrap { position: relative; overflow: hidden; }
 .fileWrap { 
@@ -202,5 +218,17 @@ a { color: var(--color-text-primary); }
 	.icon.download { display: none; }
 }
 
-@import "scss/debug";
-@import "scss/font";
+@import "./debug";
+@import "./font";
+@import "./component/common.scss";
+@import "./page/common.scss";
+@import "./block/common.scss";
+@import "./form/common.scss";
+@import "./list/common.scss";
+@import "./widget/common.scss";
+@import "./popup/common.scss";
+@import "./menu/common.scss";
+@import "./notification/common.scss";
+
+@import "./media/print.scss";
+@import "./theme/dark/common.scss";

@@ -33,7 +33,7 @@ const MenuSource = observer(class MenuSource extends React.Component<I.Menu> {
 						<div className="value">{item.value}</div>
 					</div>
 					<div className="buttons">
-						{canDelete ? <Icon className="delete" onClick={e => this.onRemove(e, item)} /> : ''}
+						{canDelete ? <Icon className="delete withBackground" onClick={e => this.onRemove(e, item)} /> : ''}
 					</div>
 				</form>
 			);
@@ -106,7 +106,7 @@ const MenuSource = observer(class MenuSource extends React.Component<I.Menu> {
 			data: {
 				skipIds: value,
 				filters: [
-					{ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Relation },
+					{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Relation },
 				],
 				sorts: [
 					{ relationKey: 'name', type: I.SortType.Asc }

@@ -45,7 +45,7 @@ const BlockBookmark = observer(class BlockBookmark extends React.Component<I.Blo
 				case I.BookmarkState.Error:
 				case I.BookmarkState.Empty: {
 					element = (
-						<React.Fragment>
+						<>
 							{state == I.BookmarkState.Error ? <Error text={translate('blockBookmarkError')} /> : ''}
 							<InputWithFile 
 								block={block} 	
@@ -55,7 +55,7 @@ const BlockBookmark = observer(class BlockBookmark extends React.Component<I.Blo
 								onChangeUrl={this.onChangeUrl} 
 								readonly={readonly} 
 							/>
-						</React.Fragment>
+						</>
 					);
 					break;
 				};
@@ -80,7 +80,7 @@ const BlockBookmark = observer(class BlockBookmark extends React.Component<I.Blo
 					};
 
 					if (block.bgColor) {
-						cnl.push(`bgColor bgColor-${block.bgColor}`);
+						cni.push(`bgColor bgColor-${block.bgColor}`);
 					};
 
 					if (isArchived) {
@@ -95,12 +95,12 @@ const BlockBookmark = observer(class BlockBookmark extends React.Component<I.Blo
 							{...U.Common.dataProps({ href: url })}
 						>
 							<div className={cnl.join(' ')}>
-								<ObjectName object={object} />
-								<ObjectDescription object={object} />
 								<div className="link">
 									{iconImage ? <img src={S.Common.imageUrl(iconImage, 16)} className="fav" /> : ''}
 									{U.Common.shortUrl(url)}
 								</div>
+								<ObjectName object={object} />
+								<ObjectDescription object={object} />
 
 								{archive}
 							</div>
@@ -254,8 +254,9 @@ const BlockBookmark = observer(class BlockBookmark extends React.Component<I.Blo
 	
 	onChangeUrl (e: any, url: string) {
 		const { rootId, block } = this.props;
+		const bookmark = S.Record.getBookmarkType();
 
-		C.BlockBookmarkFetch(rootId, block.id, url);
+		C.BlockBookmarkFetch(rootId, block.id, url, bookmark?.defaultTemplateId);
 	};
 	
 	resize () {
@@ -268,7 +269,7 @@ const BlockBookmark = observer(class BlockBookmark extends React.Component<I.Blo
 			const node = $(this.node);
 			const inner = node.find('.inner');
 
-			inner.width() <= getWrapperWidth() / 2 ? inner.addClass('isVertical') : inner.removeClass('isVertical');
+			inner.toggleClass('isVertical', inner.width() <= getWrapperWidth() / 2);
 		});
 	};
 

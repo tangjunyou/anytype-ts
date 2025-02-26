@@ -1,86 +1,59 @@
-import * as React from 'react';
+import React, { forwardRef, useRef, useState, useImperativeHandle, useEffect } from 'react';
 import { Loader, Title, Error, Frame, Button, Footer } from 'Component';
-import { I, C, S, U, translate } from 'Lib';
+import { I, C, S, U, J, translate } from 'Lib';
 
-interface State {
-	error: string;
+interface PageMainInviteRefProps {
+	resize: () => void;
 };
 
-class PageMainInvite extends React.Component<I.PageComponent, State> {
+const PageMainInvite = forwardRef<PageMainInviteRefProps, I.PageComponent>((props, ref) => {
 
-	state = {
-		error: '',
-	};
-	cid = '';
-	key = '';
-	node = null;
-	refFrame = null;
+	const { isPopup } = props;
+	const nodeRef = useRef(null);
+	const frameRef = useRef(null);
+	const cid = useRef('');
+	const key = useRef('');
+	const [ error, setError ] = useState('');
 
-	render () {
-		const { error } = this.state;
-
-		return (
-			<div 
-				ref={ref => this.node = ref}
-				className="wrapper"
-			>
-				<Frame ref={ref => this.refFrame = ref}>
-					<Title text={error ? translate('commonError') : translate('pageMainInviteTitle')} />
-					<Error text={error} />
-
-					{error ? (
-						<div className="buttons">
-							<Button 
-								text={translate('commonBack')} 
-								color="blank" 
-								className="c36" 
-								onClick={() => U.Space.openDashboard('route')} 
-							/>
-						</div>
-					) : <Loader />}
-				</Frame>
-
-				<Footer component="mainObject" {...this.props} />
-			</div>
-		);
-	};
-
-	componentDidMount (): void {
-		this.init();
-		this.resize();
-	};
-
-	componentDidUpdate (): void {
-		this.init();
-		this.resize();
-	};
-
-	init () {
+	const init = () => {
 		const data = U.Common.searchParam(U.Router.history.location.search);
 
-		if ((this.cid == data.cid) && (this.key == data.key)) {
+		if ((cid.current == data.cid) && (key.current == data.key)) {
 			return;
 		};
 
-		this.cid = data.cid;
-		this.key = data.key;
+		cid.current = data.cid;
+		key.current = data.key;
 
 		if (!data.cid || !data.key) {
-			this.setState({ error: translate('pageMainInviteErrorData') });
+			setError(translate('pageMainInviteErrorData'));
 		} else {
 			C.SpaceInviteView(data.cid, data.key, (message: any) => {
-				U.Space.openDashboard('route');
+				U.Space.openDashboard({ replace: true });
 
 				S.Popup.closeAll(null, () => {
 					const space = U.Space.getSpaceviewBySpaceId(message.spaceId);
 
 					if (message.error.code) {
+						let icon = '';
+						let title = '';
+						let text = '';
+
+						if (message.error.code == J.Error.Code.SPACE_IS_DELETED) {
+							icon = 'error';
+							title = translate('popupConfirmSpaceDeleted');
+						} else {
+							icon = 'sad';
+							title = translate('popupInviteRequestTitle');
+							text = translate('popupConfirmInviteError');
+						};
+
 						S.Popup.open('confirm', {
 							data: {
-								icon: 'sad',
+								icon,
 								bgColor: 'red',
-								title: translate('popupInviteRequestTitle'),
-								text: translate('popupConfirmInviteError'),
+								title,
+								text,
 								textConfirm: translate('commonOkay'),
 								canCancel: false,
 							},
@@ -97,7 +70,7 @@ class PageMainInvite extends React.Component<I.PageComponent, State> {
 									textConfirm: translate('commonOpenSpace'),
 									textCancel: translate('commonCancel'),
 									onConfirm: () => {
-										U.Router.switchSpace(message.spaceId);
+										U.Router.switchSpace(message.spaceId, '', false, {});
 									},
 								},
 							});
@@ -112,20 +85,49 @@ class PageMainInvite extends React.Component<I.PageComponent, State> {
 		};
 	};
 
-	resize () {
-		const { isPopup } = this.props;
+	const resize = () => {
 		const win = $(window);
-		const obj = U.Common.getPageContainer(isPopup);
-		const node = $(this.node);
+		const obj = U.Common.getPageFlexContainer(isPopup);
+		const node = $(nodeRef.current);
 		const oh = obj.height();
-		const header = node.find('#header');
-		const hh = header.height();
-		const wh = isPopup ? oh - hh : win.height();
+		const wh = isPopup ? oh : win.height();
 
-		node.css({ height: wh, paddingTop: isPopup ? 0 : hh });
-		this.refFrame.resize();
+		node.css({ height: wh });
+		frameRef.current?.resize();
 	};
 
-};
+	useEffect(() => {
+		init();
+		resize();
+	});
+
+	useImperativeHandle(ref, () => ({ resize }));
+
+	return (
+		<div 
+			ref={nodeRef}
+			className="wrapper"
+		>
+			<Frame ref={frameRef}>
+				<Title text={error ? translate('commonError') : translate('pageMainInviteTitle')} />
+				<Error text={error} />
+
+				{error ? (
+					<div className="buttons">
+						<Button 
+							text={translate('commonBack')} 
+							color="blank" 
+							className="c36" 
+							onClick={() => U.Space.openDashboard()} 
+						/>
+					</div>
+				) : <Loader />}
+			</Frame>
+
+			<Footer component="mainObject" {...props} />
+		</div>
+	);
+
+});
 
 export default PageMainInvite;

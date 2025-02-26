@@ -4,7 +4,6 @@ export default {
 	googleMaps:			 'AIzaSyAgXu3wCb6mPJv4wNWKe2E3YycaYuqFm9o',
 	protocol:			 'anytype',
 	appName:			 'Anytype',
-	blankRouteId:		 '_blank_',
 	storeSpaceId:		 '_anytype_marketplace',
 	anytypeProfileId:	 '_anytype_profile',
 	fontCode:			 'plex',
@@ -12,10 +11,10 @@ export default {
 	textColor:			 [ 'grey', 'yellow', 'orange', 'red', 'pink', 'purple', 'blue', 'ice', 'teal', 'lime' ],
 	namespace:			 { 0: '.any' },
 
-	allowedSchemes:		 [ 'https?', 'mailto', 'tel' ],
+	allowedSchemes:		 [ 'http', 'https', 'mailto', 'tel' ],
 
 	count: {
-		icon:			 16,
+		icon:			 10,
 		phrase:			 { letter: 8, word: 12 }
 	},
 	
@@ -24,6 +23,10 @@ export default {
 		development:	 'N9DU6hLkTAbvcpji3TCKPPd3UQWKGyzUxGmgJEyvhByqAjfD',
 		testing:		 'N4N1wDHFpFpovXBqdbq2TDXE9tXdXbtV1eTJFpKJW4YeaJqR'
 	},
+
+	chatSpaceId: [
+		'bafyreiezhzb4ggnhjwejmh67pd5grilk6jn3jt7y2rnfpbkjwekilreola.1t123w9f2lgn5',
+	],
 
 	platforms: {
 		win32:			 'Windows',
@@ -34,19 +37,21 @@ export default {
 	limit: {
 		menuRecords:	 100,
 		widgets:		 20,
-		space:			 10,
 		notification:	 20,
+		space:			 50,
 		graphDepth:		 5,
+		cellEntry:		 320,
+		listObject:		 50,
 
 		chat: {
-			messages:		 100,
+			messages:		 50,
 			attachments:	 10,
 			files:			 10,
 			mentions:		 10,
 			text:			 2000,
 			reactions:		 {
-				self:		 10,
-				all:		 20,
+				self:		 3,
+				all:		 12,
 			},
 		}
 	},
@@ -54,7 +59,7 @@ export default {
 	default: {
 		interfaceLang:	 'en-US',
 		codeLang:		 'plain',
-		typeKey:		 'ot-note',
+		typeKey:		 'ot-page',
 		pinTime:		 600,
 	},
 
@@ -66,7 +71,6 @@ export default {
 		keyboard:		 500,
 		notification:	 200,
 		widget:			 400,
-		login:			 800,
 		sidebar:		 180,
 	},
 
@@ -94,7 +98,9 @@ export default {
 		profile:		 'profile',
 		deleted:		 'deleted',
 		type:			 'type',
+		typeStore:		 'typeStore',
 		relation:		 'relation',
+		relationStore:	 'relationStore',
 		option:			 'option',
 		store:			 'store',
 		archive:		 'archive',
@@ -102,7 +108,7 @@ export default {
 		space:			 'space',
 		fileManager:	 'fileManager',
 		participant:	 'participant',
-		myParticipant:	 'myParticipant',
+		subSpace:		 'subSpace',
 		allObject:		 'allObject',
 	},
 
@@ -126,10 +132,11 @@ export default {
 		date:			 'ot-date',
 		profile:		 'ot-profile',
 		chat:			 'ot-chat',
+		project:		 'ot-project',
+		human:			 'ot-human',
 	},
 
 	templateId: {
-		blank:			 'blank',
 		new:			 'newTemplate'
 	},
 

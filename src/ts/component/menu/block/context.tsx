@@ -33,22 +33,21 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 		const canTurn = block.canTurn() && !isInsideTable;
 		const hasMore = !isInsideTable;
 		const canHaveMarks = block.canHaveMarks();
-		const cmd = keyboard.cmdSymbol();
 
 		const color = (
-			<div className={[ 'inner', 'textColor', 'textColor-' + (colorMark.param || 'default') ].join(' ')} />
+			<div className={[ 'inner', 'textColor', `textColor-${(colorMark.param || 'default')}` ].join(' ')} />
 		);
 		const background = (
-			<div className={[ 'inner', 'bgColor', 'bgColor-' + (bgMark.param || 'default') ].join(' ')} />
+			<div className={[ 'inner', 'bgColor', `bgColor-${(bgMark.param || 'default')}` ].join(' ')} />
 		);
 		
 		let markActions = [
-			{ type: I.MarkType.Bold, icon: 'bold', name: translate('commonBold'), caption: `${cmd} + B` },
-			{ type: I.MarkType.Italic, icon: 'italic', name: translate('commonItalic'), caption: `${cmd} + I` },
-			{ type: I.MarkType.Strike, icon: 'strike', name: translate('commonStrikethrough'), caption: `${cmd} + Shift + S` },
-			{ type: I.MarkType.Underline, icon: 'underline', name: translate('commonUnderline'), caption: `${cmd} + U` },
-			{ type: I.MarkType.Link, icon: 'link', name: translate('commonLink'), caption: `${cmd} + K` },
-			{ type: I.MarkType.Code, icon: 'kbd', name: translate('commonCode'), caption: `${cmd} + L` },
+			{ type: I.MarkType.Bold, icon: 'bold', name: translate('commonBold'), caption: keyboard.getCaption('textBold') },
+			{ type: I.MarkType.Italic, icon: 'italic', name: translate('commonItalic'), caption: keyboard.getCaption('textItalic') },
+			{ type: I.MarkType.Strike, icon: 'strike', name: translate('commonStrikethrough'), caption: keyboard.getCaption('textStrike') },
+			{ type: I.MarkType.Underline, icon: 'underline', name: translate('commonUnderline'), caption: keyboard.getCaption('textUnderlined') },
+			{ type: I.MarkType.Link, icon: 'link', name: translate('commonLink'), caption: keyboard.getCaption('textLink') },
+			{ type: I.MarkType.Code, icon: 'kbd', name: translate('commonCode'), caption: keyboard.getCaption('textCode') },
 		];
 
 		// You can't make headers bold, since they are already bold
@@ -72,7 +71,7 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 				) : ''}
 				
 				{canHaveMarks ? (
-					<React.Fragment>
+					<>
 						{markActions.length ? (
 							<div className="section">
 								{markActions.map((action: any, i: number) => {
@@ -111,7 +110,7 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 								className="color"
 								inner={color}
 								tooltip={translate('commonColor')}
-								tooltipCaption={`${cmd} + Shift + C`}
+								tooltipCaption={keyboard.getCaption('textColor')}
 								tooltipY={I.MenuDirection.Top}
 								onMouseDown={e => this.onMark(e, I.MarkType.Color)} 
 							/>
@@ -121,12 +120,12 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 								className="color"
 								inner={background} 
 								tooltip={translate('commonBackground')}
-								tooltipCaption={`${cmd} + Shift + H`}
+								tooltipCaption={keyboard.getCaption('textBackground')}
 								tooltipY={I.MenuDirection.Top}
 								onMouseDown={e => this.onMark(e, I.MarkType.BgColor)} 
 							/>
 						</div>
-					</React.Fragment>
+					</>
 				) : ''}
 				
 				{hasMore ? (
@@ -182,6 +181,7 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 		};
 		
 		const { from, to } = range;
+		const object = S.Detail.get(rootId, rootId);
 
 		keyboard.disableContextClose(true);
 		focus.set(blockId, range);
@@ -191,6 +191,7 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 		let menuId = '';
 		let menuParam: any = {
 			element: `#${getId()} #button-${blockId}-${type}`,
+			className: 'fromContext',
 			offsetY: 6,
 			horizontal: I.MenuDirection.Center,
 			noAnimation: true,
@@ -210,6 +211,8 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 				marks = Mark.toggle(marks, { type, param: '', range: { from, to } });
 				S.Menu.updateData(this.props.id, { marks });
 				onChange(marks);
+
+				analytics.event('ChangeTextStyle', { type, count: 1, objectType: object?.type });
 				break;
 			};
 				
@@ -311,6 +314,7 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 						S.Menu.updateData(this.props.id, { marks });
 						onChange(marks);
 
+						analytics.event('ChangeTextStyle', { type: newType, count: 1, objectType: object?.type });
 						window.setTimeout(() => focus.apply(), 15);
 					}
 				});
@@ -348,6 +352,8 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 
 						marks = Mark.toggle(marks, { type, param, range: { from, to } });
 						S.Menu.updateData(this.props.id, { marks });
+
+						analytics.event('ChangeTextStyle', { type, count: 1, objectType: object?.type });
 						onChange(marks);
 					},
 				});
@@ -407,7 +413,7 @@ const MenuBlockContext = observer(class MenuBlockContext extends React.Component
 				menuId = 'searchObject';
 				menuParam.data = Object.assign(menuParam.data, {
 					filters: [
-						{ relationKey: 'layout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
+						{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
 					],
 					type: I.NavigationType.Move, 
 					skipIds: [ rootId ],

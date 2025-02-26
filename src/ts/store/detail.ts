@@ -13,18 +13,28 @@ interface Item {
 
 class DetailStore {
 
-    private map: Map<string, Map<string, Detail[]>> = new Map();
+	private map: Map<string, Map<string, Detail[]>> = new Map();
 
-    constructor() {
-        makeObservable(this, {
-            set: action,
-            update: action,
-            delete: action
-        });
-    };
+	constructor() {
+		makeObservable(this, {
+			set: action,
+			update: action,
+			delete: action
+		});
+	};
+
+	private createListItem (k: string, v: any): Detail {
+		const el = { relationKey: k, value: v };
+
+		makeObservable(el, { value: observable });
+		intercept(el as any, (change: any) => {
+			return (change.newValue === el[change.name] ? null : change); 
+		});
+		return el;
+	}; 
 
 	/** Idempotent. adds details to the detail store. */
-    public set (rootId: string, items: Item[]) {
+	public set (rootId: string, items: Item[]) {
 		if (!rootId) {
 			console.log('[S.Detail].set: rootId is not defined');
 			return;
@@ -36,15 +46,7 @@ class DetailStore {
 			const list: Detail[] = [];
 
 			for (const k in item.details) {
-				const el = { relationKey: k, value: item.details[k] };
-
-				makeObservable(el, { value: observable });
-
-				intercept(el as any, (change: any) => { 
-					return (change.newValue === el[change.name] ? null : change); 
-				});
-
-				list.push(el);
+				list.push(this.createListItem(k, item.details[k]));
 			};
 
 			map.set(item.id, list);
@@ -54,7 +56,7 @@ class DetailStore {
 	};
 
 	/** Idempotent. updates details in the detail store. if clear is set, map wil delete details by item id. */
-    public update (rootId: string, item: Item, clear: boolean): void {
+	public update (rootId: string, item: Item, clear: boolean): void {
 		if (!rootId) {
 			console.log('[S.Detail].update: rootId is not defined');
 			return;
@@ -85,19 +87,16 @@ class DetailStore {
 		};
 
 		for (const k in item.details) {
-			let el = list.find(it => it.relationKey == k);
+			if (clear) {
+				list.push(this.createListItem(k, item.details[k]));
+				continue;
+			};
+
+			const el = list.find(it => it.relationKey == k);
 			if (el) {
-				set(el, { value: item.details[k] });
+				el.value = item.details[k];
 			} else {
-				el = { relationKey: k, value: item.details[k] };
-
-				makeObservable(el, { value: observable });
-
-				list.push(el);
-
-				intercept(el as any, (change: any) => { 
-					return (change.newValue === el[change.name] ? null : change); 
-				});
+				list.push(this.createListItem(k, item.details[k]));
 			};
 		};
 
@@ -129,7 +128,7 @@ class DetailStore {
 	};
 
 	/** Idempotent. Clears details by keys provided, if they exist. if no keys are provided, all details are cleared. */
-    public delete (rootId: string, id: string, keys?: string[]): void {
+	public delete (rootId: string, id: string, keys?: string[]): void {
 		const map = this.map.get(rootId);
 
 		if (!map) {
@@ -137,17 +136,14 @@ class DetailStore {
 		};
 
 		if (keys && keys.length) {
-			const item = { id, details: {} };
-			keys.forEach(key => item.details[key] = null);
-
-			this.update(rootId, item, false);
+			map.set(id, (map.get(id) || []).filter(it => !keys.includes(it.relationKey)));
 		} else {
 			map.set(id, []);
 		};
 	};
 
 	/** gets the object. if no keys are provided, all properties are returned. if force keys is set, J.Relation.default are included */
-    public get (rootId: string, id: string, withKeys?: string[], forceKeys?: boolean): any {
+	public get (rootId: string, id: string, withKeys?: string[], forceKeys?: boolean, skipLayoutFormat?: I.ObjectLayout[]): any {
 		let list = this.map.get(rootId)?.get(id) || [];
 		if (!list.length) {
 			return { id, _empty_: true };
@@ -157,6 +153,10 @@ class DetailStore {
 		const object = { id };
 
 		if (withKeys) {
+			if (keys.has('layout')) {
+				keys.add('resolvedLayout');
+			};
+
 			list = list.filter(it => keys.has(it.relationKey));
 		};
 
@@ -164,21 +164,27 @@ class DetailStore {
 			object[list[i].relationKey] = list[i].value;
 		};
 
-		return this.mapper(object);
+		return this.mapper(object, skipLayoutFormat);
+	};
+
+	public getKeys (rootId: string, id: string): string[] {
+		return (this.map.get(rootId)?.get(id) || []).map(it => it.relationKey);
 	};
 
 	/** Mutates object provided and also returns a new object. Sets defaults.
 	 * This Function contains domain logic which should be encapsulated in a model */
-	public mapper (object: any): any {
+	public mapper (object: any, skipLayoutFormat?: I.ObjectLayout[]): any {
 		object = this.mapCommon(object || {});
 
-		const fn = `map${I.ObjectLayout[object.layout]}`;
-		if (this[fn]) {
-			object = this[fn](object);
-		};
+		if (!skipLayoutFormat || !skipLayoutFormat.includes(object.layout)) {
+			const fn = `map${I.ObjectLayout[object.layout]}`;
+			if (this[fn]) {
+				object = this[fn](object);
+			};
 
-		if (U.Object.isInFileLayouts(object.layout)) {
-			object = this.mapFile(object);
+			if (U.Object.isInFileLayouts(object.layout)) {
+				object = this.mapFile(object);
+			};
 		};
 
 		return object;
@@ -188,11 +194,9 @@ class DetailStore {
 		object.name = Relation.getStringValue(object.name) || translate('defaultNamePage');
 		object.snippet = Relation.getStringValue(object.snippet).replace(/\n/g, ' ');
 		object.type = Relation.getStringValue(object.type);
-		object.layout = Number(object.layout) || I.ObjectLayout.Page;
 		object.origin = Number(object.origin) || I.ObjectOrigin.None;
 		object.iconImage = Relation.getStringValue(object.iconImage);
 		object.iconEmoji = Relation.getStringValue(object.iconEmoji);
-		object.layoutAlign = Number(object.layoutAlign) || I.BlockHAlign.Left;
 		object.coverX = Number(object.coverX) || 0;
 		object.coverY = Number(object.coverY) || 0;
 		object.coverScale = Number(object.coverScale) || 0;
@@ -202,6 +206,12 @@ class DetailStore {
 		object.isHidden = Boolean(object.isHidden);
 		object.isReadonly = Boolean(object.isReadonly);
 		object.isDeleted = Boolean(object.isDeleted);
+
+		if (undefined === object.layout) {
+			object.layout = object.resolvedLayout;
+		};
+
+		object.layout = Number(object.layout) || I.ObjectLayout.Page;
 
 		if (object.isDeleted) {
 			object.name = translate('commonDeletedObject');
@@ -227,10 +237,16 @@ class DetailStore {
 	private mapType (object: any) {
 		object.recommendedLayout = Number(object.recommendedLayout) || I.ObjectLayout.Page;
 		object.recommendedRelations = Relation.getArrayValue(object.recommendedRelations);
+		object.recommendedFeaturedRelations = Relation.getArrayValue(object.recommendedFeaturedRelations);
+		object.recommendedHiddenRelations = Relation.getArrayValue(object.recommendedHiddenRelations);
+		object.recommendedFileRelations = Relation.getArrayValue(object.recommendedFileRelations);
 		object.isInstalled = object.spaceId != J.Constant.storeSpaceId;
 		object.sourceObject = Relation.getStringValue(object.sourceObject);
 		object.uniqueKey = Relation.getStringValue(object.uniqueKey);
+		object.defaultTypeId = Relation.getStringValue(object.defaultTypeId);
 		object.defaultTemplateId = Relation.getStringValue(object.defaultTemplateId);
+		object.layoutAlign = Number(object.layoutAlign) || I.BlockHAlign.Left;
+		object.layoutWidth = Number(object.layoutWidth) || 0;
 
 		if (object.isDeleted) {
 			object.name = translate('commonDeletedType');
@@ -276,6 +292,15 @@ class DetailStore {
 	};
 
 	private mapDate (object: any) {
+		object.timestamp = Number(object.timestamp) || 0;
+
+		if (object.timestamp) {
+			const { showRelativeDates, dateFormat } = S.Common;
+			const day = showRelativeDates ? U.Date.dayString(object.timestamp) : null;
+
+			object.name = day ? day : U.Date.dateWithFormat(dateFormat, object.timestamp);
+		};
+
 		return this.mapSet(object);
 	};
 
@@ -285,10 +310,15 @@ class DetailStore {
 		object.spaceLocalStatus = Number(object.spaceLocalStatus) || I.SpaceStatus.Unknown;
 		object.readersLimit = Number(object.readersLimit) || 0;
 		object.writersLimit = Number(object.writersLimit) || 0;
-		object.sharedSpacesLimit = Number(object.sharedSpacesLimit) || 0;
 		object.spaceId = Relation.getStringValue(object.spaceId);
 		object.spaceDashboardId = Relation.getStringValue(object.spaceDashboardId);
+		object.chatId = Relation.getStringValue(object.chatId);
 		object.targetSpaceId = Relation.getStringValue(object.targetSpaceId);
+		object.iconOption = Number(object.iconOption) || 1;
+
+		if (object.iconOption > 10) {
+			object.iconOption = object.iconOption - 10;
+		};
 
 		// Access type
 		object.isPersonal = object.spaceAccessType == I.SpaceType.Personal;
@@ -309,14 +339,15 @@ class DetailStore {
 
 	private mapFile (object) {
 		object.sizeInBytes = Number(object.sizeInBytes) || 0;
-		object.name = U.File.name(object);
 		return object;
 	};
 
 	private mapParticipant (object) {
 		object.permissions = Number(object.permissions || object.participantPermissions) || I.ParticipantPermissions.Reader;
 		object.status = Number(object.status || object.participantStatus) || I.ParticipantStatus.Joining;
+		object.identity = Relation.getStringValue(object.identity);
 		object.globalName = Relation.getStringValue(object.globalName);
+		object.resolvedName = object.globalName || object.identity;
 
 		delete(object.participantPermissions);
 		delete(object.participantStatus);
@@ -335,6 +366,18 @@ class DetailStore {
 		object.isCanceled = object.status == I.ParticipantStatus.Canceled;
 
 		return object;
+	};
+
+	public getTypeRelationIds (id: string): string[] {
+		const type = S.Record.getTypeById(id);
+		if (!type) {
+			return [];
+		};
+
+		return [].
+			concat(type.recommendedRelations).
+			concat(type.recommendedFeaturedRelations).
+			concat(type.recommendedHiddenRelations);
 	};
 
 };

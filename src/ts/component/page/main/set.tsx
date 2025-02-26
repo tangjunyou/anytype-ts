@@ -2,10 +2,8 @@ import * as React from 'react';
 import $ from 'jquery';
 import raf from 'raf';
 import { observer } from 'mobx-react';
-import { Header, Footer, Loader, Block, Deleted } from 'Component';
-import { I, M, C, S, U, J, Action, keyboard, translate } from 'Lib';
-import Controls from 'Component/page/elements/head/controls';
-import HeadSimple from 'Component/page/elements/head/simple';
+import { Header, Footer, Loader, Block, Deleted, HeadSimple, EditorControls } from 'Component';
+import { I, M, C, S, U, J, Action, keyboard, translate, analytics, sidebar } from 'Lib';
 
 interface State {
 	isLoading: boolean;
@@ -38,35 +36,41 @@ const PageMainSet = observer(class PageMainSet extends React.Component<I.PageCom
 	render () {
 		const { isLoading, isDeleted } = this.state;
 		const rootId = this.getRootId();
-		const check = U.Data.checkDetails(rootId);
-
-		if (isDeleted) {
-			return <Deleted {...this.props} />;
-		};
+		const check = U.Data.checkDetails(rootId, rootId, [ 'layout' ]);
 
 		let content = null;
-
+		if (isDeleted) {
+			content = <Deleted {...this.props} />;
+		} else
 		if (isLoading) {
 			content = <Loader id="loader" />;
 		} else {
-			const object = S.Detail.get(rootId, rootId, []);
-			const isCollection = U.Object.isCollectionLayout(object.layout);
+			const isCollection = U.Object.isCollectionLayout(check.layout);
 			const children = S.Block.getChildren(rootId, rootId, it => it.isDataview());
 			const cover = new M.Block({ id: rootId + '-cover', type: I.BlockType.Cover, childrenIds: [], fields: {}, content: {} });
 			const placeholder = isCollection ? translate('defaultNameCollection') : translate('defaultNameSet');
+			const readonly = this.isReadonly();
 
 			content = (
-				<React.Fragment>
-					{check.withCover ? <Block {...this.props} key={cover.id} rootId={rootId} block={cover} /> : ''}
+				<>
+					{check.withCover ? <Block {...this.props} key={cover.id} rootId={rootId} block={cover} readonly={readonly} /> : ''}
 
 					<div className="blocks wrapper">
-						<Controls ref={ref => this.refControls = ref} key="editorControls" {...this.props} rootId={rootId} resize={this.resize} />
+						<EditorControls 
+							ref={ref => this.refControls = ref} 
+							key="editorControls" 
+							{...this.props} 
+							rootId={rootId} 
+							resize={this.resize} 
+							readonly={readonly}
+						/>
+
 						<HeadSimple 
 							{...this.props} 
 							ref={ref => this.refHead = ref} 
 							placeholder={placeholder} 
 							rootId={rootId} 
-							readonly={this.isReadonly()}
+							readonly={readonly}
 						/>
 
 						{children.map((block: I.Block, i: number) => (
@@ -79,11 +83,11 @@ const PageMainSet = observer(class PageMainSet extends React.Component<I.PageCom
 								block={block}
 								className="noPlus"
 								isSelectionDisabled={true}
-								readonly={this.isReadonly()}
+								readonly={readonly}
 							/>
 						))}
 					</div>
-				</React.Fragment>
+				</>
 			);
 		};
 
@@ -160,6 +164,7 @@ const PageMainSet = observer(class PageMainSet extends React.Component<I.PageCom
 	};
 
 	open () {
+		const { isPopup } = this.props;
 		const rootId = this.getRootId();
 
 		if (this.id == rootId) {
@@ -184,6 +189,7 @@ const PageMainSet = observer(class PageMainSet extends React.Component<I.PageCom
 			this.refHeader?.forceUpdate();
 			this.refHead?.forceUpdate();
 			this.refControls?.forceUpdate();
+			sidebar.rightPanelSetState(isPopup, { rootId });
 			this.setState({ isLoading: false });
 			this.resize();
 		});
@@ -194,20 +200,16 @@ const PageMainSet = observer(class PageMainSet extends React.Component<I.PageCom
 			return;
 		};
 
-		const { isPopup, match } = this.props;
-		
-		let close = true;
-		if (isPopup && (match.params.id == this.id)) {
-			close = false;
-		};
+		const { isPopup } = this.props;
+		const close = !(isPopup && (this.getRootId() == this.id));
+
 		if (close) {
 			Action.pageClose(this.id, true);
 		};
 	};
 
 	getRootId () {
-		const { rootId, match } = this.props;
-		return rootId ? rootId : match.params.id;
+		return keyboard.getRootId(this.props.isPopup);
 	};
 
 	onScroll () {
@@ -254,14 +256,14 @@ const PageMainSet = observer(class PageMainSet extends React.Component<I.PageCom
 			if (count && !S.Menu.isOpen()) {
 				keyboard.shortcut('backspace, delete', e, () => {
 					e.preventDefault();
-					Action.archive(ids);
+					Action.archive(ids, analytics.route.set);
 					selection.clear();
 				});
 			};
 		};
 
 		// History
-		keyboard.shortcut('ctrl+h, cmd+y', e, () => {
+		keyboard.shortcut(`${cmd}+alt+h`, e, () => {
 			e.preventDefault();
 			U.Object.openAuto({ layout: I.ObjectLayout.History, id: rootId });
 		});
@@ -273,6 +275,11 @@ const PageMainSet = observer(class PageMainSet extends React.Component<I.PageCom
 
 		if (root && root.isLocked()) {
 			return true;			
+		};
+
+		const object = S.Detail.get(rootId, rootId, [ 'isArchived' ], true);
+		if (object.isArchived) {
+			return true;
 		};
 
 		return !U.Space.canMyParticipantWrite();

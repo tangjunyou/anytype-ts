@@ -4,28 +4,28 @@ import { I, U, J, Preview } from 'Lib';
 
 class MenuStore {
 
-    public menuList: I.Menu[] = [];
+	public menuList: I.Menu[] = [];
 
-    timeout = 0;
+	timeout = 0;
 	isAnimatingFlag: Map<string, boolean> = new Map();
 
-    constructor () {
-        makeObservable(this, {
-            menuList: observable,
-            list: computed,
-            open: action,
-            update: action,
-            updateData: action,
-            close: action,
-            closeAll: action
-        });
-    };
+	constructor () {
+		makeObservable(this, {
+			menuList: observable,
+			list: computed,
+			open: action,
+			update: action,
+			updateData: action,
+			close: action,
+			closeAll: action
+		});
+	};
 
-    get list(): I.Menu[] {
+	get list(): I.Menu[] {
 		return this.menuList;
 	};
 
-    open (id: string, param: I.MenuParam) {
+	open (id: string, param: I.MenuParam) {
 		if (!id) {
 			return;
 		};
@@ -56,7 +56,7 @@ class MenuStore {
 		return param;
 	};
 
-    update (id: string, param: any) {
+	update (id: string, param: any) {
 		const item = this.get(id);
 		if (item) {
 			param.data = Object.assign(item.param.data, param.data);
@@ -64,7 +64,7 @@ class MenuStore {
 		};
 	};
 
-    updateData (id: string, data: any) {
+	updateData (id: string, data: any) {
 		const item = this.get(id);
 		if (item) {
 			set(item.param.data, data);
@@ -80,11 +80,11 @@ class MenuStore {
 		};
 	};
 
-    get (id: string): I.Menu {
+	get (id: string): I.Menu {
 		return this.menuList.find(it => it.id == id);
 	};
 
-    isOpen (id?: string, key?: string, filter?: string[]): boolean {
+	isOpen (id?: string, key?: string, filter?: string[]): boolean {
 		if (!id) {
 			let length = 0;
 			if (filter) {
@@ -103,7 +103,7 @@ class MenuStore {
 		return key ? (item.param.menuKey == key) : true;
 	};
 
-    isOpenList (ids: string[]) {
+	isOpenList (ids: string[]) {
 		for (const id of ids) {
 			if (this.isOpen(id)) {
 				return true;
@@ -112,7 +112,7 @@ class MenuStore {
 		return false;
 	};
 
-    close (id: string, callBack?: () => void) {
+	close (id: string, callBack?: () => void) {
 		const item = this.get(id);
 		if (!item) {
 			if (callBack) {
@@ -131,13 +131,13 @@ class MenuStore {
 		};
 
 		if (el.length) {
-			noAnimation ? el.addClass('noAnimation') : el.removeClass('noAnimation');
+			el.toggleClass('noAnimation', noAnimation);
 			el.css({ transform: '' }).removeClass('show');
 		};
 
 		const onTimeout = () => {
 			this.menuList = this.menuList.filter(it => it.id != id);
-				
+
 			if (onClose) {
 				onClose();
 			};
@@ -165,9 +165,9 @@ class MenuStore {
 		return !!this.isAnimatingFlag.get(id);
 	};
 
-    closeAll (ids?: string[], callBack?: () => void) {
+	closeAll (ids?: string[], callBack?: () => void) {
 		const items = this.getItems(ids);
-		const timeout = this.getTimeout();
+		const timeout = this.getTimeout(ids);
 
 		items.filter(it => !it.param.noClose).forEach(it => this.close(it.id));
 		this.onCloseAll(timeout, callBack);
@@ -175,26 +175,29 @@ class MenuStore {
 
 	closeAllForced (ids?: string[], callBack?: () => void) {
 		const items = this.getItems(ids);
-		const timeout = this.getTimeout();
+		const timeout = this.getTimeout(ids);
 
 		items.forEach(it => this.close(it.id));
 		this.onCloseAll(timeout, callBack);
 	};
 
 	onCloseAll (timeout: number, callBack?: () => void) {
-		if (callBack) {
-			this.clearTimeout();
-			this.timeout = window.setTimeout(() => callBack(), timeout);
+		if (!callBack) {
+			return;
 		};
+
+		this.clearTimeout();
+		this.timeout = window.setTimeout(() => callBack(), timeout);
 	};
 
-	getTimeout (): number {
-		const items = this.getItems();
+	getTimeout (ids?: string[]): number {
+		const items = this.getItems(ids);
 
 		let t = 0;
 		for (const item of items) {
 			if (!item.param.noAnimation) {
 				t = J.Constant.delay.menu;
+				break;
 			};
 		};
 		return t;
@@ -211,7 +214,7 @@ class MenuStore {
 		};
 	};
 
-    clearTimeout () {
+	clearTimeout () {
 		window.clearTimeout(this.timeout);
 	};
 

@@ -20,16 +20,16 @@ export enum ObjectLayout {
 	SpaceView	 = 18,
 	Participant	 = 19,
 	Pdf			 = 20,
-	Chat		 = 21,
-	ChatDerived	 = 22,
+	ChatOld		 = 21,
+	Chat		 = 22,
 
 	Empty		 = 100,
 	Navigation	 = 101,
 	Graph		 = 102,
-	Store		 = 103,
-	History		 = 104,
-	Archive		 = 105,
-	Block		 = 106,
+	History		 = 103,
+	Archive		 = 104,
+	Block		 = 105,
+	Settings	 = 106,
 };
 
 export enum RelationType { 
@@ -60,7 +60,7 @@ export enum RelationScope {
 export enum ObjectFlag {
 	DeleteEmpty		 = 0,
 	SelectType		 = 1,
-    SelectTemplate	 = 2,
+	SelectTemplate	 = 2,
 };
 
 export enum ObjectOrigin {
@@ -73,4 +73,10 @@ export enum ObjectOrigin {
 	Usecase			 = 6,
 	Builtin			 = 7,
 	Bookmark		 = 8,
+	Api				 = 9,
+};
+
+export enum LayoutFormat {
+	Page = 0,
+	List = 1,
 };

@@ -51,6 +51,7 @@ export interface Toast {
 	count?: number;
 	value?: boolean;
 	ids?: string[];
+	icon?: string;
 };
 
 export enum ToastAction {
@@ -122,15 +123,12 @@ export enum EdgeType {
 export enum Usecase {
 	None		 = 0,
 	GetStarted	 = 1,
-	Personal	 = 2,
-    Knowledge	 = 3,
-    Notes		 = 4,
-	Strategic 	 = 5,
-	Empty		 = 6,
+	Empty		 = 2,
 };
 
 export enum HomePredefinedId {
 	Graph		 = 'graph',
+	Chat		 = 'chat',
 	Last		 = 'lastOpened',
 	Existing	 = 'existing',
 };
@@ -143,7 +141,7 @@ export interface HeaderComponent extends RouteComponentProps<any> {
 	text?: string;
 	layout?: I.ObjectLayout;
 	withBanner?: boolean;
-	renderLeftIcons?: (onOpen?: () => void) => any;
+	renderLeftIcons?: (withGraph?: boolean, onOpen?: () => void) => any;
 	renderTabs?: () => any;
 	onTab?: (id: string) => void;
 	onSearch?: () => void;
@@ -152,13 +150,24 @@ export interface HeaderComponent extends RouteComponentProps<any> {
 	menuOpen?: (id: string, elementId: string, param: Partial<I.MenuParam>) => void;
 	onBanner?: (e: any) => void;
 	onBannerClose?: (e: any) => void;
-	onRelation?: (param?: Partial<I.MenuParam>, data?: any) => void;
+	onRelation?: (data?: any) => void;
 };
 
 export interface PageComponent extends RouteComponentProps<any> {
 	rootId?: string;
 	isPopup?: boolean;
 	matchPopup?: any;
+	storageGet?(): any;
+	storageSet?(data: any): void;
+};
+
+export interface PageSettingsComponent extends PageComponent, RouteComponentProps<any> {
+	onPage: (id: string, data?: any) => void;
+	setConfirmPin: (v: () => void) => void;
+	onConfirmPin: () => void;
+	onExport: (format: I.ExportType, param: any) => void;
+	onSpaceTypeTooltip: (e: any) => void;
+	getId?(): string;
 	storageGet?(): any;
 	storageSet?(data: any): void;
 };
@@ -189,6 +198,26 @@ export interface ButtonComponent {
 	onMouseEnter?(e: any): void;
 };
 
+export interface SidebarPageComponent {
+	rootId?: string;
+	isPopup?: boolean;
+	readonly?: boolean;
+	details?: any;
+	noPreview?: boolean;
+};
+
+export interface SidebarSectionComponent extends SidebarPageComponent {
+	object: any;
+	item?: any;
+	readonly?: boolean;
+	onChange?(update: any): void;
+	onDragStart?: (e: React.DragEvent) => void;
+};
+
+export interface SidebarSectionRef {
+	forceUpdate(): void;
+};
+
 export enum SurveyType {
 	Register		 = 0,
 	Delete			 = 1,
@@ -201,9 +230,9 @@ export enum SurveyType {
 export enum SliceOperation {
 	None			 = 0,
 	Add				 = 1,
-    Move			 = 2,
+	Move			 = 2,
 	Remove			 = 3,
-    Replace			 = 4,
+	Replace			 = 4,
 };
 
 export enum FileSyncStatus {
@@ -212,24 +241,14 @@ export enum FileSyncStatus {
 	NotSynced		 = 2,
 };
 
-export enum StoreTab {
-	Type			 = 'type',
-	Relation		 = 'relation',
-};
-
-export enum StoreView {
-	Marketplace = 'marketplace',
-	Library = 'library',
-};
-
 export enum ObjectContainerType {
 	Object			 = 'object',
+	List			 = 'list',
 	File			 = 'file',
 	Media			 = 'media',
 	Bookmark		 = 'bookmark',
 	Type			 = 'type',
 	Relation		 = 'relation',
-	Orphan			 = 'orphan',
 };
 
 export enum BannerType {
@@ -252,13 +271,6 @@ export enum NetworkMode {
 	Default			 = 0,
 	Local			 = 1,
 	Custom			 = 2,
-};
-
-export enum NavigationMenuMode {
-	None			 = 0,
-	Context			 = 1,
-	Click			 = 2,
-	Hover			 = 3,
 };
 
 export enum InterfaceStatus {
@@ -284,4 +296,58 @@ export interface GraphSettings {
 export interface FocusState {
 	focused: string;
 	range: I.TextRange;
+};
+
+export interface RouteParam { 
+	replace: boolean;
+	animate: boolean;
+	delay: number;
+	onFadeOut: () => void;
+	onFadeIn?: () => void;
+	onRouteChange?: () => void;
+};
+
+export interface SearchSubscribeParam {
+	spaceId: string;
+	subId: string;
+	idField: string;
+	filters: I.Filter[];
+	sorts: I.Sort[];
+	keys: string[];
+	sources: string[];
+	collectionId: string;
+	afterId: string;
+	beforeId: string;
+	offset: number;
+	limit: number;
+	ignoreHidden: boolean;
+	ignoreDeleted: boolean;
+	ignoreArchived: boolean;
+	skipLayoutFormat: I.ObjectLayout[];
+	noDeps: boolean;
+};
+
+export enum SortId {
+	All			 = 'all',
+	Orphan		 = 'orphan',
+	Updated		 = 'updated',
+	Created		 = 'created',
+	Name		 = 'name',
+	LastUsed	 = 'lastUsed',
+	List		 = 'list',
+	Compact		 = 'compact',
+};
+
+export enum LoaderType {
+	Loader		 = 'loader',
+	Dots		 = 'dots',
+};
+
+export interface Error {
+	code: number;
+	description: string;
+};
+
+export interface PageRef {
+	resize: () => void;
 };

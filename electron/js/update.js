@@ -1,7 +1,6 @@
 const { app } = require('electron');
 const { is } = require('electron-util');
 const { autoUpdater } = require('electron-updater');
-const log = require('electron-log');
 
 const ConfigManager = require('./config.js');
 const Util = require('./util.js');
@@ -24,7 +23,7 @@ class UpdateManager {
 
 		console.log('[UpdateManager].init, channel: ', channel);
 
-		autoUpdater.logger = log;
+		autoUpdater.logger = Util.getLogger();
 		autoUpdater.logger.transports.file.level = 'debug';
 		autoUpdater.autoDownload = false;
 		autoUpdater.autoInstallOnAppQuit = false;
@@ -97,6 +96,10 @@ class UpdateManager {
 		const [ major, minor, patch ] = String(process.getSystemVersion() || '').split('.');
 
 		if (is.windows && (major <= 8)) {
+			return false;
+		};
+
+		if (is.macos && (major <= 10)) {
 			return false;
 		};
 

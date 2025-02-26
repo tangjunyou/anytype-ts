@@ -48,15 +48,14 @@ class MenuTemplateContext extends React.Component<I.Menu> {
 		const { param } = this.props;
 		const { data } = param;
 		const { template, isView, onSetDefault, templateId } = data;
-		const isBlank = template.id == J.Constant.templateId.blank;
 		const isDefault = template.id == templateId;
 		const defaultName = isView ? translate('menuDataviewTemplateSetDefaultForView') : translate('commonSetDefault');
 
 		return [
 			!isDefault && onSetDefault ? ({ id: 'default', name: defaultName }) : null,
-			!isBlank ? ({ id: 'edit', name: translate('menuDataviewTemplateEdit') }) : null,
+			{ id: 'edit', name: translate('menuDataviewTemplateEdit') },
 			{ id: 'duplicate', name: translate('commonDuplicate') },
-			!isBlank ? ({ id: 'remove', name: translate('commonDelete'), color: 'red' }) : null,
+			{ id: 'remove', name: translate('commonDelete'), color: 'red' },
 		].filter(it => it);
 	};
 
@@ -64,8 +63,6 @@ class MenuTemplateContext extends React.Component<I.Menu> {
 		const { param, close } = this.props;
 		const { data } = param;
 		const { template, onSetDefault, onArchive, onDuplicate, route, typeId } = data;
-
-		close();
 
 		switch (item.id) {
 			case 'default': {
@@ -88,47 +85,25 @@ class MenuTemplateContext extends React.Component<I.Menu> {
 			};
 
 			case 'duplicate': {
-				if (template.id == J.Constant.templateId.blank) {
-					const type = S.Record.getTypeById(template.targetObjectType);
-					if (!type) {
-						break;
-					};
-
-					const details: any = {
-						targetObjectType: type.id,
-						layout: type.recommendedLayout,
-					};
-
-					C.ObjectCreate(details, [], '', J.Constant.typeKey.template, S.Common.space, (message) => {
-						if (message.error.code) {
-							return;
-						};
-
-						analytics.event('CreateTemplate', { objectType: typeId, route });
-
+				C.ObjectListDuplicate([ template.id ], (message: any) => {
+					if (!message.error.code && message.ids.length) {
 						if (onDuplicate) {
-							onDuplicate(message.details);
+							onDuplicate({ ...template, id: message.ids[0] });
 						};
-					});
-				} else {
-					C.ObjectListDuplicate([ template.id ], (message: any) => {
-						if (!message.error.code && message.ids.length) {
-							if (onDuplicate) {
-								onDuplicate({ ...template, id: message.ids[0] });
-							};
 
-							analytics.event('DuplicateObject', { count: 1, route, objectType: template.type });
-						};
-					});
-				};
+						analytics.event('DuplicateObject', { count: 1, route, objectType: template.type });
+					};
+				});
 				break;
 			};
 
 			case 'remove': {
-				Action.archive([ template.id ], onArchive);
+				Action.archive([ template.id ], route, onArchive);
 				break;
 			};
 		};
+
+		close();
 	};
 
 	onMouseEnter (e: any, item: any) {

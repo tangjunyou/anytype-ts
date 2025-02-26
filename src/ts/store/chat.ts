@@ -1,30 +1,41 @@
 import { observable, action, makeObservable, set } from 'mobx';
-import { I, M } from 'Lib';
+import { I, U, M } from 'Lib';
 
 class ChatStore {
 
-    public messageMap: Map<string, any[]> = observable(new Map());
+	public messageMap: Map<string, any[]> = observable(new Map());
 	public replyMap: Map<string, Map<string, I.ChatMessage>> = observable(new Map());
 
-    constructor () {
-        makeObservable(this, {
+	constructor () {
+		makeObservable(this, {
 			add: action,
 			update: action,
 			delete: action,
 			setReply: action,
-        });
-    };
+		});
+	};
 
 	set (rootId: string, list: I.ChatMessage[]): void {
 		list = list.map(it => new M.ChatMessage(it));
+		list = U.Common.arrayUniqueObjects(list, 'id');
 		this.messageMap.set(rootId, observable.array(list));
 	};
 
 	prepend (rootId: string, add: I.ChatMessage[]): void {
 		add = add.map(it => new M.ChatMessage(it));
 
-		const list = this.getList(rootId);
+		let list = this.getList(rootId);
 		list.unshift(...add);
+		list = U.Common.arrayUniqueObjects(list, 'id');
+		this.set(rootId, list);
+	};
+
+	append (rootId: string, add: I.ChatMessage[]): void {
+		add = add.map(it => new M.ChatMessage(it));
+
+		let list = this.getList(rootId);
+		list.push(...add);
+		list = U.Common.arrayUniqueObjects(list, 'id');
 		this.set(rootId, list);
 	};
 

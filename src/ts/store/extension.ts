@@ -3,14 +3,13 @@ import { makeObservable, observable, action } from 'mobx';
 class ExtensionStore {
 
 	public createdObject = null;
-	public challengeId = '';
 	public serverPort = '';
 	public gatewayPort = '';
 	public tabUrlValue = '';
 	public htmlValue = '';
 
 	constructor() {
-        makeObservable(this, {
+		makeObservable(this, {
 			htmlValue: observable,
 			setHtml: action,
 		});

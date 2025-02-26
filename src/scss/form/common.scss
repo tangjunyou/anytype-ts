@@ -1,5 +1,6 @@
 @import "./button";
-@import "./drag";
+@import "./drag/horizontal";
+@import "./drag/vertical";
 @import "./filter";
 @import "./input";
 @import "./inputWithFile";
@@ -10,3 +11,4 @@
 @import "./switch";
 @import "./textarea";
 @import "./editable";
+@import "./tabSwitch";

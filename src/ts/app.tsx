@@ -8,8 +8,8 @@ import { Router, Route, Switch } from 'react-router-dom';
 import { Provider } from 'mobx-react';
 import { configure, spy } from 'mobx';
 import { enableLogging } from 'mobx-logger';
-import { Page, SelectionProvider, DragProvider, Progress, Toast, Preview as PreviewIndex, Navigation, ListPopup, ListMenu, ListNotification, Sidebar, Vault, Share, Loader } from 'Component';
-import { I, C, S, U, J, keyboard, Storage, analytics, dispatcher, translate, Renderer, focus, Preview, Mark, Animation, Onboarding, Survey, Encode, Decode, sidebar } from 'Lib';
+import { Page, SelectionProvider, DragProvider, Progress, Toast, Preview as PreviewIndex, ListPopup, ListMenu, ListNotification, SidebarLeft, Vault, Loader } from 'Component';
+import { I, C, S, U, J, M, keyboard, Storage, analytics, dispatcher, translate, Renderer, focus, Preview, Mark, Animation, Onboarding, Survey, Encode, Decode, sidebar } from 'Lib';
 
 require('pdfjs-dist/build/pdf.worker.entry.js');
 
@@ -23,18 +23,6 @@ import 'react-pdf/dist/cjs/Page/AnnotationLayer.css';
 import 'react-pdf/dist/cjs/Page/TextLayer.css';
 
 import 'scss/common.scss';
-import 'scss/component/common.scss';
-import 'scss/page/common.scss';
-import 'scss/block/common.scss';
-import 'scss/form/common.scss';
-import 'scss/list/common.scss';
-import 'scss/widget/common.scss';
-import 'scss/popup/common.scss';
-import 'scss/menu/common.scss';
-import 'scss/notification/common.scss';
-
-import 'scss/media/print.scss';
-import 'scss/theme/dark/common.scss';
 
 const memoryHistory = hs.createMemoryHistory;
 const history = memoryHistory();
@@ -75,6 +63,7 @@ if (!isPackaged) {
 			C,
 			S,
 			U,
+			M,
 			analytics,
 			dispatcher,
 			keyboard,
@@ -138,9 +127,8 @@ class RoutePage extends React.Component<RouteComponentProps> {
 					<ListPopup key="listPopup" {...this.props} />
 					<ListMenu key="listMenu" {...this.props} />
 
-					<Navigation ref={ref => S.Common.refSet('navigation', ref)} key="navigation" {...this.props} />
-					<Sidebar key="sidebar" {...this.props} />
-					<Page {...this.props} />
+					<SidebarLeft ref={ref => S.Common.refSet('sidebarLeft', ref)} key="sidebarLeft" {...this.props} />
+					<Page {...this.props} isPopup={false} />
 				</DragProvider>
 			</SelectionProvider>
 		);
@@ -193,7 +181,9 @@ class App extends React.Component<object, State> {
 						) : ''}
 
 						{drag}
+						<div id="floaterContainer" />
 						<div id="tooltipContainer" />
+
 						<div id="globalFade">
 							<Loader id="loader" />
 						</div>
@@ -202,7 +192,6 @@ class App extends React.Component<object, State> {
 						<Progress />
 						<Toast />
 						<ListNotification key="listNotification" />
-						<Share showOnce={true} />
 						<Vault ref={ref => S.Common.refSet('vault', ref)} />
 
 						<Switch>
@@ -237,16 +226,6 @@ class App extends React.Component<object, State> {
 		console.log('[App] version:', version.app, 'isPackaged', isPackaged);
 	};
 
-	initStorage () {
-		const lastSurveyTime = Number(Storage.get('lastSurveyTime')) || 0;
-
-		if (!lastSurveyTime) {
-			Storage.set('lastSurveyTime', U.Date.now());
-		};
-
-		Storage.delete('lastSurveyCanceled');
-	};
-
 	registerIpcEvents () {
 		Renderer.on('init', this.onInit);
 		Renderer.on('route', (e: any, route: string) => this.onRoute(route));
@@ -255,7 +234,7 @@ class App extends React.Component<object, State> {
 		Renderer.on('update-available', this.onUpdateAvailable);
 		Renderer.on('update-confirm', this.onUpdateConfirm);
 		Renderer.on('update-not-available', this.onUpdateUnavailable);
-		Renderer.on('update-downloaded', () => S.Common.progressClear());
+		Renderer.on('update-downloaded', () => S.Progress.delete('update'));
 		Renderer.on('update-error', this.onUpdateError);
 		Renderer.on('download-progress', this.onUpdateProgress);
 		Renderer.on('spellcheck', this.onSpellcheck);
@@ -316,30 +295,31 @@ class App extends React.Component<object, State> {
 		S.Common.dataPathSet(dataPath);
 
 		analytics.init();
-		this.initStorage();
 
 		if (redirect) {
 			Storage.delete('redirect');
 		};
 
-		raf(() => anim.removeClass('from'));
-
-		if (css) {
+		if (css && !config.disableCss) {
 			U.Common.injectCss('anytype-custom-css', css);
 		};
 
 		body.addClass('over');
 
+		const hide = () => {
+			loader.remove(); 
+			body.removeClass('over');
+		};
+
 		const cb = () => {
+			raf(() => anim.removeClass('from'));
+
 			window.setTimeout(() => {
 				anim.addClass('to');
 
 				window.setTimeout(() => {
 					loader.css({ opacity: 0 });
-					window.setTimeout(() => { 
-						loader.remove(); 
-						body.removeClass('over');
-					}, 300);
+					window.setTimeout(() => hide(), 300);
 				}, 450);
 			}, 1000);
 		};
@@ -348,22 +328,30 @@ class App extends React.Component<object, State> {
 			if (isChild) {
 				Renderer.send('keytarGet', accountId).then((phrase: string) => {
 					U.Data.createSession(phrase, '', () => {
-						keyboard.setPinChecked(isPinChecked);
-						S.Common.redirectSet(route);
-
-						if (account) {
-							S.Auth.accountSet(account);
-							S.Common.configSet(account.config, false);
-
-							if (spaceId) {
-								U.Router.switchSpace(spaceId, '', false, cb);
-							} else {
-								U.Data.onInfo(account.info);
-								U.Data.onAuth({}, cb);
-							};
-
-							U.Data.onAuthOnce(false);
+						if (!account) {
+							console.error('[App.onInit]: Account not found');
+							return;
 						};
+
+						keyboard.setPinChecked(isPinChecked);
+						S.Auth.accountSet(account);
+						S.Common.redirectSet(route);
+						S.Common.configSet(account.config, false);
+
+						const spaceId = Storage.get('spaceId');
+						const routeParam = { 
+							replace: true, 
+							onRouteChange: hide,
+						};
+
+						if (spaceId) {
+							U.Router.switchSpace(spaceId, '', false, routeParam);
+						} else {
+							U.Data.onAuthWithoutSpace(routeParam);
+						};
+
+						U.Data.onInfo(account.info);
+						U.Data.onAuthOnce(false);
 					});
 				});
 
@@ -411,12 +399,12 @@ class App extends React.Component<object, State> {
 
 	onUpdateCheck (e: any, auto: boolean) {
 		if (!auto) {
-			S.Common.progressSet({ status: translate('progressUpdateCheck'), current: 0, total: 1, isUnlocked: true });
+			S.Progress.add({ id: I.ProgressType.UpdateCheck, type: I.ProgressType.UpdateCheck, current: 0, total: 1 });
 		};
 	};
 
 	onUpdateConfirm (e: any, auto: boolean) {
-		S.Common.progressClear();
+		S.Progress.delete(I.ProgressType.UpdateCheck);
 		Storage.setHighlight('whatsNew', true);
 
 		if (auto) {
@@ -442,7 +430,7 @@ class App extends React.Component<object, State> {
 	};
 
 	onUpdateAvailable (e: any, auto: boolean) {
-		S.Common.progressClear();
+		S.Progress.delete(I.ProgressType.UpdateCheck);
 
 		if (auto) {
 			return;
@@ -467,7 +455,7 @@ class App extends React.Component<object, State> {
 	};
 
 	onUpdateUnavailable (e: any, auto: boolean) {
-		S.Common.progressClear();
+		S.Progress.delete(I.ProgressType.UpdateCheck);
 
 		if (auto) {
 			return;
@@ -488,7 +476,7 @@ class App extends React.Component<object, State> {
 
 	onUpdateError (e: any, err: string, auto: boolean) {
 		console.error(err);
-		S.Common.progressClear();
+		S.Progress.delete(I.ProgressType.UpdateCheck);
 
 		if (auto) {
 			return;
@@ -513,11 +501,11 @@ class App extends React.Component<object, State> {
 	};
 
 	onUpdateProgress (e: any, progress: any) {
-		S.Common.progressSet({ 
-			status: U.Common.sprintf(translate('commonUpdateProgress'), U.File.size(progress.transferred), U.File.size(progress.total)), 
+		S.Progress.update({ 
+			id: I.ProgressType.Update,
+			type: I.ProgressType.Update,
 			current: progress.transferred, 
 			total: progress.total,
-			isUnlocked: true,
 		});
 	};
 

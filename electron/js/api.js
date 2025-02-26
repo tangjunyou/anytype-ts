@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const keytar = require('keytar');
 const { download } = require('electron-dl');
+const si = require('systeminformation');
 
 const MenuManager = require('./menu.js');
 const ConfigManager = require('./config.js');
@@ -49,8 +50,14 @@ class Api {
 		WindowManager.sendToAll('pin-check');
 	};
 
-	setConfig (win, config) {
-		ConfigManager.set(config, (err) => Util.send(win, 'config', ConfigManager.config));
+	setConfig (win, config, callBack) {
+		ConfigManager.set(config, () => {
+			Util.send(win, 'config', ConfigManager.config);
+
+			if (callBack) {
+				callBack();
+			};
+		});
 	};
 
 	setAccount (win, account) {
@@ -88,7 +95,7 @@ class Api {
 	};
 
 	setMenuBarVisibility (win, show) {
-		ConfigManager.set({ hideMenuBar: !show }, () => {
+		ConfigManager.set({ showMenuBar: show }, () => {
 			Util.send(win, 'config', ConfigManager.config);
 
 			win.setMenuBarVisibility(show);
@@ -177,8 +184,13 @@ class Api {
 		Server.stop(signal).then(() => this.shutdown(win, relaunch));
 	};
 
+	setChannel (win, id) {
+		UpdateManager.setChannel(id); 
+		this.setConfig(win, { channel: id });
+	};
+
 	setInterfaceLang (win, lang) {
-		ConfigManager.set({ interfaceLang: lang }, (err) => {
+		ConfigManager.set({ interfaceLang: lang }, () => {
 			WindowManager.reloadAll();
 			MenuManager.initMenu();
 			MenuManager.initTray();
@@ -210,9 +222,27 @@ class Api {
 		WindowManager.createChallenge(param);
 	};
 
+	hideChallenge (win, param) {
+		WindowManager.closeChallenge(param);
+	};
+
 	reload (win, route) {
 		win.route = route;
 		win.webContents.reload();
+	};
+
+	systemInfo (win) {
+		const { config } = ConfigManager;
+
+		if (config.systemInfo) {
+			return;
+		};
+
+		ConfigManager.set({ systemInfo: true }, () => {
+			si.getStaticData().then(data => {
+				Util.send(win, 'commandGlobal', 'systemInfo', data);
+			});
+		});
 	};
 
 };

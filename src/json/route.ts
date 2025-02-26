@@ -2,8 +2,7 @@ export default [
 	'/',
 	'/:page/:action/',
 	'/:page/:action/:id?',
-	'/:page/:action/:id?/spaceId/:spaceId?',
-	'/:page/:action/:id?/spaceId/:spaceId?/viewId/:viewId?',
+	'/:page/:action/:id?/*',
 	'/object',
 	'/invite',
 	'/membership'

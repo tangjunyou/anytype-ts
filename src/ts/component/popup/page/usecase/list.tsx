@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Loader, Title, Label, EmptySearch, Icon, Filter } from 'Component';
-import { I, C, S, U, translate, analytics } from 'Lib';
+import { I, C, S, U, translate, analytics, Onboarding } from 'Lib';
 import { AutoSizer, CellMeasurer, CellMeasurerCache, List, WindowScroller } from 'react-virtualized';
 
 interface State {
@@ -8,7 +8,7 @@ interface State {
 	category: any;
 };
 
-const HEIGHT = 450;
+const HEIGHT = 378;
 const LIMIT = 2;
 
 class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
@@ -34,7 +34,6 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 			fixedWidth: true,
 		});
 
-		this.onBanner = this.onBanner.bind(this);
 		this.onResize = this.onResize.bind(this);
 		this.onCategory = this.onCategory.bind(this);
 		this.onFilterChange = this.onFilterChange.bind(this);
@@ -44,8 +43,8 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 	render () {
 		const { getAuthor, onAuthor } = this.props;
 		const { isLoading, category } = this.state;
-		const items = this.getItems();
 		const { gallery } = S.Common;
+		const items = this.getItems();
 		const filter = this.refFilter ? this.refFilter.getValue() : '';
 
 		if (isLoading) {
@@ -67,13 +66,10 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 				cn.push('active');
 			};
 
-			if (item.id == 'collaboration') {
-				cn.push('hl');
-			};
-
 			return (
 				<div 
 					className={cn.join(' ')} 
+					id={`category-${item.id}`}
 					onClick={() => this.onCategory(item)}
 				>
 					{item.icon ? <Icon className={item.icon} /> : ''}
@@ -87,10 +83,15 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 
 			return (
 				<div className="item" onClick={e => this.onClick(e, item)}>
-					<div className="picture" style={{ backgroundImage: `url("${screenshot}")` }}></div>
-					<div className="name">{item.title}</div>
-					<div className="descr">{item.description}</div>
-					<div className="author" onClick={() => onAuthor(item.author)}>@{getAuthor(item.author)}</div>
+					<div className="info">
+						<div className="name">{item.title}</div>
+						<div className="author" onClick={() => onAuthor(item.author)}>
+							{U.Common.sprintf(translate('popupUsecaseAuthorShort'), getAuthor(item.author))}
+						</div>
+					</div>					
+					<div className="pictureWrapper">
+						<div className="picture" style={{ backgroundImage: `url("${screenshot}")` }}></div>
+					</div>
 				</div>
 			);
 		};
@@ -107,11 +108,9 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 					rowIndex={param.index}
 					hasFixedWidth={() => {}}
 				>
-					{({ measure }) => (
-						<div key={`gallery-row-${param.index}`} className="row" style={param.style}>
-							{item.children.map(child => <Item key={child.id} {...child} />)}
-						</div>
-					)}
+					<div key={`gallery-row-${param.index}`} className="row" style={param.style}>
+						{item.children.map(child => <Item key={child.id} {...child} />)}
+					</div>
 				</CellMeasurer>
 			);
 		};
@@ -133,10 +132,6 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 
 					<Icon id="arrowLeft" className="arrow left" onClick={() => this.onArrow(-1)} />
 					<Icon id="arrowRight" className="arrow right" onClick={() => this.onArrow(1)} />
-				</div>
-
-				<div className="banner" onClick={this.onBanner}>
-					<div className="inner">{translate('popupUsecaseBannerText')}</div>
 				</div>
 
 				<div className="mid">
@@ -169,7 +164,7 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 											width={Number(width) || 0}
 											deferredMeasurmentCache={this.cache}
 											rowCount={items.length}
-											rowHeight={param => this.cache.rowHeight(param)}
+											rowHeight={HEIGHT}
 											rowRenderer={rowRenderer}
 											isScrolling={isScrolling}
 											scrollTop={scrollTop}
@@ -185,20 +180,9 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 	};
 
 	componentDidMount (): void {
-		if (S.Common.gallery.list.length) {
-			return;
+		if (!S.Common.gallery.list.length) {
+			this.load();
 		};
-
-		this.setState({ isLoading: true });
-
-		C.GalleryDownloadIndex((message: any) => {
-			S.Common.gallery = {
-				categories: (message.categories || []).map(it => ({ ...it, name: this.categoryName(it.id) })),
-				list: message.list || [],
-			};
-			
-			this.setState({ isLoading: false });
-		});
 
 		analytics.event('ScreenGallery');
 	};
@@ -228,6 +212,8 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 
 	onCategory (item: any) {
 		this.setState({ category: (item.id == this.state.category?.id ? null : item) });
+
+		analytics.event('ClickGalleryTab', { type: item.id });
 	};
 
 	onFilterChange (v: string) {
@@ -237,6 +223,20 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 
 	onFilterClear () {
 		this.forceUpdate();
+	};
+
+	load () {
+		this.setState({ isLoading: true });
+
+		C.GalleryDownloadIndex((message: any) => {
+			S.Common.gallery = {
+				categories: (message.categories || []).map(it => ({ ...it, name: this.categoryName(it.id) })),
+				list: message.list || [],
+			};
+
+			Onboarding.start('collaboration', true, false);
+			this.setState({ isLoading: false });
+		});
 	};
 
 	getItems () {
@@ -294,7 +294,7 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 		items.each((i, item) => {
 			iw += $(item).outerWidth(true);
 		});
-		iw += 8 * categories.length + 1;
+		iw += 8 * (categories.length + 1);
 
 		this.pages = Number(Math.ceil(iw / width)) || 1;
 	};
@@ -335,15 +335,6 @@ class PopupUsecasePageList extends React.Component<I.PopupUsecase, State> {
 		this.checkPage();
 
 		inner.css({ transform: `translate3d(${-this.page * 100}%, 0px, 0px)` });
-	};
-
-	onBanner () {
-		const { gallery } = S.Common;
-		const category = gallery.categories.find(it => it.id == 'collaboration');
-
-		if (category) {
-			this.onCategory(category);
-		};
 	};
 
 };

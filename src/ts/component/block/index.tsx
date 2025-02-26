@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import $ from 'jquery';
 import { observer } from 'mobx-react';
-import { I, C, S, U, J, keyboard, focus, Storage, Preview, Renderer, Mark, translate } from 'Lib';
+import { I, C, S, U, J, keyboard, focus, Storage, Preview, Mark, translate, Action } from 'Lib';
 import { DropTarget, ListChildren, Icon, SelectionTarget, IconObject, Loader } from 'Component';
 
 import BlockDataview from './dataview';
@@ -72,17 +72,26 @@ const Block = observer(class Block extends React.Component<Props> {
 	};
 
 	render () {
-		const { rootId, css, className, block, readonly, isInsideTable, isSelectionDisabled, onMouseEnter, onMouseLeave } = this.props;
+		const { rootId, css, className, block, readonly, isInsideTable, isSelectionDisabled, blockContextParam, onMouseEnter, onMouseLeave } = this.props;
 		
 		if (!block) {
 			return null;
 		};
 
-		const { id, type, fields, content, hAlign, bgColor } = block;
+		const { id, type, fields, content, bgColor } = block;
 
 		if (!id) {
 			return null;
 		};
+
+		let hAlign = null;
+		if (blockContextParam && (block.isTextTitle() || block.isTextDescription() || block.isFeatured())) {
+			hAlign = blockContextParam.hAlign;
+		} else {
+			hAlign = block.hAlign;
+		};
+
+		hAlign = hAlign || I.BlockHAlign.Left;
 
 		const index = Number(this.props.index) || 0;
 		const { style, checked } = content;
@@ -116,7 +125,7 @@ const Block = observer(class Block extends React.Component<Props> {
 		};
 
 		if (bgColor && !block.isLink() && !block.isBookmark()) {
-			cd.push('bgColor bgColor-' + bgColor);
+			cd.push(`bgColor bgColor-${bgColor}`);
 		};
 
 		switch (type) {
@@ -223,12 +232,12 @@ const Block = observer(class Block extends React.Component<Props> {
 			};
 
 			case I.BlockType.Chat: {
-				canDrop = canSelect = !U.Object.isChatLayout(root.layout);
+				canDrop = canSelect = false;
 				blockComponent = (
 					<BlockChat 
 						key={key} 
 						ref={setRef} 
-						{...this.props} 
+						{...this.props}
 						renderLinks={this.renderLinks} 
 						renderMentions={this.renderMentions}
 						renderObjects={this.renderObjects}
@@ -434,7 +443,7 @@ const Block = observer(class Block extends React.Component<Props> {
 		const { block } = this.props;
 		const { focused } = focus.state;
 
-		if (focused == block.id) {
+		if (block && (focused == block.id)) {
 			focus.apply();
 		};
 
@@ -468,7 +477,7 @@ const Block = observer(class Block extends React.Component<Props> {
 	onDragStart (e: any) {
 		e.stopPropagation();
 
-		if (!this._isMounted) {
+		if (!this._isMounted || keyboard.isResizing) {
 			return;
 		};
 		
@@ -484,7 +493,7 @@ const Block = observer(class Block extends React.Component<Props> {
 		keyboard.disableSelection(true);
 
 		if (selection) {
-			if (selection.isSelecting) {
+			if (selection.isSelecting()) {
 				selection.setIsSelecting(false);
 			};
 
@@ -512,15 +521,14 @@ const Block = observer(class Block extends React.Component<Props> {
 			return;
 		};
 
+		const offset = element.offset();
+
 		selection.set(I.SelectType.Block, this.ids);
 
 		this.menuOpen({
 			horizontal: I.MenuDirection.Right,
 			offsetX: element.outerWidth(),
-			recalcRect: () => {
-				const offset = element.offset();
-				return { x: offset.left, y: keyboard.mouse.page.y, width: element.width(), height: 0 };
-			},
+			rect: { x: offset.left, y: keyboard.mouse.page.y, width: element.width(), height: 0 },
 		});
 	};
 
@@ -532,10 +540,8 @@ const Block = observer(class Block extends React.Component<Props> {
 		if (
 			isContextMenuDisabled || 
 			readonly || 
-			block.isSelectable() || 
 			(block.isText() && (focused == block.id)) || 
-			block.isTable() || 
-			block.isDataview()
+			!block.canContextMenu()
 		) {
 			return;
 		};
@@ -560,7 +566,7 @@ const Block = observer(class Block extends React.Component<Props> {
 			};
 
 			this.menuOpen({
-				recalcRect: () => ({ x: keyboard.mouse.page.x, y: keyboard.mouse.page.y, width: 0, height: 0 })
+				rect: { x: keyboard.mouse.page.x, y: keyboard.mouse.page.y, width: 0, height: 0 },
 			});
 		});
 	};
@@ -796,33 +802,27 @@ const Block = observer(class Block extends React.Component<Props> {
 		});
 	};
 
-	renderLinks (node: any, marks: I.Mark[], value: string, props: any) {
+	renderLinks (node: any, marks: I.Mark[], getValue: () => string, props: any) {
 		node = $(node);
 
-		const { readonly } = props;
+		const { readonly, block } = props;
 		const items = node.find(Mark.getTag(I.MarkType.Link));
 
 		if (!items.length) {
 			return;
 		};
 
-		items.off('mouseenter.link');
-		items.on('mouseenter.link', e => {
-			const sr = U.Common.getSelectionRange();
-			if (sr && !sr.collapsed) {
-				return;
-			};
+		items.each((i: number, item: any) => {
+			item = $(item);
 
-			const element = $(e.currentTarget);
-			const range = String(element.attr('data-range') || '').split('-');
-			const url = String(element.attr('href') || '');
+			const range = String(item.attr('data-range') || '').split('-');
+			const url = String(item.attr('href') || '');
+			const scheme = U.Common.getScheme(url);
+			const isInside = scheme == J.Constant.protocol;
 
 			if (!url) {
 				return;
 			};
-
-			const scheme = U.Common.getScheme(url);
-			const isInside = scheme == J.Constant.protocol;
 
 			let route = '';
 			let target;
@@ -844,28 +844,46 @@ const Block = observer(class Block extends React.Component<Props> {
 				type = I.PreviewType.Link;
 			};
 
-			Preview.previewShow({
-				target,
-				type,
-				element,
-				range: { 
-					from: Number(range[0]) || 0,
-					to: Number(range[1]) || 0, 
-				},
-				marks,
-				onChange: marks => this.setMarks(value, marks),
-				noUnlink: readonly,
-				noEdit: readonly,
+			item.off('mousedown.link').on('mousedown.link', e => {
+				e.preventDefault();
+
+				isInside ? U.Router.go(route, {}) : Action.openUrl(target);
 			});
 
-			element.off('click.link').on('click.link', e => {
-				e.preventDefault();
-				isInside ? U.Router.go(route, {}) : Renderer.send('urlOpen', target);
+			item.off('mouseenter.link').on('mouseenter.link', e => {
+				const sr = U.Common.getSelectionRange();
+				if (sr && !sr.collapsed) {
+					return;
+				};
+
+				Preview.previewShow({
+					target,
+					type,
+					element: item,
+					range: { 
+						from: Number(range[0]) || 0,
+						to: Number(range[1]) || 0, 
+					},
+					marks,
+					onChange: marks => {
+						const restricted = [];
+						if (block.isTextHeader()) {
+							restricted.push(I.MarkType.Bold);
+						};
+
+						const parsed = Mark.fromHtml(getValue(), restricted);
+						this.setMarks(parsed.text, marks);
+					},
+					noUnlink: readonly,
+					noEdit: readonly,
+				});
 			});
+
+			U.Common.textStyle(item, { border: 0.35 });
 		});
 	};
 
-	renderMentions (rootId: string, node: any, marks: I.Mark[], value: string) {
+	renderMentions (rootId: string, node: any, marks: I.Mark[], getValue: () => string) {
 		node = $(node);
 
 		const { block } = this.props;
@@ -889,25 +907,28 @@ const Block = observer(class Block extends React.Component<Props> {
 				return;
 			};
 
-			const object = S.Detail.get(rootId, data.param, []);
+			const range = String(item.attr('data-range') || '').split('-');
+			const param = String(item.attr('data-param') || '');
+			const object = S.Detail.get(rootId, param, []);
 			const { id, _empty_, layout, done, isDeleted, isArchived } = object;
 			const isTask = U.Object.isTaskLayout(layout);
 			const name = item.find('name');
-			const clickable = isTask ? item.find('name') : item;
+			const clickable = isTask ? name : item;
 
 			let icon = null;
 			if (_empty_) {
-				icon = <Loader type="loader" className={[ 'c' + size, 'inline' ].join(' ')} />;
+				icon = <Loader type={I.LoaderType.Loader} className={[ 'c' + size, 'inline' ].join(' ')} />;
 			} else {
 				icon = (
 					<IconObject 
 						id={`mention-${block.id}-${i}`}
 						size={size} 
+						iconSize={size}
 						object={object} 
 						canEdit={!isArchived && isTask} 
-						onSelect={icon => this.onMentionSelect(value, marks, id, icon)} 
-						onUpload={objectId => this.onMentionUpload(value, marks, id, objectId)} 
-						onCheckbox={() => this.onMentionCheckbox(value, marks, id, !done)}
+						onSelect={icon => this.onMentionSelect(getValue, marks, id, icon)} 
+						onUpload={objectId => this.onMentionUpload(getValue, marks, id, objectId)} 
+						onCheckbox={() => this.onMentionCheckbox(getValue, marks, id, !done)}
 					/>
 				);
 			};
@@ -928,26 +949,20 @@ const Block = observer(class Block extends React.Component<Props> {
 				};
 			});
 
-			clickable.off('mouseenter.mention');
-			clickable.on('mouseenter.mention', e => {
+			if (!param || item.hasClass('disabled')) {
+				return;
+			};
+
+			clickable.off('mousedown.mention').on('mousedown.mention', e => {
+				e.preventDefault();
+				U.Object.openEvent(e, object);
+			});
+
+			clickable.off('mouseenter.mention').on('mouseenter.mention', e => {
 				const sr = U.Common.getSelectionRange();
 				if (sr && !sr.collapsed) {
 					return;
 				};
-
-				const range = String(item.attr('data-range') || '').split('-');
-				const param = String(item.attr('data-param') || '');
-
-				if (!param || item.hasClass('disabled')) {
-					return;
-				};
-
-				const object = S.Detail.get(rootId, param, []);
-
-				clickable.off('click.mention').on('click.mention', e => {
-					e.preventDefault();
-					U.Object.openEvent(e, object);
-				});
 
 				Preview.previewShow({
 					object,
@@ -958,13 +973,18 @@ const Block = observer(class Block extends React.Component<Props> {
 					},
 					noUnlink: true,
 					marks,
-					onChange: marks => this.setMarks(value, marks),
+					onChange: marks => {
+						const parsed = Mark.fromHtml(getValue(), []);
+						this.setMarks(parsed.text, marks);
+					},
 				});
 			});
+
+			U.Common.textStyle(item, { border: 0.35 });
 		});
 	};
 
-	renderObjects (rootId: string, node: any, marks: I.Mark[], value: string, props: any) {
+	renderObjects (rootId: string, node: any, marks: I.Mark[], getValue: () => string, props: any) {
 		node = $(node);
 
 		const { readonly } = props;
@@ -979,56 +999,54 @@ const Block = observer(class Block extends React.Component<Props> {
 			
 			const param = item.attr('data-param');
 			const object = S.Detail.get(rootId, param, []);
+			const range = String(item.attr('data-range') || '').split('-');
+
+			if (!param) {
+				return;
+			};
 
 			if (object._empty_ || object.isDeleted) {
 				item.addClass('disabled');
 			};
-		});
 
-		items.off('mouseenter.object mouseleave.object');
-		items.on('mouseleave.object', () => Preview.tooltipHide(false));
-		items.on('mouseenter.object', e => {
-			const sr = U.Common.getSelectionRange();
-			if (sr && !sr.collapsed) {
-				return;
-			};
-
-			const element = $(e.currentTarget);
-			const range = String(element.attr('data-range') || '').split('-');
-			const param = String(element.attr('data-param') || '');
-			const object = S.Detail.get(rootId, param, []);
-			
-			let tt = '';
-			if (object.isDeleted) {
-				tt = translate('commonDeletedObject');
-			};
-
-			if (tt) {
-				Preview.tooltipShow({ text: tt, element });
-				return;
-			};
-
-			if (!param || object.isDeleted) {
-				return;
-			};
-
-			element.off('click.object').on('click.object', e => {
+			item.off('mousedown.object').on('mousedown.object', e => {
 				e.preventDefault();
 				U.Object.openEvent(e, object);
 			});
 
-			Preview.previewShow({
-				target: object.id,
-				object,
-				element,
-				marks,
-				onChange: marks => this.setMarks(value, marks),
-				range: { 
-					from: Number(range[0]) || 0,
-					to: Number(range[1]) || 0, 
-				},
-				noUnlink: readonly,
-				noEdit: readonly,
+			item.off('mouseleave.object').on('mouseleave.object', () => Preview.tooltipHide(false));
+
+			item.off('mouseenter.object').on('mouseenter.object', () => {
+				const sr = U.Common.getSelectionRange();
+				const tt = object.isDeleted ? translate('commonDeletedObject') : '';
+
+				if (sr && !sr.collapsed) {
+					return;
+				};
+
+				if (tt) {
+					Preview.tooltipShow({ text: tt, element: item });
+					return;
+				};
+
+				Preview.previewShow({
+					target: object.id,
+					object,
+					element: item,
+					marks,
+					range: { 
+						from: Number(range[0]) || 0,
+						to: Number(range[1]) || 0, 
+					},
+					noUnlink: readonly,
+					noEdit: readonly,
+					onChange: marks => {
+						const parsed = Mark.fromHtml(getValue(), []);
+						this.setMarks(parsed.text, marks);
+					},
+				});
+
+				U.Common.textStyle(item, { border: 0.35 });
 			});
 		});
 	};
@@ -1037,12 +1055,12 @@ const Block = observer(class Block extends React.Component<Props> {
 		node = $(node);
 
 		const items = node.find(Mark.getTag(I.MarkType.Emoji));
-		const { block } = this.props;
-		const size = U.Data.emojiParam(block.content.style);
-
 		if (!items.length) {
 			return;
 		};
+
+		const { block } = this.props;
+		const size = U.Data.emojiParam(block.content.style);
 
 		items.each((i: number, item: any) => {
 			item = $(item);
@@ -1051,7 +1069,7 @@ const Block = observer(class Block extends React.Component<Props> {
 			const smile = item.find('smile');
 
 			if (smile.length) {
-				ReactDOM.render(<IconObject size={size} object={{ iconEmoji: param }} />, smile.get(0));
+				ReactDOM.render(<IconObject size={size} iconSize={size} object={{ iconEmoji: param }} />, smile.get(0));
 			};
 		});
 	};
@@ -1088,34 +1106,34 @@ const Block = observer(class Block extends React.Component<Props> {
 		return { value, marks: rM, save };
 	};
 
-	onMentionSelect (value: string, marks: I.Mark[], id: string, icon: string) {
+	onMentionSelect (getValue: () => string, marks: I.Mark[], id: string, icon: string) {
 		const { rootId, block } = this.props;
 
-		U.Data.blockSetText(rootId, block.id, value, marks, true, () => {
+		U.Data.blockSetText(rootId, block.id, getValue(), marks, true, () => {
 			U.Object.setIcon(id, icon, '');
 		});
 	};
 
-	onMentionUpload (value: string, marks: I.Mark[], targetId: string, objectId: string) {
+	onMentionUpload (getValue: () => string, marks: I.Mark[], targetId: string, objectId: string) {
 		const { rootId, block } = this.props;
 
-		U.Data.blockSetText(rootId, block.id, value, marks, true, () => {
+		U.Data.blockSetText(rootId, block.id, getValue(), marks, true, () => {
 			U.Object.setIcon(targetId, '', objectId);
 		});
 	};
 
-	onMentionCheckbox (value: string, marks: I.Mark[], objectId: string, done: boolean) {
+	onMentionCheckbox (getValue: () => string, marks: I.Mark[], objectId: string, done: boolean) {
 		const { rootId, block } = this.props;
 
-		U.Data.blockSetText(rootId, block.id, value, marks, true, () => {
+		U.Data.blockSetText(rootId, block.id, getValue(), marks, true, () => {
 			U.Object.setDone(objectId, done);
 		});
 	};
 
 	setMarks (value: string, marks: I.Mark[]) {
 		const { rootId, block } = this.props;
-		
-		if (block.isTextCode()) {
+
+		if (!block.canHaveMarks()) {
 			marks = [];
 		};
 

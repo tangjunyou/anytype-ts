@@ -23,11 +23,14 @@ export default {
 	invite:				 'https://invite.any.coop/%s#%s',
 	share: 				 'https://join.anytype.io/',
 	notionFAQ:			 'https://doc.anytype.io/anytype-docs/basics/space/import-export#notion-import-faq',
+	publishDomain:		 '%s.org',
+	publish:			 'any.coop/%s',
+	api:				 '127.0.0.1:31009',
 
 	survey: {
 		register:		 'https://community.anytype.io/survey0',
 		delete:			 'https://community.anytype.io/survey1',
-		pmf:			 'https://community.anytype.io/survey2#anytypeid=%s',
+		pmf:			 'https://anytype.typeform.com/to/JKotDI5b#anytypeid=%s',
 		object:			 'https://community.anytype.io/survey3',
 		shared:			 'https://community.anytype.io/survey4',
 		multiplayer:	 'https://community.anytype.io/survey5'

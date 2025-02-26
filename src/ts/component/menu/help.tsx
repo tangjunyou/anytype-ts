@@ -1,78 +1,27 @@
-import * as React from 'react';
-import { MenuItemVertical, Button, Share } from 'Component';
-import { I, S, U, J, Onboarding, keyboard, analytics, Action, Highlight, Storage, translate, Preview } from 'Lib';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { MenuItemVertical, Button, ShareTooltip } from 'Component';
+import { I, S, U, J, keyboard, analytics, Action, Highlight, translate } from 'Lib';
 
-class MenuHelp extends React.Component<I.Menu> {
+const MenuHelp = forwardRef<I.MenuRef, I.Menu>((props, ref) => {
+	const { setActive, close, getId, onKeyDown } = props;
+	const n = useRef(-1);
 
-	n = -1;
-
-	constructor (props: I.Menu) {
-		super(props);
-
-		this.onClick = this.onClick.bind(this);
-	};
-
-	render () {
-		const items = this.getItems();
-
-		return (
-			<React.Fragment>
-				<div className="items">
-					{items.map((item: any, i: number) => {
-						let content = null;
-
-						if (item.isDiv) {
-							content = (
-								<div key={i} className="separator">
-									<div className="inner" />
-								</div>
-							);
-						} else {
-							content = (
-								<MenuItemVertical
-									key={i}
-									{...item}
-									onMouseEnter={e => this.onMouseEnter(e, item)}
-									onClick={e => this.onClick(e, item)}
-								/>
-							);
-						};
-
-						return content;
-					})}
-				</div>
-				<Share />
-			</React.Fragment>
-		);
-	};
-
-	componentDidMount () {
-		this.rebind();
-		Preview.shareTooltipHide();
-		Highlight.showAll();
-	};
-
-	componentWillUnmount () {
-		this.unbind();
-	};
-
-	rebind () {
-		this.unbind();
-		$(window).on('keydown.menu', e => this.props.onKeyDown(e));
-		window.setTimeout(() => this.props.setActive(), 15);
+	const rebind = () => {
+		unbind();
+		$(window).on('keydown.menu', e => onKeyDown(e));
+		window.setTimeout(() => setActive(), 15);
 	};
 	
-	unbind () {
+	const unbind = () => {
 		$(window).off('keydown.menu');
 	};
 
-	getItems () {
+	const getItems = () => {
 		const btn = <Button className="c16" text={U.Common.getElectron().version.app} />;
 
 		return [
 			{ id: 'whatsNew', document: 'whatsNew', caption: btn },
-			{ id: 'shortcut', caption: 'Ctrl+Space' },
-			{ id: 'hints' },
+			{ id: 'shortcut', caption: keyboard.getCaption('shortcut') },
 			{ isDiv: true },
 			{ id: 'gallery' },
 			{ id: 'community' },
@@ -85,21 +34,13 @@ class MenuHelp extends React.Component<I.Menu> {
 		].map(it => ({ ...it, name: translate(U.Common.toCamelCase(`menuHelp-${it.id}`)) }));
 	};
 
-	onMouseEnter (e: any, item: any) {
+	const onMouseEnter = (e: any, item: any) => {
 		if (!keyboard.isMouseDisabled) {
-			this.props.setActive(item, false);
+			setActive(item, false);
 		};
 	};
 
-	onClick (e: any, item: any) {
-		const { getId, close } = this.props;
-		const isGraph = keyboard.isMainGraph();
-		const isStore = keyboard.isMainStore();
-		const storeTab = Storage.get('tabStore');
-		const isStoreType = isStore && (storeTab == I.StoreTab.Type);
-		const isStoreRelation = isStore && (storeTab == I.StoreTab.Relation);
-		const home = U.Space.getDashboard();
-
+	const onClick = (e: any, item: any) => {
 		close();
 		analytics.event(U.Common.toUpperCamelCase([ getId(), item.id ].join('-')), { route: analytics.route.menuHelp });
 
@@ -107,12 +48,12 @@ class MenuHelp extends React.Component<I.Menu> {
 
 		switch (item.id) {
 			case 'whatsNew': {
-				S.Popup.open('help', { preventResize: true, data: { document: item.document } });
+				S.Popup.open('help', { data: { document: item.document } });
 				break;
 			};
 
 			case 'shortcut': {
-				S.Popup.open('shortcut', { preventResize: true });
+				keyboard.onShortcut();
 				break;
 			};
 
@@ -135,47 +76,44 @@ class MenuHelp extends React.Component<I.Menu> {
 				break;
 			};
 
-			case 'hints': {
-				const isPopup = keyboard.isPopup();
-				const rootId = keyboard.getRootId();
-				const isEditor = keyboard.isMainEditor();
-				const isSet = keyboard.isMainSet();
-
-				let key = '';
-
-				if (isEditor && home && (rootId == home.id)) {
-					key = 'dashboard';
-				} else 
-				if (isSet) {
-					key = 'mainSet';
-				} else
-				if (isEditor) {
-					key = S.Block.checkBlockTypeExists(rootId) ? 'objectCreationStart' : 'editor';
-				} else
-				if (isGraph) {
-					key = 'mainGraph';
-				} else
-				if (isStoreType) {
-					key = 'storeType';
-				} else
-				if (isStoreRelation) {
-					key = 'storeRelation';
-				} else {
-					const { page, action } = keyboard.getMatch().params;
-
-					key = U.Common.toCamelCase([ page, action ].join('-'));
-				};
-
-				if (key) {
-					Onboarding.start(key, isPopup, true);
-				};
-				break;
-			};
-
 		};
 
 	};
 
-};
+	const items = getItems();
+
+	useEffect(() => {
+		rebind();
+		Highlight.showAll();
+		return () => unbind();
+	}, []);
+
+	useImperativeHandle(ref, () => ({
+		rebind,
+		unbind,
+		getItems,
+		getIndex: () => n.current,
+		setIndex: (i: number) => n.current = i,
+		onClick,
+	}), []);
+
+	return (
+		<>
+			<div className="items">
+				{items.map((item: any, i: number) => (
+					<MenuItemVertical
+						key={i}
+						{...item}
+						onMouseEnter={e => onMouseEnter(e, item)}
+						onClick={e => onClick(e, item)}
+					/>
+				))}
+			</div>
+
+			<ShareTooltip route={analytics.route.menuHelp} />
+		</>
+	);
+
+});
 
 export default MenuHelp;

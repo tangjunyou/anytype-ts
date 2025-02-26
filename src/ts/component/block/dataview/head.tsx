@@ -100,12 +100,14 @@ const Head = observer(class Head extends React.Component<I.ViewComponent, State>
 	};
 
 	onTitle () {
-		const { rootId, block, onSourceSelect, isCollection } = this.props;
+		const { rootId, block, readonly, onSourceSelect, isCollection } = this.props;
 		const { targetObjectId } = block.content;
 		const { isEditing } = this.state;
 		const element = `#block-head-${block.id}`;
 		const object = S.Detail.get(rootId, targetObjectId);
 		const sourceName = isCollection ? 'collection' : 'set';
+		const canEdit = !readonly && !object.isDeleted;
+		const canSource = !readonly && !object.isDeleted;
 
 		if (isEditing) {
 			return;
@@ -116,23 +118,17 @@ const Head = observer(class Head extends React.Component<I.ViewComponent, State>
 			return;
 		};
 
-		let options: any[] = [
-			{ id: 'editTitle', icon: 'editText', name: translate('blockDataviewHeadMenuEdit') },
-			{ id: 'sourceChange', icon: 'source', name: U.Common.sprintf(translate('blockDataviewHeadMenuChange'), sourceName), arrow: true },
+		const options: any[] = [
+			canEdit ? { id: 'editTitle', icon: 'editText', name: translate('blockDataviewHeadMenuEdit') } : null,
+			canSource ? { id: 'sourceChange', icon: 'source', name: U.Common.sprintf(translate('blockDataviewHeadMenuChange'), sourceName), arrow: true } : null,
 			{ id: 'sourceOpen', icon: 'expand', name: U.Common.sprintf(translate('blockDataviewHeadMenuOpen'), sourceName) },
-		];
-
-		if (object.isDeleted) {
-			options = options.filter(it => it.id == 'sourceChange');
-		};
+		].filter(it => it);
 
 		S.Menu.open('select', {
 			element,
 			offsetY: 4,
 			width: 240,
-			onOpen: (context: any) => {
-				this.menuContext = context;
-			},
+			onOpen: context => this.menuContext = context,
 			data: {
 				options,
 				onOver: this.onTitleOver,
@@ -142,6 +138,10 @@ const Head = observer(class Head extends React.Component<I.ViewComponent, State>
 	};
 
 	onTitleOver (e: any, item: any) {
+		if (!this.menuContext) {
+			return;
+		};
+
 		const { rootId, block, loadData, isCollection } = this.props;
 		const { targetObjectId } = block.content;
 
@@ -151,14 +151,6 @@ const Head = observer(class Head extends React.Component<I.ViewComponent, State>
 		};
 
 		const addParam: any = {};
-		const menuParam: any = {
-			menuKey: item.id,
-			element: `#${this.menuContext.getId()} #item-${item.id}`,
-			offsetX: this.menuContext.getSize().width,
-			vertical: I.MenuDirection.Center,
-			isSub: true,
-			data: {},
-		};
 		const onCreate = (message: any, isNew: boolean) => {
 			if (message.views && message.views.length) {
 				window.setTimeout(() => loadData(message.views[0].id, 0, true), 50);
@@ -174,23 +166,31 @@ const Head = observer(class Head extends React.Component<I.ViewComponent, State>
 
 		let filters: I.Filter[] = [];
 		let menuId = '';
+		let menuParam: any = {
+			menuKey: item.id,
+			element: `#${this.menuContext.getId()} #item-${item.id}`,
+			offsetX: this.menuContext.getSize().width,
+			vertical: I.MenuDirection.Center,
+			isSub: true,
+			data: {},
+		};
 
 		if (isCollection) {
 			filters = filters.concat([
-				{ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Collection },
+				{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Collection },
 			]);
 
 			addParam.name = translate('blockDataviewCreateNewCollection');
 			addParam.nameWithFilter = translate('blockDataviewCreateNewCollectionWithName');
 
 			addParam.onClick = (details: any) => {
-				C.ObjectCreate({ ...details, layout: I.ObjectLayout.Collection }, [], '', J.Constant.typeKey.collection, S.Common.space, (message: any) => { 
+				C.ObjectCreate(details, [], '', J.Constant.typeKey.collection, S.Common.space, (message: any) => { 
 					C.BlockDataviewCreateFromExistingObject(rootId, block.id, message.objectId, (message: any) => onCreate(message, true));
 				});
 			};
 		} else {
 			filters = filters.concat([
-				{ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Set },
+				{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Set },
 				{ relationKey: 'setOf', condition: I.FilterCondition.NotEmpty, value: null },
 			]);
 
@@ -210,14 +210,19 @@ const Head = observer(class Head extends React.Component<I.ViewComponent, State>
 		switch (item.id) {
 			case 'sourceChange':
 				menuId = 'searchObject';
-				menuParam.className = 'single';
+
+				menuParam = Object.assign(menuParam, {
+					className: 'single',
+					rebind: this.menuContext.ref.rebind,
+					parentId: this.menuContext.props.id,
+				});
+
 				menuParam.data = Object.assign(menuParam.data, {
 					rootId,
 					blockId: block.id,
 					blockIds: [ block.id ],
 					filters,
 					canAdd: true,
-					rebind: this.menuContext.ref.rebind,
 					value: [ targetObjectId ],
 					addParam,
 					onSelect: (item: any) => {
@@ -313,20 +318,18 @@ const Head = observer(class Head extends React.Component<I.ViewComponent, State>
 	};
 
 	checkInput (isEmpty: boolean) {
-		if (!this.ref) {
-			return;
+		if (this.ref) {
+			$(this.ref.node).toggleClass('isEmpty', isEmpty);
 		};
-
-		const node = $(this.ref.node);
-		isEmpty ? node.addClass('isEmpty') : node.removeClass('isEmpty');
 	};
 
 	save () {
+		const { isEditing } = this.state;
 		const { block, getTarget } = this.props;
 		const { targetObjectId } = block.content;
 		const object = getTarget();
 
-		if (!targetObjectId) {
+		if (!isEditing || !targetObjectId) {
 			return;
 		};
 		

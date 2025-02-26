@@ -6,6 +6,7 @@
 @import "./editor";
 @import "./emptySearch";
 @import "./error";
+@import "./floater";
 @import "./footer";
 @import "./frame";
 @import "./header";
@@ -23,10 +24,13 @@
 @import "./title";
 @import "./toast";
 @import "./tooltip";
-@import "./navigation";
 @import "./hightlight";
 @import "./progressBar";
 @import "./share";
+@import "./cell";
 
 @import "./preview/common";
 @import "./media/common";
+
+@import "./emailCollectionForm";
+@import "./qr";

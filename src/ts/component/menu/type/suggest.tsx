@@ -3,7 +3,7 @@ import $ from 'jquery';
 import { observer } from 'mobx-react';
 import { AutoSizer, CellMeasurer, InfiniteLoader, List, CellMeasurerCache } from 'react-virtualized';
 import { Filter, Icon, MenuItemVertical, Loader, EmptySearch } from 'Component';
-import { I, C, S, U, J, analytics, keyboard, Action, translate } from 'Lib';
+import { I, C, S, U, J, analytics, keyboard, Action, translate, Storage } from 'Lib';
 
 interface State {
 	isLoading: boolean;
@@ -11,7 +11,7 @@ interface State {
 
 const HEIGHT_ITEM = 28;
 const HEIGHT_DIV = 16;
-const LIMIT = 20;
+const LIMIT = 15;
 
 const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I.Menu, State> {
 
@@ -40,11 +40,12 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 	
 	render () {
 		const { isLoading } = this.state;
-		const { param } = this.props;
+		const { param, setHover } = this.props;
 		const { data } = param;
 		const { filter, noFilter } = data;
 		const items = this.getItems();
 		const canWrite = U.Space.canMyParticipantWrite();
+		const buttons = data.buttons || [];
 
 		if (!this.cache) {
 			return null;
@@ -67,24 +68,16 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 						<div className="name">{item.name}</div>
 					</div>
 				);
-			} else
-			if (item.isDiv) {
-				content = (
-					<div className="separator" style={param.style}>
-						<div className="inner" />
-					</div>
-				);
-			} else
-			if (item.isSection) {
-				content = <div className={[ 'sectionName', (param.index == 0 ? 'first' : '') ].join(' ')} style={param.style}>{item.name}</div>;
 			} else {
 				content = (
 					<MenuItemVertical 
 						{...item}
+						index={param.index}
 						className={item.isHidden ? 'isHidden' : ''}
 						style={param.style}
 						onMouseEnter={e => this.onMouseEnter(e, item)} 
 						onClick={e => this.onClick(e, item)}
+						withMore={!!item.onMore}
 					/>
 				);
 			};
@@ -114,8 +107,6 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 						focusOnMount={true}
 					/>
 				) : ''}
-
-				{isLoading ? <Loader /> : ''}
 
 				{!items.length && !isLoading ? (
 					<EmptySearch readonly={!canWrite} filter={filter} />
@@ -150,6 +141,19 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 						</InfiniteLoader>
 					</div>
 				) : ''}
+
+				{buttons.length ? (
+					<div className="bottom">
+						{buttons.map((item, i) => (
+							<MenuItemVertical 
+								key={item.id}
+								{...item}
+								onMouseEnter={e => setHover(item)} 
+								onClick={e => this.onClick(e, item)}
+							/>
+						))}
+					</div>
+				) : ''}
 			</div>
 		);
 	};
@@ -157,21 +161,29 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 	componentDidMount () {
 		this._isMounted = true;
 
+		const { param } = this.props;
+		const { data } = param;
+		const { noStore } = data;
+
+		if (noStore) {
+			this.n = 0;
+		};
+
 		this.rebind();
 		this.resize();
 		this.load(true);
-		this.forceUpdate();
 	};
 
 	componentDidUpdate () {
 		const { param } = this.props;
 		const { data } = param;
-		const { filter } = data;
+		const { noStore } = data;
+		const filter = String(data.filter || '');
 		const items = this.getItems();
 
 		if (filter != this.filter) {
 			this.filter = filter;
-			this.n = -1;
+			this.n = noStore ? 0 : 1;
 			this.offset = 0;
 			this.load(true);
 			return;
@@ -183,8 +195,8 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 			keyMapper: i => (items[i] || {}).id,
 		});
 
+		this.rebind();
 		this.resize();
-		this.props.setActive();
 	};
 	
 	componentWillUnmount () {
@@ -198,7 +210,7 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 
 	rebind () {
 		this.unbind();
-		$(window).on('keydown.menu', e => this.props.onKeyDown(e));
+		$(window).on('keydown.menu', e => this.onKeyDown(e));
 		window.setTimeout(() => this.props.setActive(), 15);
 	};
 	
@@ -206,8 +218,8 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 		$(window).off('keydown.menu');
 	};
 
-	loadMoreRows ({ startIndex, stopIndex }) {
-        return new Promise((resolve, reject) => {
+	loadMoreRows () {
+		return new Promise((resolve, reject) => {
 			this.offset += J.Constant.limit.menuRecords;
 			this.load(false, resolve);
 		});
@@ -223,14 +235,12 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 		const { skipIds } = data;
 		const filter = String(data.filter || '');
 		const sorts = [
-			{ relationKey: 'spaceId', type: I.SortType.Desc },
 			{ relationKey: 'lastUsedDate', type: I.SortType.Desc },
 			{ relationKey: 'name', type: I.SortType.Asc },
 		];
 
 		let filters: any[] = [
-			{ relationKey: 'spaceId', condition: I.FilterCondition.In, value: [ J.Constant.storeSpaceId, S.Common.space ] },
-			{ relationKey: 'layout', condition: I.FilterCondition.In, value: I.ObjectLayout.Type },
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: I.ObjectLayout.Type },
 		];
 		if (data.filters) {
 			filters = filters.concat(data.filters);
@@ -242,40 +252,43 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 
 		if (clear) {
 			this.setState({ isLoading: true });
+			this.items = [];
 		};
 
-		U.Data.search({
+		const requestParam = {
 			filters,
 			sorts,
 			keys: U.Data.typeRelationKeys(),
 			fullText: filter,
 			offset: this.offset,
 			limit: J.Constant.limit.menuRecords,
-			ignoreWorkspace: true,
-		}, (message: any) => {
-			if (!this._isMounted) {
-				return;
-			};
+		};
 
-			if (message.error.code) {
-				this.setState({ isLoading: false });
-				return;
-			};
+		this.loadRequest(requestParam, () => {
+			this.loadRequest({ ...requestParam, spaceId: J.Constant.storeSpaceId }, (message: any) => {
+				if (!this._isMounted) {
+					return;
+				};
+
+				if (callBack) {
+					callBack(message);
+				};
+
+				if (clear) {
+					this.setState({ isLoading: false });
+				} else {
+					this.forceUpdate();
+				};
+			});
+		});
+	};
+
+	loadRequest (param: any, callBack?: (message: any) => void) {
+		U.Data.search(param, (message: any) => {
+			this.items = this.items.concat(message.records || []);
 
 			if (callBack) {
 				callBack(message);
-			};
-
-			if (clear) {
-				this.items = [];
-			};
-
-			this.items = this.items.concat(message.records || []);
-
-			if (clear) {
-				this.setState({ isLoading: false });
-			} else {
-				this.forceUpdate();
 			};
 		});
 	};
@@ -284,8 +297,12 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 		const { space } = S.Common;
 		const { param } = this.props;
 		const { data } = param;
-		const { filter } = data;
+		const { filter, noStore } = data;
+		const pinned = Storage.getPinnedTypes();
 		const items = U.Common.objectCopy(this.items || []).map(it => ({ ...it, object: it }));
+
+		items.sort((c1, c2) => U.Data.sortByPinnedTypes(c1, c2, pinned));
+
 		const library = items.filter(it => (it.spaceId == space));
 		const librarySources = library.map(it => it.sourceObject);
 		const canWrite = U.Space.canMyParticipantWrite();
@@ -305,12 +322,20 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 			} else {
 				sections = sections.concat([
 					{ 
-						children: [
+						id: 'store', children: [
 							{ id: 'store', icon: 'store', name: translate('commonAnytypeLibrary'), arrow: true }
-						] 
+						]
 					},
 				]);
 			};
+		};
+
+		if (noStore) {
+			sections = sections.map(it => {
+				it.name = '';
+				return it;
+			});
+			sections = sections.filter(it => it.id != 'store');
 		};
 
 		sections = sections.filter((section: any) => {
@@ -322,7 +347,11 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 	};
 	
 	getItems () {
+		const { param } = this.props;
+		const { data } = param;
+		const { onMore } = data;
 		const sections = this.getSections();
+		
 		let items: any[] = [];
 
 		sections.forEach((section: any, i: number) => {
@@ -337,14 +366,23 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 			};
 		});
 
+		if (onMore) {
+			items = items.map((item: any) => {
+				item.onMore = e => onMore(e, this, item);
+				return item;
+			});
+		};
+
 		return items;
 	};
 
 	onFilterChange (v: string) {
-		window.clearTimeout(this.timeoutFilter);
-		this.timeoutFilter = window.setTimeout(() => {
-			this.props.param.data.filter = this.refFilter.getValue();
-		}, J.Constant.delay.keyboard);
+		if (v != this.filter) {
+			window.clearTimeout(this.timeoutFilter);
+			this.timeoutFilter = window.setTimeout(() => {
+				this.props.param.data.filter = this.refFilter.getValue();
+			}, J.Constant.delay.keyboard);
+		};
 	};
 
 	onMouseEnter (e: any, item: any) {
@@ -366,7 +404,7 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 			return;
 		};
 
-		const { getId, getSize, param } = this.props;
+		const { id, getId, getSize, param } = this.props;
 		const { data, classNameWrap } = param;
 		const sources = this.getLibrarySources();
 		const className = [ param.className ];
@@ -380,10 +418,9 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 			vertical: I.MenuDirection.Top,
 			isSub: true,
 			noFlipY: true,
-			data: {
-				rebind: this.rebind,
-				ignoreWorkspace: true,
-			},
+			rebind: this.rebind,
+			parentId: id,
+			data: {},
 		};
 
 		let menuId = '';
@@ -400,8 +437,7 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 				menuParam.className = className.join(' ');
 
 				let filters: I.Filter[] = [
-					{ relationKey: 'spaceId', condition: I.FilterCondition.Equal, value: J.Constant.storeSpaceId },
-					{ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Type },
+					{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Type },
 					{ relationKey: 'id', condition: I.FilterCondition.NotIn, value: sources },
 				];
 				if (data.filters) {
@@ -409,7 +445,7 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 				};
 
 				menuParam.data = Object.assign(menuParam.data, {
-					ignoreWorkspace: true,
+					spaceId: J.Constant.storeSpaceId,
 					keys: U.Data.typeRelationKeys(),
 					filters,
 					sorts: [
@@ -446,6 +482,7 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 				onClick(S.Detail.mapper(item));
 			};
 		};
+		const setLast = item => U.Object.setLastUsedDate(item.id, U.Date.now());
 
 		if (item.id == 'add') {
 			C.ObjectCreateObjectType({ name: filter }, [], S.Common.space, (message: any) => {
@@ -454,12 +491,42 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 					analytics.event('CreateType');
 				};
 			});
+		} else 
+		if (item.onClick) {
+			item.onClick(e);
 		} else {
 			if (item.isInstalled || noInstall) {
 				cb(item);
+				setLast(item);
 			} else {
-				Action.install(item, true, message => cb(message.details));
+				Action.install(item, true, message => {
+					cb(message.details);
+					setLast(message.details);
+				});
 			};
+		};
+	};
+
+	onKeyDown (e: any) {
+		const { onKeyDown, param } = this.props;
+		const { data } = param;
+		const buttons = data.buttons || [];
+		const cmd = keyboard.cmdKey();
+		const clipboard = buttons.find(it => it.id == 'clipboard');
+
+		let ret = false;
+
+		if (clipboard && clipboard.onClick) {
+			keyboard.shortcut(`${cmd}+v`, e, () => {
+				e.preventDefault();
+
+				clipboard.onClick();
+				ret = true;
+			});
+		};
+
+		if (!ret) {
+			onKeyDown(e);
 		};
 	};
 
@@ -472,20 +539,23 @@ const MenuTypeSuggest = observer(class MenuTypeSuggest extends React.Component<I
 	};
 
 	resize () {
-		const { isLoading } = this.state;
 		const { getId, position, param } = this.props;
 		const { data } = param;
 		const { noFilter } = data;
+		const buttons = data.buttons || [];
 		const items = this.getItems();
 		const obj = $(`#${getId()} .content`);
+		const offset = 16 + (noFilter ? 0 : 42);
+		const buttonHeight = buttons.length ? buttons.reduce((res: number, current: any) => res + this.getRowHeight(current), 16) : 0;
 
-		let height = 16 + (noFilter ? 0 : 42);
+		let height = offset + buttonHeight;
 		if (!items.length) {
-			height = isLoading ? height + 40 : 160;
+			height = 160;
 		} else {
 			height = items.reduce((res: number, current: any) => res + this.getRowHeight(current), height);
 		};
-		height = Math.min(height, 376);
+
+		height = Math.min(height, offset + buttonHeight + HEIGHT_ITEM * LIMIT);
 
 		obj.css({ height });
 		position();

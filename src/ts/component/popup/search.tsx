@@ -3,7 +3,7 @@ import $ from 'jquery';
 import { observer } from 'mobx-react';
 import { AutoSizer, CellMeasurer, InfiniteLoader, List, CellMeasurerCache } from 'react-virtualized';
 import { Icon, Loader, IconObject, EmptySearch, Label, Filter } from 'Component';
-import { I, C, S, U, J, keyboard, focus, translate, analytics, Action, Relation, Mark } from 'Lib';
+import { I, C, S, U, J, keyboard, focus, translate, analytics, Action, Relation, Mark, sidebar } from 'Lib';
 
 interface State {
 	isLoading: boolean;
@@ -27,6 +27,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 	refList: any = null;
 	refRows: any[] = [];
 	timeout = 0;
+	delay = 0;
 	cache: any = {};
 	items: any[] = [];
 	n = 0;
@@ -47,14 +48,13 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 		this.onBacklink = this.onBacklink.bind(this);
 		this.onClearSearch = this.onClearSearch.bind(this);
 		this.onContext = this.onContext.bind(this);
-		this.filterMapper = this.filterMapper.bind(this);
 		this.loadMoreRows = this.loadMoreRows.bind(this);
 	};
 	
 	render () {
 		const { isLoading } = this.state;
-		const filter = this.getFilter();
 		const items = this.getItems();
+		const shift = keyboard.shiftSymbol();
 
 		const Context = (meta: any): any => {
 			const { highlight, relationKey, ranges } = meta;
@@ -144,7 +144,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 						<Icon
 							className="advanced"
 							tooltip={translate('popupSearchTooltipSearchByBacklinks')}
-							tooltipCaption="Shift + Enter"
+							tooltipCaption={`${shift} + Enter`}
 							tooltipY={I.MenuDirection.Top}
 							onClick={e => this.onBacklink(e, item)}
 						/>
@@ -154,6 +154,10 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 				let name = U.Object.name(item);
 				if (meta.highlight && (meta.relationKey == 'name')) {
 					name = Mark.toHtml(meta.highlight, meta.ranges.map(it => ({ type: I.MarkType.Highlight, range: it })));
+
+					if (U.Object.isInFileLayouts(item.layout)) {
+						name = U.File.name({ ...object, name });
+					};
 				} else {
 					name = U.Common.htmlSpecialChars(name);
 				};
@@ -243,17 +247,18 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 				<div className="head">
 					<Filter 
 						icon="search"
-						value={filter}
+						value={this.filter}
 						ref={ref => this.refFilter = ref} 
 						placeholder={translate('popupSearchPlaceholder')}
 						onSelect={this.onFilterSelect}
-						onKeyUp={this.onFilterChange}
+						onChange={v => this.onFilterChange(v)}
+						onKeyUp={(e, v) => this.onFilterChange(v)}
 						onClear={this.onFilterClear}
 					/>
 				</div>
 
 				{!items.length && !isLoading ? (
-					<EmptySearch filter={filter} />
+					<EmptySearch filter={this.filter} />
 				) : ''}
 				
 				{this.cache && items.length && !isLoading ? (
@@ -299,16 +304,15 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 		const filter = String(storage.filter || '');
 
 		const setFilter = () => {
-			if (!filter || !this.refFilter) {
+			if (!this.refFilter) {
 				return;
 			};
 
-			this.filter = filter;
 			this.range = { from: 0, to: filter.length };
 			this.refFilter.setValue(filter);
+			this.refFilter.setRange(this.range);
+			this.reload();
 		};
-
-		setFilter();
 
 		this._isMounted = true;
 		this.initCache();
@@ -317,9 +321,9 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 		focus.clear(true);
 
 		if (backlink) {
-			U.Object.getById(backlink, item => this.setBacklink(item, 'Saved', () => setFilter()));
+			U.Object.getById(backlink, {}, item => this.setBacklink(item, 'Saved', () => setFilter()));
 		} else {
-			this.reload();
+			setFilter();
 		};
 
 		analytics.event('ScreenSearch', { route, type: (filter ? 'Saved' : 'Empty') });
@@ -327,20 +331,9 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 	
 	componentDidUpdate () {
 		const items = this.getItems();
-		const filter = this.getFilter();
-		const length = filter.length;
-
-		if (filter != this.filter) {
-			this.filter = filter;
-			this.range = { from: length, to: length };
-			this.reload();
-			return;
-		};
 
 		this.initCache();
 		this.setActive(items[this.n]);
-		this.refFilter.setValue(this.filter);
-		this.refFilter.setRange(this.range);
 
 		if (this.refList) {
 			this.refList.recomputeRowHeights(0);
@@ -444,6 +437,12 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 				this.onClick(e, item);
 			};
 		});
+
+		keyboard.shortcut(`${cmd}+n`, e, () => {
+			e.preventDefault();
+
+			this.pageCreate(filter);
+		})
 	};
 
 	onArrow (dir: number) {
@@ -492,21 +491,32 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 		node.find('.item.active').removeClass('active');
 	};
 
-	onFilterChange (e: any, v: string) {
+	onFilterChange (v: string) {
 		const { storageSet, param } = this.props;
 		const { data } = param;
 		const { route } = data;
 
-		if (this.filter == v) {
+		window.clearTimeout(this.timeout);
+
+		if (v && (this.filter == v)) {
 			return;
 		};
 
-		window.clearTimeout(this.timeout);
 		this.timeout = window.setTimeout(() => {
-			this.forceUpdate();
 			storageSet({ filter: v });
-			analytics.event('SearchInput', { route });
-		}, J.Constant.delay.keyboard);
+
+			if (this.filter != v) {
+				analytics.event('SearchInput', { route });
+			};
+
+			this.filter = v;
+			this.range = this.refFilter?.getRange();
+			this.reload();
+
+			if (!this.delay) {
+				this.delay = J.Constant.delay.keyboard;
+			};
+		}, this.delay);
 	};
 
 	onFilterSelect (e: any) {
@@ -514,8 +524,12 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 	};
 
 	onFilterClear () {
-		this.props.storageSet({ filter: '' });
-		this.reload();
+		const { param, storageSet } = this.props;
+		const { data } = param;
+		const { route } = data;
+
+		storageSet({ filter: '' });
+		analytics.event('SearchInput', { route });
 	};
 
 	onBacklink (e: React.MouseEvent, item: any) {
@@ -547,7 +561,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 	};
 
 	loadMoreRows ({ startIndex, stopIndex }) {
-        return new Promise((resolve, reject) => {
+		return new Promise((resolve, reject) => {
 			this.offset += J.Constant.limit.menuRecords;
 			this.load(false, () => resolve(null));
 		});
@@ -574,12 +588,10 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 	load (clear: boolean, callBack?: () => void) {
 		const { space } = S.Common;
 		const { backlink } = this.state;
-		const filter = this.getFilter();
-		const templateType = S.Record.getTemplateType();
+		const filter = this.filter;
 		const filters: any[] = [
-			{ relationKey: 'layout', condition: I.FilterCondition.NotIn, value: U.Object.getSystemLayouts() },
-			{ relationKey: 'type', condition: I.FilterCondition.NotEqual, value: templateType?.id },
-			{ relationKey: 'spaceId', condition: I.FilterCondition.Equal, value: space }
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.NotIn, value: U.Object.getSystemLayouts() },
+			{ relationKey: 'type.uniqueKey', condition: I.FilterCondition.NotEqual, value: J.Constant.typeKey.template },
 		];
 		const sorts = [
 			{ relationKey: 'lastOpenedDate', type: I.SortType.Desc },
@@ -601,7 +613,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 			this.setState({ isLoading: true });
 		};
 
-		C.ObjectSearchWithMeta(filters, sorts, J.Relation.default.concat([ 'links', 'backlinks', '_score' ]), filter, this.offset, limit, (message) => {
+		C.ObjectSearchWithMeta(space, filters, sorts, J.Relation.default.concat([ 'links', 'backlinks', '_score' ]), filter, this.offset, limit, (message) => {
 			if (message.error.code) {
 				this.setState({ isLoading: false });
 				return;
@@ -620,11 +632,13 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 
 			this.items = this.items.concat(records);
 
-			U.Data.subscribeIds({
-				subId: J.Constant.subId.search,
-				ids: this.items.map(it => it.id),
-				noDeps: true,
-			});
+			if (this.items.length) {
+				U.Data.subscribeIds({
+					subId: J.Constant.subId.search,
+					ids: this.items.map(it => it.id),
+					noDeps: true,
+				});
+			};
 
 			if (clear) {
 				this.setState({ isLoading: false }, callBack);
@@ -636,11 +650,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 	};
 
 	getItems () {
-		const { config } = S.Common;
 		const { backlink } = this.state;
-		const cmd = keyboard.cmdSymbol();
-		const alt = keyboard.altSymbol();
-		const hasRelations = keyboard.isMainEditor() || keyboard.isMainSet();
 		const filter = this.getFilter();
 		const lang = J.Constant.default.interfaceLang;
 		const canWrite = U.Space.canMyParticipantWrite();
@@ -652,7 +662,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 			name = translate('commonCreateObject');
 		};
 
-		let items = this.items.filter(it => this.filterMapper(it, config));
+		let items = S.Record.checkHiddenObjects(this.items);
 
 		if (backlink) {
 			items.unshift({ name: U.Common.sprintf(translate('popupSearchBacklinksFrom'), backlink.name), isSection: true, withClear: true });
@@ -714,17 +724,17 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 					] 
 				},
 				{ 
-					id: 'appearance', icon: 'settings-appearance', name: translate('popupSettingsColorMode'), 
+					id: 'personal', icon: 'settings-personal', name: translate('pageSettingsColorMode'),
 					aliases: [ translate('commonSidebar', lang), translate('commonSidebar') ] 
 				},
 				{ id: 'pinIndex', icon: 'settings-pin', name: translate('popupSettingsPinTitle') },
-				{ id: 'dataManagement', icon: 'settings-storage', name: translate('popupSettingsDataManagementTitle') },
+				{ id: 'dataIndex', icon: 'settings-storage', name: translate('popupSettingsDataManagementTitle') },
 				{ id: 'phrase', icon: 'settings-phrase', name: translate('popupSettingsPhraseTitle') },
 			];
 
 			const pageItems: any[] = [
-				{ id: 'graph', icon: 'graph', name: translate('commonGraph'), shortcut: [ cmd, alt, 'O' ], layout: I.ObjectLayout.Graph },
-				{ id: 'navigation', icon: 'navigation', name: translate('commonFlow'), shortcut: [ cmd, 'O' ], layout: I.ObjectLayout.Navigation },
+				{ id: 'graph', icon: 'graph', name: translate('commonGraph'), shortcut: keyboard.getSymbolsFromKeys(keyboard.getKeys('graph')), layout: I.ObjectLayout.Graph },
+				{ id: 'navigation', icon: 'navigation', name: translate('commonFlow'), shortcut: keyboard.getSymbolsFromKeys(keyboard.getKeys('navigation')), layout: I.ObjectLayout.Navigation },
 			].map(it => ({ ...it, isSmall: true }));
 
 			const settingsItems = settingsAccount.concat(settingsSpace).map(it => ({ ...it, isSettings: true, isSmall: true }));
@@ -754,11 +764,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 
 		if (canWrite) {
 			items.push({ name: translate('commonActions'), isSection: true });
-			items.push({ id: 'add', name, icon: 'plus', shortcut: [ cmd, 'N' ], isSmall: true });
-
-			if (hasRelations) {
-				items.push({ id: 'relation', name: translate('commonAddRelation'), icon: 'relation', shortcut: [ cmd, 'Shift', 'R' ], isSmall: true });
-			};
+			items.push({ id: 'add', name, icon: 'plus', shortcut: keyboard.getSymbolsFromKeys(keyboard.getKeys('createObject')), isSmall: true });
 		};
 
 		return items.map(it => {
@@ -767,8 +773,8 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 		});
 	};
 
-	filterMapper (it: any, config: any) {
-		return !(it.isHidden && !config.debug.hiddenObject);
+	pageCreate (name: string) {
+		keyboard.pageCreate({ name }, analytics.route.search, [ I.ObjectFlag.SelectTemplate, I.ObjectFlag.DeleteEmpty ]);
 	};
 
 	onOver (e: any, item: any) {
@@ -815,7 +821,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 
 			// Settings item
 			if (item.isSettings) {
-				S.Popup.open('settings', { data: { page: item.id, isSpace: item.isSpace }, className: item.className });
+				U.Object.openAuto({ id: item.id, layout: I.ObjectLayout.Settings });
 			} else 
 
 			// Import action
@@ -826,13 +832,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 			} else {
 				switch (item.id) {
 					case 'add': {
-						keyboard.pageCreate({ name: filter }, 'Search');
-						break;
-					};
-
-					case 'relation': {
-						$('#button-header-relation').trigger('click');
-						window.setTimeout(() => $('#menuBlockRelationView #item-add').trigger('click'), S.Menu.getTimeout() * 2);
+						this.pageCreate(filter)
 						break;
 					};
 
@@ -853,7 +853,7 @@ const PopupSearch = observer(class PopupSearch extends React.Component<I.Popup, 
 		const { data } = param;
 		const { route } = data;
 
-		S.Menu.open('dataviewContext', {
+		S.Menu.open('objectContext', {
 			element: `#${getId()} #item-${item.id}`,
 			recalcRect: () => { 
 				const { x, y } = keyboard.mouse.page;

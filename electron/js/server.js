@@ -7,6 +7,7 @@ const { app, dialog, shell } = require('electron');
 const Util = require('./util.js');
 
 let maxStdErrChunksBuffer = 10;
+const winShutdownStdinMessage = 'shutdown\n';
 
 class Server {
 
@@ -69,7 +70,8 @@ class Server {
 					
 					if (!this.lastErrors) {
 						this.lastErrors = [];
-					} else if (this.lastErrors.length >= maxStdErrChunksBuffer) {
+					} else 
+					if (this.lastErrors.length >= maxStdErrChunksBuffer) {
 						this.lastErrors.shift();
 					};
 					
@@ -113,7 +115,12 @@ class Server {
 				});
 				
 				this.stopTriggered = true;
-				this.cp.kill(signal);
+ 				if (process.platform === 'win32') {
+					 // it is not possible to handle os signals on windows, so we can't do graceful shutdown on go side
+					this.cp.stdin.write(winShutdownStdinMessage);
+				} else {
+					this.cp.kill(signal);
+				};
 			} else {
 				resolve();
 			};

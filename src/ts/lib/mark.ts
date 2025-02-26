@@ -1,5 +1,5 @@
 import $ from 'jquery';
-import { I, U, J, analytics } from 'Lib';
+import { I, U, J } from 'Lib';
 
 const Tags = {};
 for (const i in I.MarkType) {
@@ -139,8 +139,7 @@ class Mark {
 		if (add) {
 			map[type].push(mark);
 		};
-
-		analytics.event('ChangeTextStyle', { type, count: 1 });
+		
 		return U.Common.unmap(map).sort(this.sort);
 	};
 	
@@ -304,11 +303,16 @@ class Mark {
 				return;
 			};
 
-			const attr = this.paramToAttr(mark.type, param);
-			const data = [ `data-range="${mark.range.from}-${mark.range.to}"` ];
+			const fixedParam = param.replace(/([^\\])\$/gi, '$1\\$'); // Escape $ symbol for inline LaTeX
+			const attr = this.paramToAttr(mark.type, fixedParam);
+			const data = [];
 
 			if (param) {
-				data.push(`data-param="${param}"`);
+				data.push(`data-param="${fixedParam}"`);
+			};
+
+			if ([ I.MarkType.Link, I.MarkType.Object, I.MarkType.Mention ].includes(mark.type)) {
+				data.push(`data-range="${mark.range.from}-${mark.range.to}"`);
 			};
 
 			let prefix = '';
@@ -398,15 +402,9 @@ class Mark {
 		text = text.replace(/contenteditable="[^"]+"/g, '');
 
 		// TODO: find classes by color or background
-		text = text.replace(/<font(?:[^>]*?)>([^<]*)(?:<\/font>)?/g, (s: string, p: string) => {
-			return p;
-		});
-		text = text.replace(/<span style="background-color:(?:[^;]+);">([^<]*)(?:<\/span>)?/g, (s: string, p: string) => {
-			return p;
-		});
-		text = text.replace(/<span style="font-weight:(?:[^;]+);">([^<]*)(?:<\/span>)?/g, (s: string, p: string) => {
-			return p;
-		});
+		text = text.replace(/<font(?:[^>]*?)>([^<]*)(?:<\/font>)?/g, (s: string, p: string) => p);
+		text = text.replace(/<span style="background-color:(?:[^;]+);">([^<]*)(?:<\/span>)?/g, (s: string, p: string) => p);
+		text = text.replace(/<span style="font-weight:(?:[^;]+);">([^<]*)(?:<\/span>)?/g, (s: string, p: string) => p);
 
 		// Fix browser markup bug
 		text = text.replace(/<\/?(i|b|strike|font|search)[^>]*>/g, (s: string, p: string) => {
@@ -539,7 +537,7 @@ class Mark {
 			};
 
 			marks = this.adjust(marks, from, -length);
-			marks = this.adjust(marks, to, -length);
+			marks = this.adjust(marks, to, -length + 1);
 			marks.push({ type, range: { from, to }, param: '' });
 
 			text = U.Common.stringInsert(text, replace, o + p1l, o + p1l + p2l);
@@ -666,7 +664,8 @@ class Mark {
 			const mark = marks[i];
 			if ([ I.MarkType.Link, I.MarkType.Object ].includes(mark.type) && 
 				(mark.range.from >= newMark.range.from) && 
-				(mark.range.to <= newMark.range.to)
+				(mark.range.to <= newMark.range.to) &&
+				(mark.param == newMark.param)
 			) {
 				marks.splice(i, 1);
 				i--;

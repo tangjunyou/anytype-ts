@@ -6,7 +6,7 @@ import { AutoSizer, CellMeasurer, InfiniteLoader, List, CellMeasurerCache } from
 import { Button, Cover, Loader, IconObject, Header, Footer, ObjectName, ObjectDescription } from 'Component';
 import { I, C, S, U, keyboard, focus, translate } from 'Lib';
 
-import Item from 'Component/sidebar/object/item';
+import Item from 'Component/sidebar/page/allObject/item';
 
 interface State {
 	loading: boolean;
@@ -42,6 +42,7 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 	focus = false;
 	select = false;
 	refHeader: any = null;
+	refList = { [ Panel.Left ]: null, [ Panel.Right ]: null };
 	
 	constructor (props: I.PageComponent) {
 		super (props);
@@ -152,7 +153,7 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 									<AutoSizer className="scrollArea">
 										{({ width, height }) => (
 											<List
-												ref={registerChild}
+												ref={ref => this.refList[Panel.Left] = ref}
 												width={width + 20}
 												height={height - 35}
 												deferredMeasurmentCache={this.cacheIn}
@@ -164,7 +165,7 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 												}}
 												onRowsRendered={onRowsRendered}
 												overscanRowCount={10}
-												scrollToAlignment="start"
+												scrollToAlignment="center"
 											/>
 										)}
 									</AutoSizer>
@@ -191,7 +192,7 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 									<AutoSizer className="scrollArea">
 										{({ width, height }) => (
 											<List
-												ref={registerChild}
+												ref={ref => this.refList[Panel.Right] = ref}
 												width={width + 20}
 												height={height - 35}
 												deferredMeasurmentCache={this.cacheOut}
@@ -203,7 +204,7 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 												}}
 												onRowsRendered={onRowsRendered}
 												overscanRowCount={10}
-												scrollToAlignment="start"
+												scrollToAlignment="center"
 											/>
 										)}
 									</AutoSizer>
@@ -293,6 +294,10 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 	};
 	
 	onKeyDown (e: any) {
+		if (S.Popup.isOpen('search')) {
+			return;
+		};
+
 		const items = this.getItems();
 		const l = items.length;
 
@@ -308,7 +313,9 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 			if (this.n > l - 1) {
 				this.n = 0;
 			};
-			this.setActive();
+			
+			this.refList[this.panel]?.scrollToRow(this.n);
+			window.setTimeout(() => this.setActive(), 0);
 		});
 
 		keyboard.shortcut('arrowleft, arrowright', e, (pressed: string) => {
@@ -399,8 +406,9 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 
 	loadPage (id: string) {
 		const { loading } = this.state;
+		const skipIds = U.Space.getSystemDashboardIds();
 
-		if (!id || [ I.HomePredefinedId.Graph, I.HomePredefinedId.Last ].includes(id as any)) {
+		if (!id || skipIds.includes(id as any)) {
 			return;
 		};
 
@@ -417,8 +425,8 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 				return;
 			};
 
-			const pagesIn = message.object.links.inbound.map(this.getPage).filter(this.filterMapper);
-			const pagesOut = message.object.links.outbound.map(this.getPage).filter(this.filterMapper);
+			const pagesIn = S.Record.checkHiddenObjects(message.object.links.inbound.map(this.getPage)).filter(this.filterMapper);
+			const pagesOut = S.Record.checkHiddenObjects(message.object.links.outbound.map(this.getPage)).filter(this.filterMapper);
 
 			this.panel = Panel.Center;
 
@@ -432,17 +440,7 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 	};
 
 	filterMapper (it: any) {
-		const { config } = S.Common;
-
-		if (!it.id) {
-			return false;
-		};
-
-		let ret = !it.isDeleted;
-		if (!config.debug.hiddenObject) {
-			ret = ret && !it.isHidden;
-		};
-		return ret;
+		return it.id && !it.isDeleted;
 	};
 
 	getPage (item: any) {
@@ -464,9 +462,7 @@ const PageMainNavigation = observer(class PageMainNavigation extends React.Compo
 	};
 
 	getRootId () {
-		const { rootId, match } = this.props;
-
-		let root = rootId ? rootId : match.params.id;
+		let root = keyboard.getRootId(this.props.isPopup);
 		if (root == I.HomePredefinedId.Graph) {
 			root = U.Space.getLastOpened()?.id;
 		};

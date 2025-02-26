@@ -1,4 +1,3 @@
-import Color from './color';
 import Constant from './constant';
 import Error from './error';
 import Extension from './extension';
@@ -10,12 +9,13 @@ import Lang from './lang';
 import Relation from './relation';
 import Menu from './menu';
 import Size from './size';
+import * as Shortcut from './shortcut';
 
 const Emoji = require('./emoji.json');
 const Latex = require('./latex.json');
+const Icon = require('./icon.json');
 
 export {
-	Color,
 	Constant,
 	Emoji,
 	Error,
@@ -29,4 +29,6 @@ export {
 	Relation,
 	Menu,
 	Size,
+	Shortcut,
+	Icon,
 };

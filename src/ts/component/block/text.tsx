@@ -14,9 +14,6 @@ for (const lang of U.Prism.components) {
 	require(`prismjs/components/prism-${lang}.js`);
 };
 
-const katex = require('katex');
-require('katex/dist/contrib/mhchem');
-
 const BlockText = observer(class BlockText extends React.Component<Props> {
 
 	public static defaultProps = {
@@ -33,7 +30,6 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 	marks: I.Mark[] = [];
 	text = '';
 	clicks = 0;
-	preventSaveOnBlur = false;
 	preventMenu = false;
 	frame = 0;
 
@@ -64,15 +60,22 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		const { text, marks, style, checked, color, iconEmoji, iconImage } = content;
 		const { theme } = S.Common;
 		const root = S.Block.getLeaf(rootId, rootId);
-		const cv: string[] = [ 'value', 'focusable', 'c' + id ];
+		const cn = [ 'flex' ];
+		const cv = [ 'value', 'focusable', 'c' + id ];
+		const checkRtl = keyboard.isRtl || U.Common.checkRtl(text);
 
 		let marker: any = null;
+		let markerIcon = null;
 		let placeholder = translate('placeholderBlock');
 		let additional = null;
 		let spellcheck = true;
 
 		if (color) {
 			cv.push('textColor textColor-' + color);
+		};
+
+		if (checkRtl) {
+			cn.push('isRtl');
 		};
 
 		// Subscriptions
@@ -87,7 +90,15 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 				placeholder = translate('defaultNamePage');
 
 				if (root && U.Object.isTaskLayout(root.layout)) {
-					marker = { type: 'checkboxTask', className: 'check', active: checked, onClick: this.onCheckbox };
+					markerIcon = (
+						<IconObject 
+							object={{ id: rootId, layout: root.layout, done: checked }} 
+							size={30} 
+							iconSize={30}
+							canEdit={!readonly}
+							onCheckbox={this.onCheckbox}
+						/>
+					);
 				};
 				break;
 			};
@@ -118,7 +129,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 				spellcheck = false;
 				
 				additional = (
-					<React.Fragment>
+					<>
 						<Select 
 							id={'lang-' + id} 
 							arrowClassName="light" 
@@ -140,28 +151,28 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 								<div className="txt">{translate('commonCopy')}</div>
 							</div>
 						</div>
-					</React.Fragment>
+					</>
 				);
 				break;
 			};
 				
 			case I.TextStyle.Bulleted: {
-				marker = { type: I.TextStyle.Bulleted, className: 'bullet' };
+				marker = { type: I.MarkerType.Bulleted, className: 'bullet' };
 				break;
 			};
 				
 			case I.TextStyle.Numbered: {
-				marker = { type: I.TextStyle.Numbered, className: 'number' };
+				marker = { type: I.MarkerType.Numbered, className: 'number' };
 				break;
 			};
 				
 			case I.TextStyle.Toggle: {
-				marker = { type: I.TextStyle.Toggle, className: 'toggle', onClick: this.onToggle };
+				marker = { type: I.MarkerType.Toggle, className: 'toggle', onClick: this.onToggle };
 				break;
 			};
 				
 			case I.TextStyle.Checkbox: {
-				marker = { type: I.TextStyle.Checkbox, className: 'check', active: checked, onClick: this.onCheckbox };
+				marker = { type: I.MarkerType.Checkbox, className: 'check', active: checked, onClick: this.onCheckbox };
 				break;
 			};
 		};
@@ -169,10 +180,11 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		return (
 			<div 
 				ref={node => this.node = node}
-				className="flex"
+				className={cn.join(' ')}
 			>
 				<div className="markers">
 					{marker ? <Marker {...marker} id={id} color={color} readonly={readonly} /> : ''}
+					{markerIcon}
 				</div>
 
 				{additional ? <div className="additional">{additional}</div> : ''}
@@ -195,6 +207,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 					onMouseUp={this.onMouseUp}
 					onInput={this.onInput}
 					onDragStart={e => e.preventDefault()}
+					onCompositionEnd={this.onKeyUp}
 				/>
 			</div>
 		);
@@ -279,9 +292,9 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 			};
 
 			this.frame = raf(() => {
-				renderMentions(rootId, this.node, this.marks, html);
-				renderObjects(rootId, this.node, this.marks, html, this.props);
-				renderLinks(this.node, this.marks, html, this.props);
+				renderMentions(rootId, this.node, this.marks, () => this.getValue());
+				renderObjects(rootId, this.node, this.marks, () => this.getValue(), this.props);
+				renderLinks(this.node, this.marks, () => this.getValue(), this.props);
 				renderEmoji(this.node);
 			});
 		};
@@ -297,42 +310,17 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		};
 
 		const { block } = this.props;
-		if (block.isTextCode() || !this.refEditable) {
+		const ref = this.refEditable;
+
+		if (block.isTextCode() || !ref) {
 			return;
 		};
 
-		const reg = /(^|\s)\$((?:[^$\\]|\\.)*?)\$([^\d]|$)/g;
+		const value = this.refEditable.getHtmlValue();
+		const html = U.Common.getLatex(value);
 
-		let value = this.refEditable.getHtmlValue();
-
-		if (!reg.test(value)) {
-			return;
-		};
-
-		value = U.Common.fromHtmlSpecialChars(value);
-
-		const tag = Mark.getTag(I.MarkType.Latex);
-		const html = value.replace(reg, (s: string, p1: string, p2: string, p3: string) => {
-			let ret = '';
-
-			try {
-				ret = katex.renderToString(U.Common.stripTags(p2), { 
-					displayMode: false, 
-					throwOnError: false,
-					output: 'html',
-					trust: ctx => [ '\\url', '\\href', '\\includegraphics' ].includes(ctx.command),
-				});
-
-				ret = ret ? `${p1}<${tag}>${ret}</${tag}>${p3}` : s;
-			} catch (e) {
-				ret = s;
-			};
-
-			return ret;
-		});
-
-		if (this.refEditable && (html !== value)) {
-			this.refEditable.setValue(html);
+		if (html !== value) {
+			ref.setValue(html);
 		};
 	};
 
@@ -393,38 +381,39 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		const menuOpenMention = S.Menu.isOpen('blockMention');
 		const menuOpenSmile = S.Menu.isOpen('smile');
 		const saveKeys: any[] = [
-			{ key: `${cmd}+shift+arrowup`, preventDefault: true },
-			{ key: `${cmd}+shift+arrowdown`, preventDefault: true },
+			{ key: keyboard.getKeysString('moveSelectionUp'), preventDefault: true },
+			{ key: keyboard.getKeysString('moveSelectionDown'), preventDefault: true },
+			{ key: keyboard.getKeysString('relation') },
+			{ key: keyboard.getKeysString('duplicate'), preventDefault: true },
+			{ key: keyboard.getKeysString('selectAll'), preventDefault: true },
+			{ key: keyboard.getKeysString('back') },
+			{ key: keyboard.getKeysString('forward') },
+			{ key: keyboard.getKeysString('zoomIn') },
+			{ key: keyboard.getKeysString('zoomOut') },
+			{ key: keyboard.getKeysString('zoomReset') },
+			{ key: keyboard.getKeysString('turnBlock0') },
+			{ key: keyboard.getKeysString('turnBlock1') },
+			{ key: keyboard.getKeysString('turnBlock2') },
+			{ key: keyboard.getKeysString('turnBlock3') },
+			{ key: keyboard.getKeysString('turnBlock4') },
+			{ key: keyboard.getKeysString('turnBlock5') },
+			{ key: keyboard.getKeysString('turnBlock6') },
+			{ key: keyboard.getKeysString('turnBlock7') },
+			{ key: keyboard.getKeysString('turnBlock8') },
+			{ key: keyboard.getKeysString('turnBlock9') },
+			{ key: keyboard.getKeysString('undo'), preventDefault: true },
+			{ key: keyboard.getKeysString('redo'), preventDefault: true },
+			{ key: keyboard.getKeysString('menuAction') },
+			{ key: keyboard.getKeysString('indent'), preventDefault: true },
+			{ key: keyboard.getKeysString('outdent'), preventDefault: true },
+			{ key: keyboard.getKeysString('pageLock') },
 			{ key: `${cmd}+shift+arrowleft` },
 			{ key: `${cmd}+shift+arrowright` },
-			{ key: `${cmd}+shift+r` },
 			{ key: `${cmd}+c`, preventDefault: true },
 			{ key: `${cmd}+x`, preventDefault: true },
-			{ key: `${cmd}+d`, preventDefault: true },
-			{ key: `${cmd}+a`, preventDefault: true },
-			{ key: `${cmd}+[` },
-			{ key: `${cmd}+]` },
-			{ key: `${cmd}+=` },
-			{ key: `${cmd}+-` },
-			{ key: `${cmd}+0` },
-			{ key: `${cmd}+1` },
-			{ key: `${cmd}+2` },
-			{ key: `${cmd}+3` },
-			{ key: `${cmd}+4` },
-			{ key: `${cmd}+5` },
-			{ key: `${cmd}+6` },
-			{ key: `${cmd}+7` },
-			{ key: `${cmd}+8` },
-			{ key: `${cmd}+9` },
-			{ key: `${cmd}+z`, preventDefault: true },
-			{ key: `${cmd}+shift+z`, preventDefault: true },
-			{ key: `${cmd}+/` },
-			{ key: `tab`, preventDefault: true },
-			{ key: `shift+tab`, preventDefault: true },
 			{ key: `shift+space` },
 			{ key: `shift+arrowleft` },
 			{ key: `shift+arrowright` },
-			{ key: `ctrl+shift+l` },
 			{ key: `ctrl+shift+/` },
 		];
 		const twinePairs = {
@@ -449,10 +438,6 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 			if (range.to == value.length) {
 				saveKeys.push({ key: `arrowright, arrowdown` });
 			};
-		};
-		
-		for (let i = 0; i < 9; ++i) {
-			saveKeys.push({ key: `${cmd}+${i}` });
 		};
 
 		// Make div
@@ -491,6 +476,10 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 			if (block.isText() && !block.isTextCode() && pressed.match('shift')) {
 				pd = false;
 			};
+			if (block.isTextCallout() || block.isTextQuote()) {
+				pd = true;
+			};
+
 			if (pd) {
 				e.preventDefault();
 			};
@@ -601,16 +590,16 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		if (range && ((range.from != range.to) || block.isTextCode()) && Object.keys(twinePairs).includes(key)) {
 			e.preventDefault();
 
-			const l = e.key.length;
+			const length = key.length;
 			const cut = value.slice(range.from, range.to);
-			const closingSymbol = twinePairs[key] || key;
+			const closing = twinePairs[key] || key;
 
-			value = U.Common.stringInsert(value, `${key}${cut}${closingSymbol}`, range.from, range.to);
+			value = U.Common.stringInsert(value, `${key}${cut}${closing}`, range.from, range.to);
 
-			this.marks = Mark.adjust(this.marks, range.from, l);
+			this.marks = Mark.adjust(this.marks, range.from, length + closing.length);
 
 			U.Data.blockSetText(rootId, block.id, value, this.marks, true, () => {
-				focus.set(block.id, { from: range.from + l, to: range.to + l });
+				focus.set(block.id, { from: range.from + length, to: range.to + length });
 				focus.apply();
 			});
 
@@ -674,8 +663,16 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 
 		const menuOpenAdd = S.Menu.isOpen('blockAdd');
 		const menuOpenMention = S.Menu.isOpen('blockMention');
+		const menuOpenLink = S.Menu.isOpen('searchObject', 'link');
 		const oneSymbolBefore = range ? value[range.from - 1] : '';
 		const twoSymbolBefore = range ? value[range.from - 2] : '';
+		const isRtl = U.Common.checkRtl(value);
+
+		keyboard.setRtl(isRtl);
+
+		if (isRtl) {
+			U.Data.setRtl(rootId, block.id);
+		};
 
 		if (range) {
 			isAllowedMenu = isAllowedMenu && (!range.from || (range.from == 1) || [ ' ', '\n', '(', '[', '"', '\'' ].includes(twoSymbolBefore));
@@ -683,8 +680,8 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 
 		const canOpenMenuAdd = !menuOpenAdd && (oneSymbolBefore == '/') && isAllowedMenu;
 		const canOpenMenuMention = !menuOpenMention && (oneSymbolBefore == '@') && isAllowedMenu;
+		const canOpenMenuLink = !menuOpenLink && (oneSymbolBefore == '[') && (twoSymbolBefore == '[') && isAllowedMenu;
 
-		
 		this.preventMenu = false;
 
 		let parsed: any = {};
@@ -724,6 +721,12 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		// Open mention menu
 		if (canOpenMenuMention) {
 			U.Data.blockSetText(rootId, block.id, value, this.marks, true, () => this.onMention());
+			return;
+		};
+
+		// Open link menu
+		if (canOpenMenuLink) {
+			U.Data.blockSetText(rootId, block.id, value, this.marks, true, () => this.onLink());
 			return;
 		};
 
@@ -801,8 +804,8 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 
 		const text = block.canHaveMarks() ? parsed.text : value;
 
-		// When typing text adjust several markups to break it
-		if (!keyboard.isSpecial(e)) {
+		// When typing space adjust several markups to break it
+		keyboard.shortcut('space', e, () => {
 			const d = text.length - this.text.length;
 
 			if (d > 0) {
@@ -817,7 +820,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 					};
 				};
 			};
-		};
+		});
 
 		if (!ret && (adjustMarks || (value != text))) {
 			this.setValue(text);
@@ -848,7 +851,6 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		let value = this.getValue();
 		value = U.Common.stringCut(value, range.from - 1, range.from);
 
-		this.preventSaveOnBlur = true;
 		S.Common.filterSet(range.from - 1, '');
 
 		raf(() => {
@@ -864,9 +866,6 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 				},
 				noFlipX: false,
 				noFlipY: false,
-				onClose: () => {
-					this.preventSaveOnBlur = false;
-				},
 				data: {
 					rootId,
 					blockId: block.id,
@@ -894,6 +893,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 
 	onSmile () {
 		const { rootId, block } = this.props;
+		const { iconEmoji, iconImage } = block.content;
 		const win = $(window);
 		const range = this.getRange();
 
@@ -910,6 +910,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 				return rect ? 0 : J.Size.blockMenu;
 			},
 			data: {
+				value: (iconEmoji || iconImage || ''),
 				noHead: true,
 				rootId,
 				blockId: block.id,
@@ -929,6 +930,48 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 						focus.set(block.id, { from: to, to });
 						focus.apply();
 					});
+				},
+			},
+		});
+	};
+
+	onLink () {
+		const { rootId, block } = this.props;
+		const win = $(window);
+		const range = this.getRange();
+		const from = range.from - 2;
+		
+		let value = this.getValue();
+		value = U.Common.stringCut(value, range.from - 2, range.from);
+
+		const position = value.length ? I.BlockPosition.Bottom : I.BlockPosition.Replace;
+
+		S.Menu.open('searchObject', {
+			menuKey: 'link',
+			element: `#block-${block.id}`,
+			recalcRect: () => {
+				const rect = U.Common.getSelectionRect();
+				return rect ? { ...rect, y: rect.y + win.scrollTop() } : null;
+			},
+			offsetX: () => {
+				const rect = U.Common.getSelectionRect();
+				return rect ? 0 : J.Size.blockMenu;
+			},
+			data: {
+				rootId,
+				blockId: block.id,
+				canAdd: true,
+				type: I.NavigationType.Link,
+				position,
+				onSelect: () => {
+					if (position == I.BlockPosition.Bottom) {
+						U.Data.blockSetText(rootId, block.id, value, this.marks, true, () => {
+							window.setTimeout(() => {
+								focus.set(block.id, { from, to: from });
+								focus.apply();
+							}, 15);
+						});
+					};
 				},
 			},
 		});
@@ -979,10 +1022,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 		};
 
 		focus.clear(true);
-
-		if (!this.preventSaveOnBlur) {
-			this.setText(this.marks, true);
-		};
+		this.setText(this.marks, true);
 
 		if (onBlur) {
 			onBlur(e);
@@ -1018,17 +1058,16 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 	
 	onCheckbox () {
 		const { rootId, block, readonly } = this.props;
-		const { id, content } = block;
-		const { checked } = content;
 
 		if (readonly) {
 			return;
 		};
+
+		const { id, content } = block;
+		const { checked } = content;
 		
 		focus.clear(true);
-		U.Data.blockSetText(rootId, block.id, this.getValue(), this.marks, true, () => {
-			C.BlockTextSetChecked(rootId, id, !checked);
-		});
+		C.BlockTextSetChecked(rootId, id, !checked);
 	};
 	
 	onLang (v: string) {
@@ -1078,7 +1117,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 	};
 	
 	onSelect () {
-		if (keyboard.isContextDisabled) {
+		if (keyboard.isContextDisabled || keyboard.isComposition) {
 			return;
 		};
 
@@ -1164,7 +1203,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 				});
 
 				window.setTimeout(() => {
-					const pageContainer = U.Common.getPageContainer(isPopup);
+					const pageContainer = U.Common.getPageFlexContainer(isPopup);
 
 					pageContainer.off('mousedown.context').on('mousedown.context', () => { 
 						pageContainer.off('mousedown.context');

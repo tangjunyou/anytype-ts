@@ -1,18 +1,20 @@
 import $ from 'jquery';
-import { C, S, U, J, Preview, analytics, Storage } from 'Lib';
+import { I, C, S, U, J, Preview, analytics, Storage, sidebar, keyboard } from 'Lib';
 
-type RouteParam = { 
-	replace: boolean;
-	animate: boolean;
-	delay: number;
-	onFadeOut: () => void;
-	onFadeIn?: () => void;
-	onRouteChange?: () => void;
+interface RouteParam {
+	page: string; 
+	action: string; 
+	id: string; 
+	spaceId: string; 
+	viewId: string; 
+	relationKey: string;
+	additional: { key: string, value: string }[];
 };
 
 class UtilRouter {
 
 	history: any = null;
+	isOpening = false;
 
 	init (history: any) {
 		this.history = history;
@@ -43,22 +45,38 @@ class UtilRouter {
 		return param;
 	};
 
-	build (param: Partial<{ page: string; action: string; id: string; spaceId: string; viewId: string; }>): string {
-		const { page, action, spaceId } = param;
-		const id = String(param.id || J.Constant.blankRouteId);
-		const viewId = String(param.viewId || J.Constant.blankRouteId);
+	build (param: Partial<RouteParam>): string {
+		const { page, action } = param;
+		const id = String(param.id || '');
+		const spaceId = String(param.spaceId || '');
+		const viewId = String(param.viewId || '');
+		const relationKey = String(param.relationKey || '');
+		const additional = param.additional || [];
 
 		let route = [ page, action, id ];
-		route = route.concat([ 'spaceId', spaceId ]);
-		route = route.concat([ 'viewId', viewId ]);
-
+		if (spaceId) {
+			route = route.concat([ 'spaceId', spaceId ]);
+		};
+		if (viewId) {
+			route = route.concat([ 'viewId', viewId ]);
+		};
+		if (relationKey) {
+			route = route.concat([ 'relationKey', relationKey ]);
+		};
+		if (additional.length) {
+			additional.forEach((it: any) => {
+				route = route.concat([ it.key, it.value ]);
+			});
+		};
 		return route.join('/');
 	};
 
-	go (route: string, param: Partial<RouteParam>) {
+	go (route: string, param: Partial<I.RouteParam>) {
 		if (!route) {
 			return;
 		};
+
+		param = param || {};
 
 		const { replace, animate, onFadeOut, onFadeIn, onRouteChange, delay } = param;
 		const routeParam = this.getParam(route);
@@ -71,9 +89,10 @@ class UtilRouter {
 
 		S.Menu.closeAll();
 		S.Popup.closeAll();
+		sidebar.rightPanelToggle(false, false, keyboard.isPopup());
 
-		if (routeParam.spaceId && ![ J.Constant.storeSpaceId, J.Constant.blankRouteId, space ].includes(routeParam.spaceId)) {
-			this.switchSpace(routeParam.spaceId, route);
+		if (routeParam.spaceId && ![ J.Constant.storeSpaceId, space ].includes(routeParam.spaceId)) {
+			this.switchSpace(routeParam.spaceId, route, false, param);
 			return;
 		};
 
@@ -81,6 +100,18 @@ class UtilRouter {
 			this.history.push(route); 
 			if (onRouteChange) {
 				onRouteChange();
+			};
+		};
+
+		const fadeOut = () => {
+			if (onFadeOut) {
+				onFadeOut();
+			};
+		};
+
+		const fadeIn = () => {
+			if (onFadeIn) {
+				onFadeIn();
 			};
 		};
 
@@ -93,7 +124,9 @@ class UtilRouter {
 			};
 
 			if (!animate) {
+				fadeOut();
 				change();
+				fadeIn();
 				return;
 			};
 
@@ -106,18 +139,12 @@ class UtilRouter {
 			window.setTimeout(() => fade.addClass('show'), 15);
 
 			window.setTimeout(() => {
-				if (onFadeOut) {
-					onFadeOut();
-				};
-
+				fadeOut();
 				change();
 			}, t);
 
 			window.setTimeout(() => {
-				if (onFadeIn) {
-					onFadeIn();
-				};
-
+				fadeIn();
 				fade.removeClass('show');
 				window.setTimeout(() => fade.hide(), t);
 			}, wait + t);
@@ -126,24 +153,38 @@ class UtilRouter {
 		timeout ? window.setTimeout(() => onTimeout(), timeout) : onTimeout();
 	};
 
-	switchSpace (id: string, route?: string, sendEvent?: boolean, callBack?: () => void) {
-		const { space } = S.Common;
-		const { accountSpaceId } = S.Auth;
-
-		if (!id || (space == id)) {
+	switchSpace (id: string, route: string, sendEvent: boolean, routeParam: any) {
+		if (this.isOpening) {
 			return;
 		};
 
+		if (!id) {
+			console.log('[UtilRouter].swithSpace: id is empty');
+			return;
+		};
+
+		const withChat = U.Object.isAllowedChat();
+
 		S.Menu.closeAllForced();
+		S.Progress.showSet(false);
+		sidebar.rightPanelToggle(false, false, false);
 
 		if (sendEvent) {
 			analytics.event('SwitchSpace');
 		};
 
-		C.WorkspaceOpen(id, (message: any) => {
+		this.isOpening = true;
+
+		C.WorkspaceOpen(id, withChat, (message: any) => {
+			this.isOpening = false;
+
 			if (message.error.code) {
-				if (id != accountSpaceId) {
-					this.switchSpace(accountSpaceId, route, false, callBack);
+				const spaces = U.Space.getList().filter(it => it.targetSpaceId != id);
+
+				if (spaces.length) {
+					this.switchSpace(spaces[0].targetSpaceId, route, false, routeParam);
+				} else {
+					U.Router.go('/main/void', routeParam);
 				};
 				return;
 			};
@@ -158,18 +199,18 @@ class UtilRouter {
 
 					analytics.removeContext();
 					S.Block.clear(S.Block.widgets);
-					S.Common.defaultType = '';
+					S.Common.defaultType = null;
 					Storage.set('spaceId', id);
 
 					U.Data.onInfo(message.info);
-					U.Data.onAuth({ route }, callBack);
+					U.Data.onAuth({ route, routeParam });
 				}
 			});
 		});
 	};
 
 	getRoute () {
-		return String(this.history.location.pathname || '');
+		return String(this.history?.location?.pathname || '');
 	};
 
 	getRouteSpaceId () {

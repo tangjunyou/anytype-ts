@@ -30,7 +30,7 @@ const PopupInviteRequest = observer(class PopupInviteRequest extends React.Compo
 		const creatorName = U.Common.shorten(String(invite.creatorName || translate('defaultNamePage')), 32);
 
 		return (
-			<React.Fragment>
+			<>
 				<Title text={translate('popupInviteRequestTitle')} />
 				
 				<div className="iconWrapper">
@@ -46,7 +46,7 @@ const PopupInviteRequest = observer(class PopupInviteRequest extends React.Compo
 				<div className="note">{translate('popupInviteRequestNote')}</div>
 
 				<Error text={error} />
-			</React.Fragment>
+			</>
 		);
 	};
 
@@ -56,7 +56,7 @@ const PopupInviteRequest = observer(class PopupInviteRequest extends React.Compo
 		const { data } = param;
 		const { invite, cid, key } = data;
 
-		if (!account || this.refButton.state.isLoading) {
+		if (!account || this.refButton.isLoading()) {
 			return;
 		};
 

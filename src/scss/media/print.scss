@@ -2,7 +2,7 @@ html.printMedia {
 	@page { size: A4; margin: 0px 1.5cm; }
 	@page:first { margin-top: 0px; }
 
-	body { margin: 0px; print-color-adjust: exact; caret-color: transparent; }
+	body { margin: 0px; -webkit-print-color-adjust: exact; caret-color: transparent; }
 
 	#selection * { user-select: text; }
 	.overPopup { overflow: visible !important; }
@@ -14,17 +14,19 @@ html.printMedia {
 	.header, 
 	.footer,
 	.notifications,
-	#navigationPanel,
-	#sidebar,
+	.sidebar,
 	.sidebarDummy,
 	.progress,
 	.toast,
 	.focusable.isFocused::before,
 	#vault,
-	#sidebarToggle
+	#sidebarToggle,
+	#sidebarSync
 	{ display: none !important; }
 
-	#page.isFull { width: 100% !important; }
+	#pageFlex.isFull {
+		#page { width: 100% !important; }
+	}
 
 	.focusable.isFocused { background: none !important; }
 
@@ -72,7 +74,12 @@ html.printMedia {
 			.icon.dnd { display: none; }
 		}
 
-		.block.blockLink { break-inside: avoid; }
+		.block.blockLink, 
+		.block.blockBookmark { break-inside: avoid; }
+
+		.block.blockLink {
+			.cover { -webkit-print-color-adjust: exact; }
+		}
 
 		.block.blockEmbed {
 			.icon.source, 
@@ -90,16 +97,12 @@ html.printMedia {
 		}
 		.block.blockText.textCode > .wrapContent > .selectionTarget > .dropTarget #value { white-space: pre-wrap; overflow-x: visible; }
 
+		.block.blockMedia.isAudio > .wrapContent { box-shadow: 0px 0px; }
+
 		.block.blockDataview.isInline {
 			.content {
 				.scroll { width: 100% !important; margin: 0px !important; padding-left: 0px !important; }
 			}
-		}
-
-		.block.blockTable { width: 100% !important; margin: 0px !important; }
-		.block.blockTable {
-			.scrollWrap > .inner { width: 100% !important; }
-			.row { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
 		}
 
 		.block.blockDataview {
@@ -116,8 +119,16 @@ html.printMedia {
 			.inner { box-shadow: 0px 0px; }
 		}
 
+		.block.blockBookmark {
+			.inner { box-shadow: 0px 0px; }
+		}
+
 		.block.blockRelation {
 			.info { width: auto; }
+		}
+
+		.block.blockTable {
+			.handle { display: none; }
 		}
 	}
 
@@ -132,10 +143,18 @@ html.printMedia.themeDark {
 
 html.printMedia.print {
 	#editorWrapper { width: 100% !important; }
+
+	.blocks {
+		.block.blockTable { width: 100% !important; margin: 0px !important; }
+		.block.blockTable {
+			.scrollWrap > .inner { width: 100% !important; }
+			.row { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; }
+		}
+	}
 }
 
 html.printMedia.withPopup {
-	.page.isFull { display: none !important; }
+	#pageFlex.isFull { display: none !important; }
 }
 
 @media (max-width: 500px) {

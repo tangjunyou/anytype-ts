@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { observer } from 'mobx-react';
-import { IconObject, Block, Button, Editable } from 'Component';
-import { I, M, S, U, J, Action, focus, keyboard, Relation, translate } from 'Lib';
+import { IconObject, Block, Button, Editable, Icon } from 'Component';
+import { I, M, S, U, J, Action, focus, keyboard, Relation, translate, analytics } from 'Lib';
 
 interface Props {
 	rootId: string;
@@ -9,7 +9,10 @@ interface Props {
 	isContextMenuDisabled?: boolean;
 	readonly?: boolean;
 	noIcon?: boolean;
+	relationKey?: string;
 	onCreate?: () => void;
+	onEdit?: () => void;
+	getDotMap?: (start: number, end: number, callback: (res: Map<string, boolean>) => void) => void;
 };
 
 const EDITORS = [ 
@@ -35,7 +38,7 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 	};
 
 	render (): any {
-		const { rootId, onCreate, isContextMenuDisabled, readonly, noIcon } = this.props;
+		const { rootId, isContextMenuDisabled, readonly, noIcon, onEdit } = this.props;
 		const check = U.Data.checkDetails(rootId);
 		const object = S.Detail.get(rootId, rootId, [ 'featuredRelations' ]);
 		const featuredRelations = Relation.getArrayValue(object.featuredRelations);
@@ -44,13 +47,17 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 
 		const blockFeatured: any = new M.Block({ id: 'featuredRelations', type: I.BlockType.Featured, childrenIds: [], fields: {}, content: {} });
 		const isTypeOrRelation = U.Object.isTypeOrRelationLayout(object.layout);
+		const isType = U.Object.isTypeLayout(object.layout);
+		const isDate = U.Object.isDateLayout(object.layout);
 		const isRelation = U.Object.isRelationLayout(object.layout);
-		const canEditIcon = allowDetails && !U.Object.isRelationLayout(object.layout);
+		const canEditIcon = allowDetails && !isRelation;
 		const cn = [ 'headSimple', check.className ];
+
 		const placeholder = {
 			title: this.props.placeholder,
 			description: translate('placeholderBlockDescription'),
 		};
+		const buttons = [];
 
 		const Editor = (item: any) => (
 			<Editable
@@ -70,14 +77,16 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 			/>
 		);
 
-		let button = null;
+		let buttonEdit = null;
+		let buttonCreate = null;
 		let descr = null;
 		let featured = null;
 
-		if (!isTypeOrRelation) {
+		if (!isTypeOrRelation && !isDate) {
 			if (featuredRelations.includes('description')) {
 				descr = <Editor className="descr" id="description" />;
 			};
+
 			featured = (
 				<Block 
 					{...this.props} 
@@ -95,14 +104,12 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 
 		if (isTypeOrRelation) {
 			if (object.isInstalled) {
-				const text = isRelation ? translate('pageHeadSimpleCreateSet') : translate('commonCreate');
-				const arrow = !isRelation;
-
-				button = <Button id="button-create" className="c36" text={text} arrow={arrow} onClick={onCreate} />;
+				if (isType && allowDetails) {
+					buttonEdit = <Button id="button-edit" color="blank" className="c28" text={translate('commonEdit')} onClick={onEdit} />;
+				};
 			} else {
 				const cn = [ 'c36' ];
 				const isInstalled = this.isInstalled();
-
 				const onClick = isInstalled ? null : this.onInstall;
 				const color = isInstalled ? 'blank' : 'black';
 
@@ -110,12 +117,30 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 					cn.push('disabled');
 				};
 
-				button = <Button id="button-install" text={translate('pageHeadSimpleInstall')} color={color} className={cn.join(' ')} onClick={onClick} />;
+				buttonCreate = <Button id="button-install" text={translate('pageHeadSimpleInstall')} color={color} className={cn.join(' ')} onClick={onClick} />;
+			};
+
+			if (!canWrite) {
+				buttonCreate = null;
+				buttonEdit = null;
 			};
 		};
 
-		if (!canWrite) {
-			button = null;
+		if (isDate) {
+			buttonCreate = (
+				<>
+					<Icon className="arrow left withBackground" onClick={() => this.changeDate(-1)} />
+					<Icon className="arrow right withBackground" onClick={() => this.changeDate(1)}/>
+					<Icon id="calendar-icon" className="calendar withBackground" onClick={this.onCalendar} />
+				</>
+			);
+		};
+
+		if (buttonEdit) {
+			buttons.push(() => buttonEdit);
+		};
+		if (buttonCreate) {
+			buttons.push(() => buttonCreate);
 		};
 
 		return (
@@ -138,8 +163,10 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 					{featured}
 				</div>
 
-				{button ? (
-					<div className="side right">{button}</div>
+				{buttons.length ? (
+					<div className="side right">
+						{buttons.map((Component, i) => <Component key={i} />)}
+					</div>
 				) : ''}
 			</div>
 		);
@@ -164,7 +191,7 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 	init () {
 		const { focused } = focus.state;
 		const { rootId } = this.props;
-		const object = S.Detail.get(rootId, rootId);
+		const object = S.Detail.get(rootId, rootId, [ 'name' ], true);
 
 		this.setValue();
 
@@ -186,9 +213,7 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 
 	onKeyDown (e: any, item: any) {
 		if (item.id == 'title') {
-			keyboard.shortcut('enter', e, (pressed: string) => {
-				e.preventDefault();
-			});
+			keyboard.shortcut('enter', e, () => e.preventDefault());
 		};
 	};
 
@@ -214,16 +239,18 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 	};
 
 	getRange (id: string): I.TextRange {
-		return this.refEditable[id] ? this.refEditable[id].getRange() : null;
+		return this.refEditable[id]?.getRange();
 	};
 
 	getValue (id: string): string {
-		return this.refEditable[id] ? this.refEditable[id].getTextValue() : null;
+		const value = String(this.refEditable[id]?.getTextValue() || '');
+		return U.Common.stripTags(value);
 	};
 
 	setValue () {
+		const { dateFormat } = S.Common;
 		const { rootId } = this.props;
-		const object = S.Detail.get(rootId, rootId);
+		const object = S.Detail.get(rootId, rootId, []);
 
 		for (const item of EDITORS) {
 			if (!this.refEditable[item.blockId]) {
@@ -231,6 +258,11 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 			};
 
 			let text = String(object[item.relationKey] || '');
+
+			if (U.Object.isDateLayout(object.layout) && object.timestamp) {
+				text = U.Date.dateWithFormat(dateFormat, object.timestamp);
+			};
+
 			if (text == translate('defaultNamePage')) {
 				text = '';
 			};
@@ -243,18 +275,6 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 	placeholderCheck (id: string) {
 		if (this.refEditable[id]) {
 			this.refEditable[id].placeholderCheck();
-		};		
-	};
-
-	placeholderHide (id: string) {
-		if (this.refEditable[id]) {
-			this.refEditable[id].placeholderHide();
-		};
-	};
-	
-	placeholderShow (id: string) {
-		if (this.refEditable[id]) {
-			this.refEditable[id].placeholderShow();
 		};
 	};
 
@@ -269,21 +289,49 @@ const HeadSimple = observer(class Controls extends React.Component<Props> {
 		const { rootId } = this.props;
 		const object = S.Detail.get(rootId, rootId);
 
-		let sources: string[] = [];
+		let sources: any[] = [];
 
 		switch (object.layout) {
 			case I.ObjectLayout.Type: {
-				sources = S.Record.getTypes().map(it => it.sourceObject);
+				sources = S.Record.getTypes();
 				break;
 			};
 
 			case I.ObjectLayout.Relation: {
-				sources = S.Record.getRelations().map(it => it.sourceObject);
+				sources = S.Record.getRelations();
 				break;
 			};
 		};
 
-		return sources.includes(rootId);
+		return sources.map(it => it.sourceObject).includes(rootId);
+	};
+
+	onCalendar = () => {
+		const { rootId, getDotMap, relationKey } = this.props;
+		const object = S.Detail.get(rootId, rootId);
+
+		S.Menu.open('calendar', {
+			element: '#calendar-icon',
+			horizontal: I.MenuDirection.Center,
+			data: {
+				value: object.timestamp,
+				canEdit: true,
+				canClear: false,
+				relationKey,
+				onChange: (value: number) => U.Object.openDateByTimestamp(relationKey, value),
+				getDotMap,
+			},
+		});
+
+		analytics.event('ClickDateCalendarView');
+	};
+
+	changeDate = (dir: number) => {
+		const { rootId, relationKey } = this.props;
+		const object = S.Detail.get(rootId, rootId);
+
+		U.Object.openDateByTimestamp(relationKey, object.timestamp + dir * 86400);
+		analytics.event(dir > 0 ? 'ClickDateForward' : 'ClickDateBack');
 	};
 
 });

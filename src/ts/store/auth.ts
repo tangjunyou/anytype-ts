@@ -37,9 +37,9 @@ class AuthStore {
 		return this.accountList;
 	};
 
-    get account (): I.Account {
+	get account (): I.Account {
 		return this.accountItem;
-    };
+	};
 
 	get accountSpaceId (): string {
 		return String(this.accountItem?.info?.accountSpaceId || '');
@@ -64,10 +64,10 @@ class AuthStore {
 
 	appTokenSet (v: string) {
 		this.appToken = String(v || '');
-    };
+	};
 
 	networkConfigSet (obj: NetworkConfig) {
-		Storage.set('networkConfig', obj, true);
+		Storage.set('networkConfig', obj);
 	};
 
 	appKeySet (v: string) {
@@ -94,11 +94,11 @@ class AuthStore {
 		account.config = account.config || {};
 
 		this.accountList.push(new M.Account(account));
-    };
+	};
 
 	accountListClear () {
 		this.accountList = [];
-    };
+	};
 
 	accountSet (account: any) {
 		account = account || {};
@@ -116,7 +116,7 @@ class AuthStore {
 			Storage.set('accountId', account.id);
 			Renderer.send('setAccount', this.accountItem);
 		};
-    };
+	};
 
 	accountSetStatus (status: I.AccountStatus) {
 		if (this.accountItem) {
@@ -162,7 +162,7 @@ class AuthStore {
 			C.AccountStop(removeData, () => {
 				C.WalletCloseSession(this.token);
 
-                this.tokenSet('');
+				this.tokenSet('');
 			});
 
 			Renderer.send('logout');
@@ -174,7 +174,6 @@ class AuthStore {
 		keyboard.setPinChecked(false);
 
 		S.Common.spaceSet('');
-		S.Common.typeSet('');
 
 		S.Block.clearAll();
 		S.Detail.clearAll();
@@ -185,7 +184,7 @@ class AuthStore {
 
 		this.clearAll();
 		Storage.logout();
-    };
+	};
 
 };
 

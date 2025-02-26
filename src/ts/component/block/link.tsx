@@ -1,7 +1,7 @@
 import * as React from 'react';
 import $ from 'jquery';
 import { observer } from 'mobx-react';
-import { Icon, IconObject, Loader, ObjectName, Cover } from 'Component';
+import { Icon, IconObject, Loader, ObjectName, Cover, Label } from 'Component';
 import { I, S, U, J, translate, keyboard, focus, Preview } from 'Lib';
 
 const BlockLink = observer(class BlockLink extends React.Component<I.BlockComponent> {
@@ -20,7 +20,7 @@ const BlockLink = observer(class BlockLink extends React.Component<I.BlockCompon
 		this.onMouseLeave = this.onMouseLeave.bind(this);
 	};
 
-	render() {
+	render () {
 		const { rootId, block } = this.props;
 		const object = S.Detail.get(rootId, block.getTargetObjectId(), J.Relation.cover);
 		const { _empty_, isArchived, isDeleted, done, layout, coverId, coverType, coverX, coverY, coverScale } = object;
@@ -34,7 +34,7 @@ const BlockLink = observer(class BlockLink extends React.Component<I.BlockCompon
 		const canDescription = !U.Object.isNoteLayout(object.layout);
 		const withIcon = content.iconSize != I.LinkIconSize.None;
 		const withType = relations.includes('type');
-        const withCover = relations.includes('cover') && coverId && coverType;
+		const withCover = relations.includes('cover') && coverId && coverType;
 
 		if (U.Object.isTaskLayout(layout) && done) {
 			cn.push('isDone');
@@ -51,7 +51,7 @@ const BlockLink = observer(class BlockLink extends React.Component<I.BlockCompon
 					className="loading" 
 					{...U.Common.dataProps({ 'target-block-id': object.id })}
 				>
-					<Loader type="loader" />
+					<Loader type={I.LoaderType.Loader} />
 					<div className="name">{translate('blockLinkSyncing')}</div>
 				</div>
 			);
@@ -134,14 +134,18 @@ const BlockLink = observer(class BlockLink extends React.Component<I.BlockCompon
 						<div key="sideLeft" className={cnl.join(' ')}>
 							<div className="relationItem cardName" onClick={onNameClick}>
 								{icon}
-								<ObjectName object={object} onMouseEnter={this.onMouseEnter} onMouseLeave={this.onMouseLeave} />
-								{archive}
+								<ObjectName 
+									object={object} 
+									onMouseEnter={this.onMouseEnter} 
+									onMouseLeave={this.onMouseLeave} 
+									withLatex={true} 
+								/>
 							</div>
 
 							{descr ? (
 								<div className="relationItem cardDescription">
 									{div}
-									<div className="description">{descr}</div>
+									<Label className="description" text={U.Common.getLatex(descr)} />
 								</div>
 							) : ''}
 
@@ -151,6 +155,8 @@ const BlockLink = observer(class BlockLink extends React.Component<I.BlockCompon
 									<div className="item">{type.name}</div>
 								</div>
 							) : ''}
+
+							{archive}
 						</div>
 
 						{withCover ? (
@@ -326,11 +332,9 @@ const BlockLink = observer(class BlockLink extends React.Component<I.BlockCompon
 			const { getWrapperWidth } = this.props;
 			const node = $(this.node);
 			const card = node.find('.linkCard');
-			const icon = node.find('.iconObject');
-			const mw = getWrapperWidth();
 
-			icon.length ? card.addClass('withIcon') : card.removeClass('withIcon');
-			node.width() <= mw / 2 ? card.addClass('isVertical') : card.removeClass('isVertical');
+			card.toggleClass('withIcon', !!node.find('.iconObject').length);
+			card.toggleClass('isVertical', node.width() <= getWrapperWidth() / 2);
 		});
 	};
 

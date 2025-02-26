@@ -2,7 +2,7 @@ import * as React from 'react';
 import $ from 'jquery';
 import { observer } from 'mobx-react';
 import { Button, Block, Loader, Icon, Select, IconObject, EmptySearch } from 'Component';
-import { I, C, M, S, U, translate } from 'Lib';
+import { I, C, M, S, U, J, translate } from 'Lib';
 
 interface State {
 	isLoading: boolean;
@@ -40,7 +40,7 @@ const Create = observer(class Create extends React.Component<I.PageComponent, St
 
 		return (
 			<div ref={ref => this.node = ref} className="page pageCreate">
-				{isLoading ? <Loader type="loader" /> : ''}
+				{isLoading ? <Loader type={I.LoaderType.Loader} /> : ''}
 
 				<div className="head">
 					<div className="side left">
@@ -56,7 +56,7 @@ const Create = observer(class Create extends React.Component<I.PageComponent, St
 							}}
 						/>
 
-						<div id="select" className="select" onMouseDown={this.onSelect}>
+						<div id="select-object" className="select" onMouseDown={this.onSelect}>
 							<div className="item">
 								{object ? <IconObject object={object} iconSize={16} /> : ''}
 								<div className="name">{object ? object.name : translate('commonSelectObject')}</div>
@@ -95,7 +95,6 @@ const Create = observer(class Create extends React.Component<I.PageComponent, St
 
 	componentDidUpdate (): void {
 		this.initBlocks();
-
 	};
 
 	init () {
@@ -152,14 +151,13 @@ const Create = observer(class Create extends React.Component<I.PageComponent, St
 	onSelect () {
 		const { object } = this.state;
 		const node = $(this.node);
-		const templateType = S.Record.getTemplateType();
 		const filters: I.Filter[] = [
-			{ relationKey: 'layout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
-			{ relationKey: 'type', condition: I.FilterCondition.NotEqual, value: templateType?.id },
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
+			{ relationKey: 'type.uniqueKey', condition: I.FilterCondition.NotEqual, value: J.Constant.typeKey.template },
 		];
 
 		S.Menu.open('searchObject', {
-			element: node.find('#select'),
+			element: node.find('#select-object'),
 			data: {
 				value: object ? [ object.id ] : [],
 				canAdd: true,

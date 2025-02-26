@@ -32,11 +32,10 @@
 		.flex { position: relative; z-index: 2; }
 		.icon.dnd { 
 			width: 12px; height: 100%; background-size: 2px 12px; opacity: 0; cursor: grab; position: absolute; right: 6px; top: 0px;
-			background-image: url('~img/icon/block/menu0.svg'); border: 1px solid var(--color-shape-secondary); border-radius: 12px;
+			border: 1px solid var(--color-shape-secondary); border-radius: 6px;
 		}
 		.icon.dnd:hover { 
-			background-image: url('~img/icon/block/menu2.svg') !important; background-color: var(--color-shape-tertiary); 
-			border-color: var(--color-shape-tertiary);
+			background-color: var(--color-shape-tertiary); border-color: var(--color-shape-tertiary); background-image: url('~img/icon/block/menu.svg');
 		}
 
 		.inputWithFile { position: relative; }
@@ -44,7 +43,7 @@
 		.colResize { width: 0px; position: relative; opacity: 0; z-index: 10; flex: 0; }
 		.colResize.active { opacity: 1; }
 		.colResize {
-			.inner { position: absolute; left: 22px; top: -15px; width: 8px; height: calc(100% + 30px); cursor: col-resize; z-index: 1; }
+			.inner { position: absolute; left: 22px; top: -15px; width: 8px; height: calc(100% + 30px); cursor: col-resize; z-index: 2; }
 			.line { 
 				height: 100%; width: 2px; background: var(--color-shape-secondary); position: absolute; left: 50%; top: 0px; margin-left: -1px; 
 				border-radius: 2px;
@@ -82,11 +81,11 @@
 	}
 	
 	.block.isAdding.top::before {
-		content: ""; display: block; width: calc(100% - 48px); height: 2px; background: var(--color-system-accent-100); position: absolute; right: 0px; top: -2px;
+		content: ""; display: block; width: calc(100% - 48px); height: 2px; background: var(--color-control-accent); position: absolute; right: 0px; top: -2px;
 	}
 	
 	.block.isAdding.bottom::after {
-		content: ""; display: block; width: calc(100% - 48px); height: 2px; background: var(--color-system-accent-100); position: absolute; right: 0px; bottom: -2px;
+		content: ""; display: block; width: calc(100% - 48px); height: 2px; background: var(--color-control-accent); position: absolute; right: 0px; bottom: -2px;
 	}
 	
 	.block:hover > .wrapMenu > .icon.dnd { opacity: 1; }
@@ -113,7 +112,6 @@
 @import "./bookmark";
 @import "./cover";
 @import "./dataview";
-@import "./dataview/cell";
 @import "./dataview/view/board";
 @import "./dataview/view/common";
 @import "./dataview/view/gallery";

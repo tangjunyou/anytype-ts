@@ -27,22 +27,22 @@ const MenuDataviewFileValues = observer(class MenuDataviewFileValues extends Rea
 		const { canEdit } = data;
 		const items = this.getItems();
 		
-        const Handle = SortableHandle(() => (
+		const Handle = SortableHandle(() => (
 			<Icon className="dnd" />
 		));
 
 		const File = (item: any) => (
-			<React.Fragment>
+			<>
 				<IconObject object={item} />
 				<ObjectName object={item} />
-			</React.Fragment>
+			</>
 		);
 
 		const Image = (item: any) => (
 			<img src={S.Common.imageUrl(item.id, 208)} className="img" onLoad={() => position()} />
 		);
 
-        const Item = SortableElement((item: any) => {
+		const Item = SortableElement((item: any) => {
 			const cn = [ 'item' ];
 
 			let content = null;
@@ -78,7 +78,7 @@ const MenuDataviewFileValues = observer(class MenuDataviewFileValues extends Rea
 			);
 		});
 
-        const List = SortableContainer(() => (
+		const List = SortableContainer(() => (
 			<div className="items">
 				{items.map((item: any, i: number) => <Item key={i} {...item} index={i} />)}
 			</div>
@@ -129,13 +129,13 @@ const MenuDataviewFileValues = observer(class MenuDataviewFileValues extends Rea
 		this._isMounted = false;
 
 		S.Menu.closeAll([ 'dataviewFileList' ]);
-    };
+	};
 
 	onSortStart () {
 		keyboard.disableSelection(true);
 	};
-    
-    onSortEnd (result: any) {
+	
+	onSortEnd (result: any) {
 		const { oldIndex, newIndex } = result;
 		const { param, id } = this.props;
 		const { data } = param;
@@ -145,7 +145,7 @@ const MenuDataviewFileValues = observer(class MenuDataviewFileValues extends Rea
 		this.save(value);
 
 		keyboard.disableSelection(false);
-    };
+	};
 
 	onAdd (e: any) {
 		const { getId, getSize, param } = this.props;
@@ -166,7 +166,7 @@ const MenuDataviewFileValues = observer(class MenuDataviewFileValues extends Rea
 				noClose: true,
 				placeholderFocus: translate('menuDataviewFileValuesFindAFile'),
 				filters: [
-					{ relationKey: 'layout', condition: I.FilterCondition.In, value: U.Object.getFileLayouts() }
+					{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: U.Object.getFileLayouts() }
 				],
 				onChange: (value: string[], callBack?: () => void) => {
 					this.save(value);

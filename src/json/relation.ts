@@ -7,6 +7,7 @@ export default {
 		'snippet',
 		'iconEmoji',
 		'iconImage',
+		'iconName',
 		'iconOption',
 		'relationFormat',
 		'type',
@@ -22,8 +23,9 @@ export default {
 		'sizeInBytes',
 		'restrictions',
 		'defaultTemplateId',
-		'identityProfileLink',
-		'createdDate'
+		'createdDate',
+		'timestamp',
+		'resolvedLayout',
 	],
 
 	sidebar: [
@@ -36,6 +38,7 @@ export default {
 		'type',
 		'iconEmoji',
 		'iconImage',
+		'iconName',
 		'iconOption',
 		'isReadonly',
 		'isHidden',
@@ -49,9 +52,9 @@ export default {
 		'links',
 		'restrictions',
 		'source',
-		'identityProfileLink',
 		'lastModifiedDate',
-		'lastOpenedDate'
+		'lastOpenedDate',
+		'timestamp'
 	],
 
 	relation: [
@@ -73,7 +76,7 @@ export default {
 		'relationDefaultValue',
 		'relationFormatObjectTypes',
 		'sourceObject',
-		'restrictions'
+		'restrictions',
 	],
 
 	cover: [
@@ -94,12 +97,21 @@ export default {
 	],
 
 	type: [
+		'featuredRelations',
 		'recommendedRelations',
+		'recommendedFeaturedRelations',
+		'recommendedHiddenRelations',
+		'recommendedFileRelations',
 		'recommendedLayout',
 		'sourceObject',
 		'uniqueKey',
 		'defaultTemplateId',
-		'lastUsedDate'
+		'defaultTypeId',
+		'defaultViewType',
+		'layoutAlign',
+		'layoutWidth',
+		'iconName',
+		'iconOption',
 	],
 
 	graph: [
@@ -109,6 +121,7 @@ export default {
 		'description',
 		'iconEmoji',
 		'iconImage',
+		'iconName',
 		'iconOption',
 		'relationFormat',
 		'type',
@@ -119,8 +132,8 @@ export default {
 		'isDeleted',
 		'isArchived',
 		'isFavorite',
-		'identityProfileLink',
-		'restrictions'
+		'restrictions',
+		'timestamp',
 	],
 
 	template: [
@@ -138,10 +151,10 @@ export default {
 		'spaceAccessType',
 		'readersLimit',
 		'writersLimit',
-		'sharedSpacesLimit',
 		'targetSpaceId',
 		'creator',
-		'createdDate'
+		'createdDate',
+		'chatId',
 	],
 
 	participant: [
@@ -158,4 +171,8 @@ export default {
 	],
 
 	pageCover: 'pageCover',
+
+	key: {
+		mention: 'mentions',
+	}
 };

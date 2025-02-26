@@ -27,6 +27,7 @@ const BlockAudio = observer(class BlockAudio extends React.Component<I.BlockComp
 		const { id, content } = block;
 		const { state, targetObjectId } = content;
 		const object = S.Detail.get(rootId, targetObjectId, [ 'name', 'isDeleted', 'fileExt' ], true);
+		const { name } = object;
 		
 		let element = null;
 
@@ -43,7 +44,7 @@ const BlockAudio = observer(class BlockAudio extends React.Component<I.BlockComp
 				case I.FileState.Error:
 				case I.FileState.Empty: {
 					element = (
-						<React.Fragment>
+						<>
 							{state == I.FileState.Error ? <Error text={translate('blockFileError')} /> : ''}
 							<InputWithFile 
 								block={block} 
@@ -54,7 +55,7 @@ const BlockAudio = observer(class BlockAudio extends React.Component<I.BlockComp
 								onChangeFile={this.onChangeFile} 
 								readonly={readonly} 
 							/>
-						</React.Fragment>
+						</>
 					);
 					break;
 				};
@@ -65,14 +66,10 @@ const BlockAudio = observer(class BlockAudio extends React.Component<I.BlockComp
 				};
 					
 				case I.FileState.Done: {
-					const playlist = [ 
-						{ name: U.File.name(object), src: S.Common.fileUrl(object.id) },
-					];
-
 					element = (
 						<MediaAudio
 							ref={node => this.refPlayer = node}
-							playlist={playlist}
+							playlist={this.getPlaylist()}
 							onPlay={this.onPlay}
 							onPause={this.onPause}
 						/>
@@ -103,6 +100,7 @@ const BlockAudio = observer(class BlockAudio extends React.Component<I.BlockComp
 
 	componentDidUpdate () {
 		this.rebind();
+		this.refPlayer?.updatePlaylist(this.getPlaylist());
 	};
 
 	componentWillUnmount () {
@@ -126,6 +124,16 @@ const BlockAudio = observer(class BlockAudio extends React.Component<I.BlockComp
 		if (this._isMounted) {
 			$(this.node).off('resize');
 		};
+	};
+
+	getPlaylist () {
+		const { rootId, block } = this.props;
+		const { targetObjectId } = block.content;
+		const object = S.Detail.get(rootId, targetObjectId, [ 'name', 'isDeleted', 'fileExt' ], true);
+
+		return [ 
+			{ name: U.File.name(object), src: S.Common.fileUrl(object.id) },
+		];
 	};
 
 	onPlay () {

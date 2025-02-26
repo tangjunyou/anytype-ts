@@ -1,4 +1,4 @@
-import { I, C, S, U, J, keyboard, history as historyPopup, Renderer, translate, analytics } from 'Lib';
+import { I, C, S, U, J, keyboard, history as historyPopup, Renderer, translate, analytics, Relation } from 'Lib';
 
 class UtilObject {
 
@@ -20,12 +20,14 @@ class UtilObject {
 			case I.ObjectLayout.Relation:	 r = 'relation'; break;
 			case I.ObjectLayout.Navigation:	 r = 'navigation'; break;
 			case I.ObjectLayout.Graph:		 r = 'graph'; break;
-			case I.ObjectLayout.Store:		 r = 'store'; break;
+			case I.ObjectLayout.Settings:	 r = 'settings'; break;
 			case I.ObjectLayout.History:	 r = 'history'; break;
 			case I.ObjectLayout.Archive:	 r = 'archive'; break;
 			case I.ObjectLayout.Block:		 r = 'block'; break;
 			case I.ObjectLayout.Empty:		 r = 'empty'; break;
+			case I.ObjectLayout.Space:
 			case I.ObjectLayout.Chat:		 r = 'chat'; break;
+			case I.ObjectLayout.Date:		 r = 'date'; break;
 		};
 		return r;
 	};
@@ -36,7 +38,7 @@ class UtilObject {
 		};
 
 		const id = String(object.id || '');
-		const spaceId = object.spaceId || S.Common.space;
+		const spaceId = object.spaceId || S.Common.space || '';
 		const action = this.actionByLayout(object.layout);
 
 		if (!action) {
@@ -52,11 +54,14 @@ class UtilObject {
 	};
 
 	universalRoute (object: any): string {
-		if (!object) {
-			return;
-		};
-
 		return object ? `object?objectId=${object.id}&spaceId=${object.spaceId}` : '';
+	};
+
+	checkParam (param: any) {
+		param = param || {};
+		param.routeParam = param.routeParam || {};
+		param.menuParam = param.menuParam || {};
+		return param;
 	};
 
 	openEvent (e: any, object: any, param?: any) {
@@ -64,8 +69,15 @@ class UtilObject {
 			return;
 		};
 
+		param = this.checkParam(param);
+
 		e.preventDefault();
 		e.stopPropagation();
+
+		if (this.isParticipantLayout(object.layout)) {
+			U.Menu.participant(object, param.menuParam);
+			return;
+		};
 
 		if (e.shiftKey || keyboard.isPopup()) {
 			this.openPopup(object, param);
@@ -82,6 +94,13 @@ class UtilObject {
 			return;
 		};
 
+		param = this.checkParam(param);
+
+		if (this.isParticipantLayout(object.layout)) {
+			U.Menu.participant(object, param.menuParam);
+			return;
+		};
+
 		// Prevent opening object in popup from different space
 		if (object.spaceId && (object.spaceId != S.Common.space)) {
 			this.openRoute(object, param);
@@ -92,13 +111,15 @@ class UtilObject {
 	};
 	
 	openRoute (object: any, param?: any) {
+		param = this.checkParam(param);
+
 		const route = this.route(object);
 		if (!route) {
 			return;
 		};
 
 		keyboard.setSource(null);
-		U.Router.go(`/${route}`, param || {});
+		U.Router.go(`/${route}`, param);
 	};
 
 	openWindow (object: any) {
@@ -110,6 +131,13 @@ class UtilObject {
 
 	openPopup (object: any, param?: any) {
 		if (!object) {
+			return;
+		};
+
+		param = this.checkParam(param);
+
+		if (this.isParticipantLayout(object.layout)) {
+			U.Menu.participant(object, param.menuParam);
 			return;
 		};
 
@@ -127,7 +155,6 @@ class UtilObject {
 		};
 
 		param = param || {};
-		param.preventResize = true;
 		param.data = Object.assign(param.data || {}, { matchPopup: { params } });
 
 		if (object._routeParam_) {
@@ -139,6 +166,9 @@ class UtilObject {
 		window.setTimeout(() => S.Popup.open('page', param), S.Popup.getTimeout());
 	};
 
+	/**
+	Opens object based on user setting 'Open objects in fullscreen mode'
+	*/
 	openConfig (object: any, param?: any) {
 		S.Common.fullscreenObject ? this.openAuto(object, param) : this.openPopup(object, param);
 	};
@@ -159,7 +189,7 @@ class UtilObject {
 				typeKey = type.uniqueKey;
 
 				if (!templateId) {
-					templateId = type.defaultTemplateId || J.Constant.templateId.blank;
+					templateId = type.defaultTemplateId || '';
 				};
 			};
 		};
@@ -185,6 +215,13 @@ class UtilObject {
 		C.ObjectListSetDetails([ rootId ], [ 
 			{ key: 'iconEmoji', value: String(emoji || '') },
 			{ key: 'iconImage', value: String(image || '') },
+		], callBack);
+	};
+
+	setTypeIcon (rootId: string, iconName: string, iconOption: number, callBack?: (message: any) => void) {
+		C.ObjectListSetDetails([ rootId ], [
+			{ key: 'iconName', value: String(iconName || '') },
+			{ key: 'iconOption', value: Number(iconOption || 1) },
 		], callBack);
 	};
 	
@@ -215,11 +252,6 @@ class UtilObject {
 		C.ObjectListSetDetails([ rootId ], [ { key: 'done', value: Boolean(done) } ], callBack);
 	};
 
-	setLayout (rootId: string, layout: I.ObjectLayout, callBack?: (message: any) => void) {
-		S.Block.update(rootId, rootId, { layout });
-		C.ObjectSetLayout(rootId, layout, callBack);
-	};
-
 	setAlign (rootId: string, align: I.BlockHAlign, callBack?: (message: any) => void) {
 		C.BlockListSetAlign(rootId, [], align, callBack);
 	};
@@ -228,12 +260,19 @@ class UtilObject {
 		C.ObjectListSetDetails([ rootId ], [ { key: 'defaultTemplateId', value: id } ], callBack);
 	};
 
+	setLastUsedDate (rootId: string, timestamp: number, callBack?: (message: any) => void) {
+		C.ObjectListSetDetails([ rootId ], [ { key: 'lastUsedDate', value: timestamp } ], callBack);
+	};
+
 	name (object: any) {
 		const { layout, snippet } = object;
 
 		let name = '';
 		if (this.isNoteLayout(layout)) {
 			name = snippet || translate('commonEmpty');
+		} else 
+		if (this.isInFileLayouts(layout)) {
+			name = U.File.name(object);
 		} else {
 			name = object.name || translate('defaultNamePage');
 		};
@@ -241,26 +280,26 @@ class UtilObject {
 		return name;
 	};
 
-	getById (id: string, callBack: (object: any) => void) {
-		this.getByIds([ id ], objects => {
+	getById (id: string, param: Partial<I.SearchSubscribeParam>, callBack: (object: any) => void) {
+		this.getByIds([ id ], param, objects => {
 			if (callBack) {
 				callBack(objects[0]);
 			};
 		});
 	};
 
-	getByIds (ids: string[], callBack: (objects: any[]) => void) {
+	getByIds (ids: string[], param: Partial<I.SearchSubscribeParam>, callBack: (objects: any[]) => void) {
 		const filters = [
 			{ relationKey: 'id', condition: I.FilterCondition.In, value: ids }
 		];
 
-		C.ObjectSearch(filters, [], [], '', 0, 0, (message: any) => {
-			if (message.error.code || !message.records.length) {
-				return;
-			};
+		param = param || {};
+		param.filters = (param.filters || []).concat(filters);
+		param.keys = (param.keys || []).concat(J.Relation.default).concat([ 'links', 'backlinks' ]);
 
+		U.Data.search(param, (message: any) => {
 			if (callBack) {
-				callBack(message.records.map(it => S.Detail.mapper(it)).filter(it => !it._empty_));
+				callBack((message.records || []).filter(it => !it._empty_));
 			};
 		});
 	};
@@ -287,7 +326,19 @@ class UtilObject {
 		return this.getPageLayouts().includes(layout);
 	};
 
+	isInHumanLayouts (layout: I.ObjectLayout): boolean {
+		return this.getHumanLayouts().includes(layout);
+	};
+
 	// --------------------------------------------------------- //
+
+	isSpaceViewLayout (layout: I.ObjectLayout): boolean {
+		return layout == I.ObjectLayout.SpaceView;
+	};
+
+	isSpaceLayout (layout: I.ObjectLayout): boolean {
+		return layout == I.ObjectLayout.Space;
+	};
 
 	isSetLayout (layout: I.ObjectLayout): boolean {
 		return layout == I.ObjectLayout.Set;
@@ -366,12 +417,11 @@ class UtilObject {
 		return [ 
 			I.ObjectLayout.Set,
 			I.ObjectLayout.Collection,
-			I.ObjectLayout.Date,
 		];
 	};
 
 	getLayoutsWithoutTemplates (): I.ObjectLayout[] {
-		return [].concat(this.getFileAndSystemLayouts()).concat(this.getSetLayouts()).concat(I.ObjectLayout.Chat);
+		return [].concat(this.getFileAndSystemLayouts()).concat([ I.ObjectLayout.Chat, I.ObjectLayout.Participant ]);
 	};
 
 	getFileAndSystemLayouts (): I.ObjectLayout[] {
@@ -386,7 +436,6 @@ class UtilObject {
 			I.ObjectLayout.Dashboard,
 			I.ObjectLayout.Space,
 			I.ObjectLayout.SpaceView,
-			I.ObjectLayout.ChatDerived,
 		];
 	};
 
@@ -397,6 +446,13 @@ class UtilObject {
 			I.ObjectLayout.Audio,
 			I.ObjectLayout.Video,
 			I.ObjectLayout.Pdf,
+		];
+	};
+
+	getHumanLayouts (): I.ObjectLayout[] {
+		return [ 
+			I.ObjectLayout.Human, 
+			I.ObjectLayout.Participant,
 		];
 	};
 
@@ -417,17 +473,117 @@ class UtilObject {
 			I.ObjectLayout.Option, 
 			I.ObjectLayout.SpaceView, 
 			I.ObjectLayout.Space,
-			I.ObjectLayout.ChatDerived,
 		];
 	};
 
-	isAllowedTemplate (typeId): boolean {
+	isAllowedTemplate (typeId: string): boolean {
 		const type = S.Record.getTypeById(typeId);
+
+		if (type && (type.uniqueKey == J.Constant.typeKey.template)) {
+			return false;
+		};
+
 		return type ? !this.getLayoutsWithoutTemplates().includes(type.recommendedLayout) : false;
 	};
 
 	isAllowedObject (layout: I.ObjectLayout): boolean {
-		return this.getPageLayouts().concat(I.ObjectLayout.Chat).includes(layout);
+		return this.getPageLayouts().includes(layout);
+	};
+
+	isAllowedChat () {
+		const { config, space } = S.Common;
+		return config.experimental || J.Constant.chatSpaceId.includes(space);
+	};
+
+	openDateByTimestamp (relationKey: string, t: number, method?: string) {
+		method = method || 'auto';
+
+		let fn = U.Common.toCamelCase(`open-${method}`);
+		if (!this[fn]) {
+			fn = 'openAuto';
+		};
+
+		C.ObjectDateByTimestamp(S.Common.space, t, (message: any) => {
+			if (!message.error.code) {
+				const object = message.details;
+
+				object._routeParam_ = { relationKey };
+				this[fn](object);
+			};
+		});
+	};
+
+	hasEqualLayoutAlign (object: any, type: any): boolean {
+		if (!object || object._empty || !type) {
+			return true;
+		};
+		return (undefined === object.layoutAlign) || (object.layoutAlign === type.layoutAlign);
+	};
+
+	hasEqualLayoutWidth (object: any, type: any): boolean {
+		const root = S.Block.getLeaf(object.id, object.id);
+
+		if (!object || object._empty || !type || !root) {
+			return true;
+		};
+
+		const width = (root?.fields || {}).width;
+		return !width || (width == type.layoutWidth);
+	};
+
+	hasEqualFeaturedRelations (object: any): boolean {
+		if (!object || object._empty) {
+			return true;
+		};
+
+		return Relation.getArrayValue(object.featuredRelations).filter(it => ![ 'description' ].includes(it)).length == 0;
+	};
+
+	hasLayoutConflict (object: any): boolean {
+		const type = S.Record.getTypeById(object.targetObjectType || object.type);
+		if (!type) {
+			return false;
+		};
+
+		if (object.layout != type.recommendedLayout) {
+			console.log('[hasLayoutConflict] layout', object.layout, type.recommendedLayout);
+			return true;
+		};
+
+		if (!this.hasEqualLayoutAlign(object, type)) {
+			console.log('[hasLayoutConflict] layoutAlign', object.layoutAlign, type.layoutAlign);
+			return true;
+		};
+
+		if (!this.hasEqualLayoutWidth(object, type)) {
+			console.log('[hasLayoutConflict] layoutWidth', type.layoutWidth);
+			return true;
+		};
+
+		if (!this.hasEqualFeaturedRelations(object)) {
+			console.log('[hasLayoutConflict] featuredRelations');
+			return true;
+		};
+
+		return false;
+	};
+
+	resetLayout (id: string) {
+		const object = S.Detail.get(id, id);
+
+		if (object._empty_) {
+			return;
+		};
+
+		const root = S.Block.getLeaf(id, id);
+		const fields = root.fields || {};
+		const featured = Relation.getArrayValue(object.featuredRelations).filter(it => [ 'description' ].includes(it));
+
+		delete(fields.width);
+
+		C.ObjectRelationDelete(id, [ 'layout', 'layoutAlign' ]);
+		C.ObjectListSetDetails([ id ], [ { key: 'featuredRelations', value: featured } ]);
+		C.BlockListSetFields(id, [ { blockId: id, fields } ]);
 	};
 
 };

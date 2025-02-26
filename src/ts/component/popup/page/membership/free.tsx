@@ -70,7 +70,7 @@ const PopupMembershipPageFree = observer(class PopupMembershipPageFree extends R
 			};
 			case 2: {
 				content = (
-					<React.Fragment>
+					<>
 						<div onClick={() => this.setState({ verificationStep: 1 })} className="back"><Icon />{translate('commonBack')}</div>
 						<Title className="step2" text={translate(`popupMembershipFreeTitleStep2`)} />
 
@@ -87,7 +87,7 @@ const PopupMembershipPageFree = observer(class PopupMembershipPageFree extends R
 							{translate('popupMembershipResend')}
 							{countdown ? U.Common.sprintf(translate('popupMembershipCountdown'), countdown) : ''}
 						</div>
-					</React.Fragment>
+					</>
 				);
 				break;
 			};
@@ -138,7 +138,7 @@ const PopupMembershipPageFree = observer(class PopupMembershipPageFree extends R
 
 		this.refButton.setLoading(true);
 
-		C.MembershipGetVerificationEmail(this.refEmail.getValue(), this.refCheckbox?.getValue(), (message) => {
+		C.MembershipGetVerificationEmail(this.refEmail.getValue(), this.refCheckbox?.getValue(), false, false, (message) => {
 			this.refButton.setLoading(false);
 
 			if (message.error.code) {

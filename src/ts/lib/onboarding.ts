@@ -79,6 +79,9 @@ class Onboarding {
 		param.rect = null;
 		param.recalcRect = null;
 		param.force = force;
+		param.noAutoHover = true;
+		param.highlightElements = param.highlightElements || [];
+		param.hiddenElements = param.hiddenElements || [];
 
 		if ('function' != typeof(param.offsetX)) {
 			param.offsetX = Number(param.offsetX) || 0;
@@ -94,8 +97,11 @@ class Onboarding {
 		if (isPopup) {
 			cnw.push('fromPopup');
 		};
+		if (section.showDimmer) {
+			cnw.push('fromOnboarding');
+		};
 		param.classNameWrap = cnw.join(' ');
-		
+
 		if (param.container) {
 			param.containerVertical = Number(param.containerVertical) || I.MenuDirection.Top;
 			param.containerHorizontal = Number(param.containerHorizontal) || I.MenuDirection.Left;

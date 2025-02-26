@@ -1,97 +1,28 @@
-import * as React from 'react';
+import React, { forwardRef, useRef, useImperativeHandle } from 'react';
 import * as ReactDOM from 'react-dom';
 import $ from 'jquery';
+import { observer } from 'mobx-react'; 
 import { I, M, S, U, J, keyboard } from 'Lib';
 
-interface State {
-	rootId: string;
-	type: I.DropType;
-	width: number;
-	ids: string[];
-};
+const DragLayer = observer(forwardRef((_, ref: any) => {
+	
+	const nodeRef = useRef(null);
 
-class DragLayer extends React.Component<object, State> {
-	
-	_isMounted = false;
-	node: any = null;
-	state = {
-		rootId: '',
-		type: I.DropType.None,
-		width: 0,
-		ids: [] as string[],
-	};
-	
-	constructor (props: any) {
-		super(props);
-		
-		this.show = this.show.bind(this);
-		this.hide = this.hide.bind(this);
-	};
-	
-	render () {
-		const { width } = this.state;
-		
-		return (
-			<div 
-				ref={node => this.node = node}
-				id="dragLayer" 
-				className="dragLayer" 
-				style={{ width }}
-			>
-				<div id="inner" className="inner" />
-			</div>
-		);
-	};
-	
-	componentDidMount () {
-		this._isMounted = true;
-	};
-	
-	componentDidUpdate () {
-		if (!this._isMounted) {
-			return;
-		};
-
-		const node = $(this.node);
-		
-		node.find('.block').attr({ id: '' });
-		node.find('.selectionTarget').attr({ id: '' });
-
-		this.renderContent();
-	};
-	
-	componentWillUnmount () {
-		this._isMounted = false;
-	};
-	
-	show (rootId: string, type: I.DropType, ids: string[], component: any, x: number, y: number) {
-		if (!this._isMounted) {
-			return;
-		};
-		
+	const show = (rootId: string, type: I.DropType, ids: string[], component: any) => {
 		const comp = $(ReactDOM.findDOMNode(component));
 		const rect = (comp.get(0) as Element).getBoundingClientRect();
-		
-		this.setState({ rootId, type, width: rect.width - J.Size.blockMenu, ids });
-	};
-
-	hide () {
-		if (this._isMounted) {
-			this.setState({ rootId: '', type: I.DropType.None, ids: [], width: 0 });
-		};
-	};
-
-	renderContent () {
-		const { rootId, type, ids } = this.state;
-		const node = $(this.node);
+		const node = $(nodeRef.current);
 		const inner = node.find('#inner').html('');
-		const container = U.Common.getPageContainer(keyboard.isPopup());
+		const container = U.Common.getPageFlexContainer(keyboard.isPopup());
 		const wrap = $('<div></div>');
 
+		let width = rect.width;
+		
 		switch (type) {
 			case I.DropType.Block: {
 				wrap.addClass('blocks');
 
+				width -= J.Size.blockMenu;
 				const items = ids.map(id => S.Block.getLeaf(rootId, id)).filter(it => it).map(it => new M.Block(U.Common.objectCopy(it)));
 
 				items.forEach(block => {
@@ -117,15 +48,17 @@ class DragLayer extends React.Component<object, State> {
 			};
 
 			case I.DropType.Relation: {
-				const add = $('<div class="menu vertical menuBlockRelationView"></div>');
+				const container = U.Common.getPageFlexContainer(keyboard.isPopup());
+				const add = $('<div class="sidebarPage pageObjectRelation"></div>');
 
-				wrap.addClass('menus').append(add);
+				wrap.addClass('sidebar').append(add);
+				
+				ids.forEach(id => {
+					const el = container.find(`.sidebar #section-object-relation-${id}`);
+					const clone = el.clone();
 
-				const items = ids.map(relationKey => S.Record.getRelationByKey(relationKey)).filter(it => it);
-
-				items.forEach(item => {
-					const el = $(`#menuBlockRelationView #item-${item.id}`);
-					add.append(el.clone());
+					add.append(clone);
+					clone.css({ width: el.outerWidth() });
 				});
 				break;
 			};
@@ -150,15 +83,38 @@ class DragLayer extends React.Component<object, State> {
 					const clone = el.clone().addClass('record');
 
 					view.append(clone);
-					clone.css({ width: el.width() });
+					clone.css({ width: el.outerWidth() });
 				});
 				break;
 			};
 		};
 
 		inner.append(wrap);
+
+		node.css({ width });
+		node.find('.block').attr({ id: '' });
+		node.find('.selectionTarget').attr({ id: '' });
 	};
-	
-};
+
+	const hide = () => {
+		$(nodeRef.current).find('#inner').html('');
+	};
+
+	useImperativeHandle(ref, () => ({
+		show,
+		hide,
+	}));
+
+	return (
+		<div 
+			ref={nodeRef}
+			id="dragLayer" 
+			className="dragLayer" 
+		>
+			<div id="inner" className="inner" />
+		</div>
+	);
+
+}));
 
 export default DragLayer;

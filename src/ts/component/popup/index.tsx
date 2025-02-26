@@ -4,11 +4,9 @@ import raf from 'raf';
 import { I, S, U, analytics, Storage, Preview, translate, sidebar } from 'Lib';
 import { Dimmer } from 'Component';
 
-import PopupSettings from './settings';
 import PopupSettingsOnboarding from './settings/onboarding';
 import PopupSearch from './search';
 import PopupHelp from './help';
-import PopupPrompt from './prompt';
 import PopupPreview from './preview';
 import PopupConfirm from './confirm';
 import PopupShortcut from './shortcut';
@@ -27,11 +25,14 @@ import PopupInviteQr from './invite/qr';
 import PopupMembership from './membership';
 import PopupMembershipFinalization from './membership/finalization';
 import PopupShare from './share';
+import PopupSpaceCreate from './spaceCreate';
+import PopupLogout from './logout';
 
 class Popup extends React.Component<I.Popup> {
 
 	_isMounted = false;
 	node = null;
+	ref = null;
 	isAnimating = false;
 
 	constructor (props: I.Popup) {
@@ -50,11 +51,9 @@ class Popup extends React.Component<I.Popup> {
 		const { className } = param;
 
 		const Components: any = {
-			settings:				 PopupSettings,
 			settingsOnboarding:		 PopupSettingsOnboarding,
 			search:					 PopupSearch,
 			confirm:				 PopupConfirm,
-			prompt:					 PopupPrompt,
 			help:					 PopupHelp,
 			preview:				 PopupPreview,
 			shortcut:				 PopupShortcut,
@@ -73,6 +72,8 @@ class Popup extends React.Component<I.Popup> {
 			membership: 		 	 PopupMembership,
 			membershipFinalization:  PopupMembershipFinalization,
 			share:					 PopupShare,
+			spaceCreate:			 PopupSpaceCreate,
+			logout: 				 PopupLogout,
 		};
 		
 		const popupId = this.getId();
@@ -100,7 +101,8 @@ class Popup extends React.Component<I.Popup> {
 				<div id={`${popupId}-innerWrap`} className="innerWrap">
 					<div className="content">
 						<Component 
-							{...this.props} 
+							{...this.props}
+							ref={ref => this.ref = ref}
 							position={this.position} 
 							close={this.close}
 							storageGet={this.storageGet}
@@ -151,29 +153,28 @@ class Popup extends React.Component<I.Popup> {
 	};
 	
 	animate () {
-		if (this.isAnimating) {
-			return;
-		};
-
-		this.isAnimating = true;
-		raf(() => {
+		window.setTimeout(() => {
 			if (!this._isMounted) {
 				return;
 			};
-			
-			const node = $(this.node); 
-			const wrap = node.find('.innerWrap');
 
-			node.addClass('show');
-			window.setTimeout(() => { 
-				wrap.css({ transform: 'none' }); 
-				this.isAnimating = false;
-			}, S.Popup.getTimeout());
-		});
+			if (this.isAnimating) {
+				return;
+			};
+			
+			this.isAnimating = true;
+
+			$(this.node).addClass('show');
+			window.setTimeout(() => { this.isAnimating = false; }, S.Popup.getTimeout());
+		}, 50);
 	};
 	
 	position () {
 		const { id } = this.props;
+
+		if (this.ref && this.ref.beforePosition) {
+			this.ref.beforePosition();
+		};
 
 		raf(() => {
 			if (!this._isMounted) {

@@ -1,8 +1,8 @@
 export enum AccountStatusType {
 	Active			 = 0,
-    PendingDeletion	 = 1,
+	PendingDeletion	 = 1,
 	StartedDeletion	 = 2,
-    Deleted			 = 3,
+	Deleted			 = 3,
 };
 
 export interface Account {
@@ -19,10 +19,12 @@ export interface AccountInfo {
 	deviceId: string;
 	localStoragePath: string;
 	accountSpaceId: string;
+	techSpaceId: string;
 	spaceViewId: string;
 	widgetsId: string;
 	analyticsId: string;
 	networkId: string;
+	workspaceObjectId: string;
 };
 
 export interface AccountConfig {

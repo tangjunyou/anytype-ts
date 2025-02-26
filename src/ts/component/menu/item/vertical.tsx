@@ -1,6 +1,6 @@
 import * as React from 'react';
 import $ from 'jquery';
-import { Icon, IconObject, Switch, Select } from 'Component';
+import { Icon, IconObject, Switch, Select, ObjectName } from 'Component';
 import { I, U } from 'Lib';
 
 class MenuItemVertical extends React.Component<I.MenuItem> {
@@ -9,16 +9,31 @@ class MenuItemVertical extends React.Component<I.MenuItem> {
 
 	render () {
 		const { 
-			id, icon, object, inner, name, description, caption, color, arrow, checkbox, isActive, withDescription, withSwitch, withSelect, withMore,
-			className, style, iconSize, switchValue, selectValue, options, readonly, withDefault, onClick, onSwitch, onSelect, onMouseEnter, onMouseLeave, onMore,
-			selectMenuParam, subComponent, note, sortArrow
+			icon, object, inner, name, description, caption, color, arrow, checkbox, isActive, withDescription, withSwitch, withSelect, withMore,
+			className, style, iconSize, switchValue, selectValue, options, readonly, onClick, onSwitch, onSelect, onMouseEnter, onMouseLeave, onMore,
+			selectMenuParam, subComponent, note, sortArrow, isDiv, isSection, index
 		} = this.props;
-		const cn = [ 'item' ];
+		const id = this.props.id || '';
+		const cn = [];
 		const withArrow = arrow || subComponent;
+
+		if (isDiv) {
+			cn.push('separator');
+		} else 
+		if (isSection) {
+			cn.push('sectionName');
+
+			if (!index) {
+				cn.push('first');
+			};
+		} else {
+			cn.push('item');
+		};
 
 		let hasClick = true;
 		let iconMainElement = null;
 		let iconSideElement = null;
+		let nameElement = <div className="name">{name}</div>;
 
 		if (className) {
 			cn.push(className);
@@ -58,6 +73,7 @@ class MenuItemVertical extends React.Component<I.MenuItem> {
 
 		if (object) {
 			iconMainElement = <IconObject object={object} size={iconSize} />;
+			nameElement = <ObjectName object={object} />;
 
 			if (object.isHidden) {
 				cn.push('isHidden');
@@ -91,18 +107,24 @@ class MenuItemVertical extends React.Component<I.MenuItem> {
 		};
 
 		let content = null;
+		if (isDiv) {
+			content = <div className="inner" />;
+		} else
+		if (isSection) {
+			content = name;
+		} else
 		if (withDescription) {
 			content = (
-				<React.Fragment>
+				<>
 					{iconMainElement}
 					<div className="info">
 						<div className="txt">
-							<div className="name">{name}</div>
+							{nameElement}
 							<div className="descr">{description}</div>
 						</div>
 						{iconSideElement}
 					</div>
-				</React.Fragment>
+				</>
 			);
 		} else {
 			let additional = null;
@@ -127,46 +149,48 @@ class MenuItemVertical extends React.Component<I.MenuItem> {
 				);
 			} else {
 				additional = (
-					<React.Fragment>
+					<>
 						{typeof caption === 'string' ? (
 							<div className="caption" dangerouslySetInnerHTML={{ __html: U.Common.sanitize(caption) }} />
 						) : (
 							<div className="caption">{caption}</div>
 						)}
-						{withMore ? <Icon className="more" onMouseDown={onMore} /> : ''}
-					</React.Fragment>
+						{withMore ? <Icon className="more withBackground" onMouseDown={onMore} /> : ''}
+					</>
 				);
 			};
 
 			content = (
-				<React.Fragment>
+				<>
 					<div 
 						className="clickable" 
-						onMouseDown={hasClick ? undefined : onClick}
+						onClick={hasClick ? undefined : onClick}
+						onContextMenu={!hasClick && withMore ? onMore : undefined}
 					>
 						{iconMainElement}
-						<div className="name">{name}</div>
+						{nameElement}
 						{iconSideElement}
 					</div>
 					{additional}
-				</React.Fragment>
+				</>
 			);
 		};
 
 		return (
 			<div 
 				ref={node => this.node = node}
-				id={'item-' + id} 
+				id={`item-${id}`} 
 				className={cn.join(' ')} 
-				onMouseDown={hasClick ? onClick : undefined}
+				onClick={hasClick ? onClick : undefined}
 				onMouseEnter={onMouseEnter} 
-				onMouseLeave={onMouseLeave} 
+				onMouseLeave={onMouseLeave}
+				onContextMenu={hasClick && withMore ? onMore : undefined}
 				style={style}
 			>
 				{content}
 			</div>
 		);
-    };
+	};
 
 	componentDidMount () {
 		this.resize();
@@ -179,12 +203,9 @@ class MenuItemVertical extends React.Component<I.MenuItem> {
 	resize () {
 		const node = $(this.node);
 		
-		if (node.hasClass('withIcon')) {
-			return;
+		if (!node.hasClass('withIcon')) {
+			node.toggleClass('withIconObject', !!node.find('.iconObject').length);
 		};
-
-		const icon = node.find('.iconObject');
-		icon.length ? node.addClass('withIconObject') : node.removeClass('withIconObject');
 	};
 
 };

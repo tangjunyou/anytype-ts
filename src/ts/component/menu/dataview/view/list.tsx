@@ -53,7 +53,7 @@ const MenuViewList = observer(class MenuViewList extends React.Component<I.Menu>
 					<div className="name">{item.name}</div>
 				</div>
 				<div className="buttons">
-					<Icon className="more" onClick={e => this.onViewContext(e, item)} />
+					<Icon className="more withBackground" onClick={e => this.onViewContext(e, item)} />
 				</div>
 			</div>
 		));
@@ -298,18 +298,17 @@ const MenuViewList = observer(class MenuViewList extends React.Component<I.Menu>
 	};
 
 	onSortEnd (result: any) {
+		const { oldIndex, newIndex } = result;
 		const { param } = this.props;
 		const { data } = param;
 		const { rootId, blockId } = data;
 		const views = S.Record.getViews(rootId, blockId);
-		const oldIndex = result.oldIndex - 1;
-		const newIndex = result.newIndex - 1;
 		const view = views[oldIndex];
+		const ids = arrayMove(views.map(it => it.id), oldIndex, newIndex);
+
 		if (!view) {
 			return;
 		};
-
-		const ids = arrayMove(views.map(it => it.id), oldIndex, newIndex);
 
 		S.Record.viewsSort(rootId, blockId, ids);
 		C.BlockDataviewViewSetPosition(rootId, blockId, view.id, newIndex);

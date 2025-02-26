@@ -1,6 +1,6 @@
 @import "~scss/_mixins";
 
-#tooltipContainer { position: fixed; left: 0px; top: 0px; z-index: 1000; pointer-events: none; }
+#tooltipContainer { position: fixed; left: 0px; top: 0px; z-index: 1002; pointer-events: none; }
 
 .tooltip { 
 	position: absolute; border-radius: 4px; background: #373632; padding: 3px 7px; text-transform: none;
@@ -26,4 +26,9 @@
 .tooltip.fromVault { min-width: unset; max-width: 360px; transform: scale3d(1, 1, 1); }
 .tooltip.fromVault {
 	.txt { @include text-overflow-nw; width: 100%; }
+}
+
+.tooltip.relationGroupDescription {
+	width: 280px; padding: 13px 16px; border-radius: 8px; box-shadow: 0px 2px 28px 0px rgba(0, 0, 0, 0.20);
+	background: var(--color-bg-primary); color: var(--color-text-primary); white-space: normal;
 }

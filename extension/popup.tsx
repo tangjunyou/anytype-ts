@@ -8,7 +8,6 @@ import { ListMenu } from 'Component';
 import { S, U, C, J } from 'Lib'; 
 
 import Index from './popup/index';
-import Challenge from './popup/challenge';
 import Create from './popup/create';
 import Success from './popup/success';
 
@@ -23,7 +22,6 @@ const Routes = [
 
 const Components = {
 	index: Index,
-	challenge: Challenge,
 	create: Create,
 	success: Success,
 };
@@ -39,11 +37,11 @@ class RoutePage extends React.Component<RouteComponentProps> {
 		const Component = Components[page];
 
 		return (
-			<React.Fragment>
+			<>
 				<ListMenu key="listMenu" {...this.props} />
 
 				{Component ? <Component /> : null}
-			</React.Fragment>
+			</>
 		);
 	};
 };
@@ -70,6 +68,7 @@ class Popup extends React.Component {
 
 	componentDidMount () {
 		U.Router.init(history);
+		U.Smile.init();
 
 		const win = $(window);
 

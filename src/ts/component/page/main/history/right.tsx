@@ -7,6 +7,7 @@ import { I, C, S, U, translate, analytics, dispatcher } from 'Lib';
 
 interface Props {
 	rootId: string;
+	isPopup?: boolean;
 	renderDiff: (previousId: string, events: any[]) => void;
 	setVersion: (version: I.HistoryVersion) => void;
 	setLoading: (v: boolean) => void;
@@ -18,7 +19,7 @@ interface State {
 	isLoading: boolean;
 };
 
-const LIMIT_RECORDS = 300;
+const LIMIT_RECORDS = 1000;
 const LIMIT_AUTHORS = 5;
 
 const HistoryRight = observer(class HistoryRight extends React.Component<Props, State> {
@@ -43,10 +44,21 @@ const HistoryRight = observer(class HistoryRight extends React.Component<Props, 
 	};
 
 	render () {
+		const { isPopup } = this.props;
 		const groups = this.groupData();
 		const year = U.Date.date('Y', U.Date.now());
 		const canWrite = U.Space.canMyParticipantWrite();
 		const showButtons = this.showButtons();
+		const showSidebar = S.Common.getShowSidebarRight(isPopup);
+		const cn = [];
+
+		if (showSidebar) {
+			cn.push('withSidebar');
+		};
+
+		if (showButtons) {
+			cn.push('withButtons');
+		};
 
 		const Section = (item: any) => {
 			const y = U.Date.date('Y', item.time);
@@ -139,7 +151,7 @@ const HistoryRight = observer(class HistoryRight extends React.Component<Props, 
 			<div 
 				ref={ref => this.node = ref} 
 				id="historySideRight" 
-				className={showButtons ? 'withButtons' : ''}
+				className={cn.join(' ')}
 			>
 				<div className="head">
 					<div className="name">{translate('commonVersionHistory')}</div>
@@ -148,12 +160,12 @@ const HistoryRight = observer(class HistoryRight extends React.Component<Props, 
 
 				<div 
 					ref={ref => this.refScroll = ref} 
-					className="scroll" 
+					className="scrollWrap" 
 					onScroll={this.onScroll}
 				>
-					{groups.map((item: any, i: number) => (
-						<Section key={i} {...item} />
-					))}
+					<div className="scroll">
+						{groups.map((item: any, i: number) => <Section key={i} {...item} />)}
+					</div>
 				</div>
 
 				{showButtons ? (
@@ -278,19 +290,6 @@ const HistoryRight = observer(class HistoryRight extends React.Component<Props, 
 		this.toggleChildren(id, node.find(`#item-${id}`), node.find(`#children-${id}`));
 	};
 
-	onScroll () {
-		const { versions } = this.state;
-		const lastId = versions[versions.length - 1].id;
-		const scroll = $(this.refScroll);
-		const height = scroll.get(0).scrollHeight;
-
-		this.top = scroll.scrollTop();
-
-		if ((this.lastId != lastId) && (this.top >= height - scroll.height() - 12)) {
-			this.loadList(lastId);
-		};
-	};
-
 	toggleChildren (id: string, item: any, children: any) {
 		const isActive = item.hasClass('isExpanded');
 
@@ -348,9 +347,11 @@ const HistoryRight = observer(class HistoryRight extends React.Component<Props, 
 
 			this.setState({ versions: list });
 
-			if (!version && list.length) {
+			if (!lastId && list.length) {
 				this.loadVersion(list[0].id);
 			};
+
+			this.checkScroll();
 		});
 	};
 
@@ -367,12 +368,9 @@ const HistoryRight = observer(class HistoryRight extends React.Component<Props, 
 				setVersion(message.version);
 			};
 
-			this.setState({ version: message.version }, () => {
-				this.loadDiff(id);
-			});
+			this.setState({ version: message.version }, () => this.loadDiff(id));
 
 			$(window).trigger('resize');
-
 			analytics.event('ScreenHistoryVersion');
 		});
 	};
@@ -393,6 +391,36 @@ const HistoryRight = observer(class HistoryRight extends React.Component<Props, 
 				S.Common.diffSet(events);
 			});
 		});
+	};
+
+	onScroll () {
+		const scroll = $(this.refScroll);
+		const height = scroll.get(0).scrollHeight;
+
+		this.top = scroll.scrollTop();
+
+		if (this.top >= height - scroll.height() - 12) {
+			this.loadMore();
+		};
+	};
+
+	checkScroll () {
+		const node = $(this.node);
+		const wrap = $(this.refScroll);
+		const scroll = node.find('.scroll');
+
+		if (scroll.height() < wrap.height()) {
+			this.loadMore();
+		};
+	};
+
+	loadMore () {
+		const { versions } = this.state;
+		const lastId = versions[versions.length - 1].id;
+
+		if (this.lastId != lastId) {
+			this.loadList(lastId);
+		};
 	};
 
 	getPreviousVersionId (id: string): string {

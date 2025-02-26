@@ -1,5 +1,5 @@
 import { observable, action, set, intercept, makeObservable } from 'mobx';
-import { S, I, M, U, J, Dataview } from 'Lib';
+import { S, I, M, U, J, Dataview, Relation } from 'Lib';
 
 enum KeyMapType {
 	Relation = 'relation',
@@ -8,12 +8,12 @@ enum KeyMapType {
 
 class RecordStore {
 
-    public relationMap: Map<string, any[]> = observable(new Map());
+	public relationMap: Map<string, any[]> = observable(new Map());
 	public relationKeyMap: Map<string, Map<string, string>> = new Map();
 	public typeKeyMap: Map<string, Map<string, string>> = new Map();
-    public viewMap: Map<string, I.View[]> = observable.map(new Map());
-    public recordMap: Map<string, string[]> = observable.map(new Map());
-    public metaMap: Map<string, any> = observable.map(new Map());
+	public viewMap: Map<string, I.View[]> = observable.map(new Map());
+	public recordMap: Map<string, string[]> = observable.map(new Map());
+	public metaMap: Map<string, any> = observable.map(new Map());
 	public groupMap: Map<string, any> = observable.map(new Map());
 
 	constructor() {
@@ -94,7 +94,7 @@ class RecordStore {
 		return ret;
 	};
 
-    relationsSet (rootId: string, blockId: string, list: any[]) {
+	relationsSet (rootId: string, blockId: string, list: any[]) {
 		const key = this.getId(rootId, blockId);
 		const relations = (this.relationMap.get(this.getId(rootId, blockId)) || []).
 			concat(list.map(it => ({ relationKey: it.relationKey, format: it.format })));
@@ -104,7 +104,7 @@ class RecordStore {
 
 	relationListDelete (rootId: string, blockId: string, keys: string[]) {
 		const key = this.getId(rootId, blockId);
-		const relations = this.getObjectRelations(rootId, blockId).filter(it => !keys.includes(it.relationKey));
+		const relations = this.getDataviewRelations(rootId, blockId).filter(it => !keys.includes(it.relationKey));
 		
 		this.relationMap.set(key, relations.map(it => ({ relationKey: it.relationKey, format: it.format })));
 	};
@@ -266,6 +266,16 @@ class RecordStore {
 		return id ? this.getTypeById(id) : null;
 	};
 
+	getTypeFeaturedRelations (id: string) {
+		const type = this.getTypeById(id);
+		return (type?.recommendedFeaturedRelations || []).map(it => this.getRelationById(it)).filter(it => it);
+	};
+
+	getTypeRecommendedRelations (id: string) {
+		const type = this.getTypeById(id);
+		return (type?.recommendedRelations || []).map(it => this.getRelationById(it)).filter(it => it);
+	};
+
 	getTemplateType () {
 		return this.getTypeByKey(J.Constant.typeKey.template);
 	};
@@ -299,8 +309,8 @@ class RecordStore {
 	};
 
 	getTypes () {
-		return this.getRecordIds(J.Constant.subId.type, '').map(id => this.getTypeById(id)).
-			filter(it => it && !it.isArchived && !it.isDeleted);
+		return this.getRecordIds(J.Constant.subId.type, '').map(id => S.Detail.get(J.Constant.subId.type, id)).
+			filter(it => it && !it._empty_ && !it.isArchived && !it.isDeleted);
 	};
 
 	getRelations () {
@@ -308,15 +318,48 @@ class RecordStore {
 			filter(it => it && !it.isArchived && !it.isDeleted);
 	};
 
-	getObjectRelationKeys (rootId: string, blockId: string): any[] {
+	getDataviewRelationKeys (rootId: string, blockId: string): any[] {
 		return (this.relationMap.get(this.getId(rootId, blockId)) || []).map(it => it.relationKey);
 	};
 
-	getObjectRelations (rootId: string, blockId: string): any[] {
-		return this.getObjectRelationKeys(rootId, blockId).map(it => this.getRelationByKey(it)).filter(it => it);
+	getDataviewRelations (rootId: string, blockId: string): any[] {
+		return this.getDataviewRelationKeys(rootId, blockId).map(it => this.getRelationByKey(it)).filter(it => it);
 	};
 
-    getRelationByKey (relationKey: string): any {
+	getObjectRelations (rootId: string, typeId: string): any[] {
+		const type = S.Record.getTypeById(typeId);
+		const recommended = Relation.getArrayValue(type?.recommendedRelations);
+		const typeRelations = recommended.map(it => this.getRelationById(it)).filter(it => it);
+		const objectRelations = S.Detail.getKeys(rootId, rootId).map(it => this.getRelationByKey(it)).filter(it => it && !recommended.includes(it.id));
+
+		return this.checkHiddenObjects(typeRelations.concat(objectRelations));
+	};
+
+	getConflictRelations (rootId: string, blockId: string, typeId: string): any[] {
+		const objectKeys = S.Detail.getKeys(rootId, blockId);
+		const typeKeys = S.Detail.getTypeRelationIds(typeId).
+			map(it => S.Record.getRelationById(it)).
+			filter(it => it && it.relationKey).
+			map(it => it.relationKey);
+
+
+		let conflictKeys = [];
+
+		if (typeKeys.length) {
+			objectKeys.forEach((key) => {
+				if (!typeKeys.includes(key)) {
+					conflictKeys.push(key);
+				};
+			});
+		} else {
+			conflictKeys = objectKeys;
+		};
+
+		conflictKeys = conflictKeys.map(it => this.getRelationByKey(it)).filter(it => it && !Relation.isSystem(it.relationKey));
+		return this.checkHiddenObjects(conflictKeys);
+	};
+
+	getRelationByKey (relationKey: string): any {
 		const id = this.relationKeyMapGet(relationKey);
 		return id ? this.getRelationById(id) : null;
 	};
@@ -359,7 +402,7 @@ class RecordStore {
 	};
 
 	getRecords (subId: string, keys?: string[], forceKeys?: boolean): any[] {
-		return this.getRecordIds(subId, '').map(id => S.Detail.get(subId, id, keys));
+		return this.getRecordIds(subId, '').map(id => S.Detail.get(subId, id, keys, forceKeys));
 	};
 
 	getGroups (rootId: string, blockId: string) {
@@ -380,6 +423,17 @@ class RecordStore {
 
 	getGroupSubId (rootId: string, blockId: string, groupId: string): string {
 		return [ rootId, blockId, groupId ].join('-');
+	};
+
+	checkHiddenObjects (records: any[]): any[] {
+		const { config } = S.Common;
+		const { hiddenObject } = config.debug;
+
+		if (!Array.isArray(records)) {
+			return [];
+		};
+
+		return records.filter(it => hiddenObject ? true : !it.isHidden);
 	};
 
 };

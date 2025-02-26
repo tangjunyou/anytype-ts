@@ -330,7 +330,7 @@ class MenuBlockAction extends React.Component<I.Menu, State> {
 			return;
 		};
 		
-		const { param, close, getId, setActive } = this.props;
+		const { id, param, close, getId, setActive } = this.props;
 		const { data } = param;
 		const { blockId, blockIds, rootId } = data;
 		const block = S.Block.getLeaf(rootId, blockId);
@@ -360,11 +360,12 @@ class MenuBlockAction extends React.Component<I.Menu, State> {
 			offsetY: node.offset().top - el.offset().top - 40,
 			isSub: true,
 			noFlipX: true,
+			rebind: this.rebind,
+			parentId: id,
 			data: {
 				rootId,
 				blockId,
 				blockIds,
-				rebind: this.rebind,
 			},
 		};
 
@@ -417,6 +418,7 @@ class MenuBlockAction extends React.Component<I.Menu, State> {
 					filter: '',
 					filters: [
 						{ relationKey: 'recommendedLayout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
+						{ relationKey: 'uniqueKey', condition: I.FilterCondition.NotEqual, value: J.Constant.typeKey.template },
 					],
 					onClick: (item: any) => {
 						this.moveToPage(item.id);
@@ -430,7 +432,7 @@ class MenuBlockAction extends React.Component<I.Menu, State> {
 				menuId = 'searchObject';
 				menuParam.data = Object.assign(menuParam.data, {
 					filters: [
-						{ relationKey: 'layout', condition: I.FilterCondition.In, value: U.Object.getFileLayouts() },
+						{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: U.Object.getFileLayouts() },
 					],
 					onSelect: (item: any) => {
 						C.BlockFileSetTargetObjectId(rootId, blockId, item.id);
@@ -456,7 +458,7 @@ class MenuBlockAction extends React.Component<I.Menu, State> {
 					position: I.BlockPosition.Bottom,
 					skipIds,
 					filters: [
-						{ relationKey: 'layout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
+						{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
 					],
 					canAdd: true,
 					onSelect: () => close()
@@ -541,11 +543,11 @@ class MenuBlockAction extends React.Component<I.Menu, State> {
 				};
 				if (isCollection) {
 					addParam.onClick = (details: any) => {
-						C.ObjectCreate({ ...details, layout: I.ObjectLayout.Collection }, [], '', J.Constant.typeKey.collection, S.Common.space, () => onCreate());
+						C.ObjectCreate(details, [], '', J.Constant.typeKey.collection, S.Common.space, () => onCreate());
 					};
 
 					filters = filters.concat([
-						{ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Collection },
+						{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Collection },
 					]);
 				} else {
 					addParam.onClick = (details: any) => {
@@ -553,7 +555,7 @@ class MenuBlockAction extends React.Component<I.Menu, State> {
 					};
 
 					filters = filters.concat([
-						{ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Set },
+						{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Set },
 						{ relationKey: 'setOf', condition: I.FilterCondition.NotEmpty, value: null },
 					]);
 				};
@@ -627,7 +629,7 @@ class MenuBlockAction extends React.Component<I.Menu, State> {
 			};
 
 			case 'copyUrl': {
-				U.Common.copyToast(translate('commonUrl'), block.content.url);
+				U.Common.copyToast(translate('commonLink'), block.content.url);
 				break;
 			};
 				

@@ -75,6 +75,7 @@ export interface BlockComponent {
 	isContextMenuDisabled?: boolean;
 	index?: any;
 	className?: string;
+	blockContextParam?: Partial<I.Block>;
 	onKeyDown?(e: any, text: string, marks: I.Mark[], range: I.TextRange, props: any): void;
 	onKeyUp?(e: any, text: string, marks: I.Mark[], range: I.TextRange, props: any): void;
 	onMenuAdd? (id: string, text: string, range: I.TextRange, marks: I.Mark[]): void;
@@ -87,9 +88,9 @@ export interface BlockComponent {
 	onUpdate?(): void;
 	getWrapperWidth?(): number;
 	blockRemove?(focused?: I.Block): void;
-	renderMentions?(rootId: string, node: any, marks: I.Mark[], value: string): void;
-	renderObjects?(rootId: string, node: any, marks: I.Mark[], value: string, props: any): void;
-	renderLinks?(node: any, marks: I.Mark[], value: string, props: any): void;
+	renderMentions?(rootId: string, node: any, marks: I.Mark[], getValue: () => string): void;
+	renderObjects?(rootId: string, node: any, marks: I.Mark[], getValue: () => string, props: any): void;
+	renderLinks?(node: any, marks: I.Mark[], getValue: () => string, props: any): void;
 	renderEmoji?(node: any): void;
 	checkMarkOnBackspace?(value: string, range: I.TextRange, marks: I.Mark[]): { value: string, marks: I.Mark[], save: boolean };
 };
@@ -134,6 +135,7 @@ export interface Block {
 	canTurnObject?(): boolean;
 	canCreateBlock?(): boolean;
 	canBecomeWidget?(): boolean;
+	canContextMenu?(): boolean;
 
 	isIndentable?(): boolean;
 	isFocusable?(): boolean;
@@ -147,6 +149,7 @@ export interface Block {
 	isRelation?(): boolean;
 	isType?(): boolean;
 	isChat?(): boolean;
+	isCover?(): boolean;
 
 	isWidget?(): boolean;
 	isWidgetLink?(): boolean;
@@ -159,7 +162,6 @@ export interface Block {
 	isLayoutColumn?(): boolean;
 	isLayoutDiv?(): boolean;
 	isLayoutHeader?(): boolean;
-	isLayoutFooter?(): boolean;
 	isLayoutTableRows?(): boolean;
 	isLayoutTableColumns?(): boolean;
 

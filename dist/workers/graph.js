@@ -85,6 +85,7 @@ let paused = false;
 let isOver = '';
 let maxDegree = 0;
 let clusters = {};
+let selectBox = { x: 0, y: 0, width: 0, height: 0 };
 
 addEventListener('message', ({ data }) => { 
 	if (this[data.id]) {
@@ -317,7 +318,6 @@ updateSettings = (param) => {
 
 updateTheme = ({ theme, colors }) => {
 	data.colors = colors;
-
 	initTheme(theme);
 	redraw();
 };
@@ -355,6 +355,10 @@ draw = (t) => {
 			drawNode(d);
 		};
 	});
+
+	if (selectBox.x && selectBox.y && selectBox.width && selectBox.height) {
+		drawSelectBox();
+	};
 
 	ctx.restore();
 };
@@ -578,9 +582,56 @@ drawNode = (d) => {
 	};
 };
 
+drawSelectBox = () => {
+	const { x, y, width, height } = selectBox;
+
+	ctx.save();
+	util.roundedRect(x, y, width, height, 1);
+
+	ctx.strokeStyle = data.colors.selected;
+	ctx.lineWidth = getLineWidth() * 3;
+	ctx.stroke();
+	ctx.restore();
+}
+
 onZoom = (data) => {
 	transform = Object.assign(transform, data.transform);
 	redraw();
+};
+
+onDragToSelectStart = (data) => {
+	const { x, y } = data;
+
+	selectBox.x = transform.invertX(x);
+	selectBox.y = transform.invertY(y);
+};
+
+onDragToSelectMove = (data) => {
+	const x = transform.invertX(data.x);
+	const y = transform.invertY(data.y);
+
+	selectBox.width = x - selectBox.x;
+	selectBox.height = y - selectBox.y;
+
+	const left = Math.min(selectBox.x, x);
+	const top = Math.min(selectBox.y, y);
+	const right = Math.max(selectBox.x, x);
+	const bottom = Math.max(selectBox.y, y);
+	const selected = [];
+
+	nodes.forEach(d => {
+		if ((d.x >= left) && (d.x <= right) && (d.y >= top) && (d.y <= bottom)) {
+			selected.push(d.id);
+		};
+	});
+
+	send('onSelectByDragToSelect', { selected })
+	redraw();
+};
+
+onDragToSelectEnd = () => {
+	selectBox = { x: 0, y: 0, width: 0, height: 0 };
+	send('onTransform', { ...transform });
 };
 
 onDragStart = ({ active }) => {
@@ -617,14 +668,14 @@ onDragEnd = ({ active }) => {
 
 onClick = ({ x, y }) => {
   	const d = getNodeByCoords(x, y);
-	if (d) {
-		send('onClick', { node: d.id });
-	};
+	send('onClick', { node: d?.id });
 };
 
 onSelect = ({ x, y, selectRelated }) => {
   	const d = getNodeByCoords(x, y);
-  	let related = [];
+  	
+	let related = [];
+
 	if (d) {
 		if (selectRelated) {
 			related = edgeMap.get(d.id);
@@ -638,6 +689,7 @@ onSetRootId = ({ x, y }) => {
   	const d = getNodeByCoords(x, y);
 	if (d) {
 		this.setRootId({ rootId: d.id });
+		send('setRootId', { node: d.id });
 	};
 };
 
@@ -648,6 +700,7 @@ onSetEdges = (param) => {
 
 onSetSelected = ({ ids }) => {
 	selected = ids;
+	redraw();
 };
 
 onMouseMove = ({ x, y }) => {

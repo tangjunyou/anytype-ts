@@ -1,61 +1,49 @@
-import * as React from 'react';
+import React, { forwardRef, useState, useEffect, useImperativeHandle } from 'react';
 import { observer } from 'mobx-react';
-import { Icon, IconObject, Sync, ObjectName, Label } from 'Component';
-import { I, S, U, J, keyboard, translate } from 'Lib';
+import { Button, Icon, IconObject, ObjectName, Label } from 'Component';
+import { I, S, U, J, keyboard, translate, analytics } from 'Lib';
 import HeaderBanner from 'Component/page/elements/head/banner';
 
-interface State {
-	templatesCnt: number;
-};
+const HeaderMainObject = observer(forwardRef<{}, I.HeaderComponent>((props, ref) => {
 
-const HeaderMainObject = observer(class HeaderMainObject extends React.Component<I.HeaderComponent, State> {
+	const { rootId, match, isPopup, onSearch, onTooltipShow, onTooltipHide, renderLeftIcons, onRelation, menuOpen } = props;
+	const [ templatesCnt, setTemplateCnt ] = useState(0);
+	const [ dummy, setDummy ] = useState(0);
+	const root = S.Block.getLeaf(rootId, rootId);
+	const object = S.Detail.get(rootId, rootId, J.Relation.template);
+	const isDeleted = object._empty_ || object.isDeleted;
+	const isLocked = root ? root.isLocked() : false;
+	const isTypeOrRelation = U.Object.isTypeOrRelationLayout(object.layout);
+	const isDate = U.Object.isDateLayout(object.layout);
+	const showShare = S.Block.isAllowed(object.restrictions, [ I.RestrictionObject.Publish ], true) && !isDeleted;
+	const showRelations = !isTypeOrRelation && !isDate && !isDeleted;
+	const showMenu = !isTypeOrRelation && !isDeleted;
+	const allowedTemplateSelect = (object.internalFlags || []).includes(I.ObjectFlag.SelectTemplate);
+	const bannerProps = { type: I.BannerType.None, isPopup, object, count: 0 };
 
-	state = {
-		templatesCnt: 0
+	let center = null;
+	let locked = '';
+
+	if (object.isArchived) {
+		bannerProps.type = I.BannerType.IsArchived;
+	} else
+	if (U.Object.isTemplate(object.type)) {
+		bannerProps.type = I.BannerType.IsTemplate;
+	} else
+	if (allowedTemplateSelect && (templatesCnt > 1)) {
+		bannerProps.type = I.BannerType.TemplateSelect;
+		bannerProps.count = templatesCnt;
 	};
 
-	constructor (props: I.HeaderComponent) {
-		super(props);
-		
-		this.onRelation = this.onRelation.bind(this);
-		this.onMore = this.onMore.bind(this);
-		this.onSync = this.onSync.bind(this);
-		this.onOpen = this.onOpen.bind(this);
-		this.updateTemplatesCnt = this.updateTemplatesCnt.bind(this);
+	if (isLocked) {
+		locked = translate('headerObjectLocked');
+	} else
+	if (U.Object.isTypeOrRelationLayout(object.layout) && !S.Block.isAllowed(object.restrictions, [ I.RestrictionObject.Delete ])) {
+		locked = translate('commonSystem');
 	};
 
-	render () {
-		const { rootId, onSearch, onTooltipShow, onTooltipHide, isPopup, renderLeftIcons } = this.props;
-		const { templatesCnt } = this.state;
-		const root = S.Block.getLeaf(rootId, rootId);
-
-		if (!root) {
-			return null;
-		};
-
-		const object = S.Detail.get(rootId, rootId, J.Relation.template);
-		const isLocked = root ? root.isLocked() : false;
-		const showMenu = !U.Object.isTypeOrRelationLayout(object.layout);
-		const canSync = showMenu && !object.templateIsBundled && !U.Object.isParticipantLayout(object.layout);
-		const cmd = keyboard.cmdSymbol();
-		const allowedTemplateSelect = (object.internalFlags || []).includes(I.ObjectFlag.SelectTemplate);
-		const bannerProps: any = {};
-
-		let center = null;
-		let banner = I.BannerType.None;
-
-		if (object.isArchived && U.Space.canMyParticipantWrite()) {
-			banner = I.BannerType.IsArchived;
-		} else
-		if (U.Object.isTemplate(object.type)) {
-			banner = I.BannerType.IsTemplate;
-		} else
-		if (allowedTemplateSelect && templatesCnt) {
-			banner = I.BannerType.TemplateSelect;
-			bannerProps.count = templatesCnt + 1;
-		};
-
-		if (banner == I.BannerType.None) {
+	if (!isDeleted) {
+		if (bannerProps.type == I.BannerType.None) {
 			center = (
 				<div
 					id="path"
@@ -67,56 +55,23 @@ const HeaderMainObject = observer(class HeaderMainObject extends React.Component
 					<div className="inner">
 						<IconObject object={object} size={18} />
 						<ObjectName object={object} />
-						{isLocked ? <Label text={translate('headerObjectLocked')} className="lock" /> : ''}
+						{locked ? <Label text={locked} className="lock" /> : ''}
 					</div>
 				</div>
 			);
 		} else {
-			center = <HeaderBanner type={banner} object={object} isPopup={isPopup} {...bannerProps} />;
+			center = <HeaderBanner {...bannerProps} />;
 		};
-
-		return (
-			<React.Fragment>
-				<div className="side left">
-					{renderLeftIcons(this.onOpen)}
-					{canSync ? <Sync id="button-header-sync" rootId={rootId} onClick={this.onSync} /> : ''}
-				</div>
-
-				<div className="side center">
-					{center}
-				</div>
-
-				<div className="side right">
-					{showMenu ? <Icon id="button-header-relation" tooltip="Relations" tooltipCaption={`${cmd} + Shift + R`} className="relation withBackground" onClick={this.onRelation} /> : ''}
-					{showMenu ? <Icon id="button-header-more" tooltip="Menu" className="more withBackground" onClick={this.onMore} /> : ''}
-				</div>
-			</React.Fragment>
-		);
 	};
 
-	componentDidMount () {
-		this.init();
-	};
-
-	componentDidUpdate () {
-		this.init();
-	};
-
-	init () {
-		this.updateTemplatesCnt();
-	};
-
-	onOpen () {
-		const { rootId } = this.props;
+	const onOpen = () => {
 		const object = S.Detail.get(rootId, rootId, []);
 
 		keyboard.disableClose(true);
 		S.Popup.closeAll(null, () => U.Object.openRoute(object));
 	};
 	
-	onMore () {
-		const { isPopup, match, rootId, menuOpen } = this.props;
-
+	const onMore = () => {
 		menuOpen('object', '#button-header-more', {
 			horizontal: I.MenuDirection.Right,
 			subIds: J.Menu.object,
@@ -130,46 +85,83 @@ const HeaderMainObject = observer(class HeaderMainObject extends React.Component
 		});
 	};
 
-	onSync () {
-		const { rootId, menuOpen } = this.props;
-
-		menuOpen('syncStatus', '#button-header-sync', {
-			horizontal: I.MenuDirection.Left,
-			subIds: [ 'syncStatusInfo' ],
+	const onShare = () => {
+		menuOpen('publish', '#button-header-share', {
+			horizontal: I.MenuDirection.Right,
 			data: {
 				rootId,
 			}
 		});
+
+		analytics.event('ClickShareObject', { objectType: object.type });
 	};
 
-	onRelation () {
-		const { rootId } = this.props;
-		const object = S.Detail.get(rootId, rootId, [ 'isArchived' ]);
-
-		this.props.onRelation({}, { readonly: object.isArchived });
-	};
-
-	updateTemplatesCnt () {
-		const { rootId } = this.props;
-		const { templatesCnt } = this.state;
-		const object = S.Detail.get(rootId, rootId, [ 'internalFlags' ]);
-		const allowedTemplateSelect = (object.internalFlags || []).includes(I.ObjectFlag.SelectTemplate);
-
-		if (!allowedTemplateSelect || !object.type) {
+	const updateTemplatesCnt = () => {
+		if (!allowedTemplateSelect) {
 			return;
 		};
 
-		U.Data.getTemplatesByTypeId(object.type, (message: any) => {
+		U.Data.countTemplatesByTypeId(object.type, (message: any) => {
 			if (message.error.code) {
 				return;
 			};
 
 			if (message.records.length != templatesCnt) {
-				this.setState({ templatesCnt: message.records.length });
+				setTemplateCnt(message.records.length);
 			};
 		});
 	};
 
-});
+	useEffect(() => updateTemplatesCnt(), []);
+	useEffect(() => updateTemplatesCnt(), [ object.type ]);
+
+	useImperativeHandle(ref, () => ({
+		forceUpdate: () => setDummy(dummy + 1),
+	}));
+
+	return (
+		<>
+			<div className="side left">
+				{renderLeftIcons(true, onOpen)}
+			</div>
+
+			<div className="side center">
+				{center}
+			</div>
+
+			<div className="side right">
+				{showShare ? (
+					<Button 
+						id="button-header-share" 
+						text="Share" 
+						color="blank" 
+						className="c28" 
+						onClick={onShare}
+					/> 
+				) : ''}
+
+				{showRelations ? (
+					<Icon 
+						id="button-header-relation" 
+						tooltip={translate('commonRelations')}
+						tooltipCaption={keyboard.getCaption('relation')}
+						className="relation withBackground"
+						onClick={() => onRelation({ readonly: object.isArchived || root.isLocked() })} 
+					/> 
+				) : ''}
+
+				{showMenu ? (
+					<Icon 
+						id="button-header-more"
+						tooltip={translate('commonMenu')}
+						className="more withBackground"
+						onClick={onMore} 
+					/> 
+				) : ''}
+			</div>
+		</>
+	);
+
+}));
 
 export default HeaderMainObject;

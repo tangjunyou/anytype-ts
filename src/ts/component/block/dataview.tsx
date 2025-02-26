@@ -4,7 +4,7 @@ import raf from 'raf';
 import arrayMove from 'array-move';
 import { observer } from 'mobx-react';
 import { set } from 'mobx';
-import { I, C, S, U, J, analytics, Dataview, keyboard, Onboarding, Relation, Renderer, focus, translate, Action } from 'Lib';
+import { I, C, S, U, J, analytics, Dataview, keyboard, Onboarding, Relation, focus, translate, Action } from 'Lib';
 
 import Controls from './dataview/controls';
 import Selection from './dataview/selection';
@@ -246,15 +246,41 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 
 	componentDidMount () {
 		const { block, isInline, isPopup } = this.props;
-		const { viewId } = block.content;
-		const match = keyboard.getMatch();
+		const match = keyboard.getMatch(isPopup);
 		const subId = this.getSubId();
+		const isCollection = this.isCollection();
+		const viewId = match.params.viewId || block.content.viewId;
 
-		if (match.params.viewId || viewId) {
-			S.Record.metaSet(subId, '', { viewId: match.params.viewId || viewId });
+		if (viewId) {
+			S.Record.metaSet(subId, '', { viewId });
 		};
 
-		this.reloadData();
+		this.reloadData(() => {
+			if (isInline) {
+				return;
+			};
+
+			const { total } = S.Record.getMeta(subId, '');
+			const isCompletedSets = Onboarding.isCompleted('sets');
+
+			window.setTimeout(() => {
+				if (!isCollection && !isCompletedSets) {
+					Onboarding.start('sets', isPopup);
+				} else 
+				if (isCollection && !total) {
+					Onboarding.start('collections', isPopup);
+				} else 
+				if (
+					(isCollection || (isCompletedSets && !isCollection)) && 
+					this.isAllowedObject() && 
+					this.isAllowedDefaultType() && 
+					total
+				) {
+					Onboarding.start('setSettings', isPopup);
+				};
+			}, J.Constant.delay.menu);
+		});
+
 		this.init();
 		this.resize();
 		this.rebind();
@@ -263,10 +289,6 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		const eventName = this.isCollection() ? 'ScreenCollection' : 'ScreenSet';
 
 		analytics.event(eventName, { embedType: analytics.embedType(isInline), type: view?.type });
-
-		if (!isInline && Onboarding.isCompleted('mainSet') && this.isAllowedObject() && this.isAllowedDefaultType()) {
-			Onboarding.start('setSettings', isPopup);
-		};
 	};
 
 	componentDidUpdate () {
@@ -291,7 +313,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		const head = node.find(`#block-head-${block.id}`);
 		const object = this.getTarget();
 
-		object.isDeleted ? head.addClass('isDeleted') : head.removeClass('isDeleted');
+		head.toggleClass('isDeleted', object.isDeleted);
 	};
 
 	unbind () {
@@ -336,7 +358,9 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 	};
 
 	onFocus () {
-		focus.set(this.props.block.id, { from: 0, to: 0 });
+		if (this.props.isInline) {
+			focus.set(this.props.block.id, { from: 0, to: 0 });
+		};
 	};
 
 	loadData (viewId: string, offset: number, clear: boolean, callBack?: (message: any) => void) {
@@ -417,12 +441,16 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		};
 	};
 
-	reloadData () {
+	reloadData (cb?: () => void) {
 		const view = this.getView();
 
 		if (view) {
 			S.Record.metaSet(this.getSubId(), '', { viewId: view.id, offset: 0, total: 0 });
-			this.loadData(view.id, 0, true);
+			this.loadData(view.id, 0, true, () => {
+				if (cb) {
+					cb();
+				};
+			});
 		};
 	};
 
@@ -493,9 +521,10 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 			return {};
 		};
 
-		const keys = this.getKeys(view.id);
+		const skip = [ 'restrictions' ];
+		const keys = this.getKeys(view.id).filter(it => !skip.includes(it));
 		const subId = this.getSubId();
-		const item = S.Detail.get(subId, id, keys);
+		const item = S.Detail.get(subId, id, keys, true);
 		const { layout, isReadonly, isDeleted, snippet } = item;
 
 		if (item.name == translate('defaultNamePage')) {
@@ -588,7 +617,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		if (type && type.defaultTemplateId) {
 			return type.defaultTemplateId;
 		};
-		return J.Constant.templateId.blank;
+		return '';
 	};
 
 	recordCreate (e: any, template: any, dir: number, groupId?: string, idx?: number) {
@@ -603,12 +632,12 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		};
 
 		const details = this.getDetails(groupId);
-		const flags: I.ObjectFlag[] = [];
+		const flags: I.ObjectFlag[] = [ I.ObjectFlag.SelectTemplate ];
+		const isViewGraph = view.type == I.ViewType.Graph;
+		const isViewCalendar = view.type == I.ViewType.Calendar;
 		
 		let typeId = '';
 		let templateId = '';
-
-		flags.push(I.ObjectFlag.SelectTemplate);
 
 		if (template) {
 			templateId = template.id;
@@ -621,12 +650,14 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		if (!typeId) {
 			typeId = this.getTypeId();
 		};
+
 		if (!templateId) {
 			templateId = this.getDefaultTemplateId(typeId);
 		};
 
 		const type = S.Record.getTypeById(typeId);
 		if (!type) {
+			console.error('[BlockDataview.recordCreate] No type');
 			return;
 		};
 
@@ -673,16 +704,16 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 				S.Record.recordsSet(subId, '', records);
 			};
 
-			if ([ I.ViewType.Graph ].includes(view.type)) {
+			if (isViewGraph) {
 				const refGraph = this.refView?.refGraph;
 				if (refGraph) {
 					refGraph.addNewNode(object.id, '', null, () => {
-						refGraph.setRootId(object.id);
+						$(window).trigger('updateGraphRoot', { id: object.id });
 					});
 				};
 			};
 
-			if ([ I.ViewType.Calendar ].includes(view.type)) {
+			if (isViewGraph || isViewCalendar) {
 				U.Object.openConfig(object);
 			} else {
 				if (U.Object.isNoteLayout(object.layout)) {
@@ -693,7 +724,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 						const ref = this.refCells.get(id);
 
 						if (ref) {
-							ref.onClick(e)
+							ref.onClick(e);
 						};
 					}, 15);
 				};
@@ -726,7 +757,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 			groupId = 'empty';
 		};
 
-		if (type && (type.uniqueKey == J.Constant.typeKey.bookmark)) {
+		if (type && U.Object.isBookmarkLayout(type.recommendedLayout)) {
 			this.onBookmarkMenu(e, dir, groupId, menuParam);
 		} else {
 			this.recordCreate(e, { id: this.getDefaultTemplateId() }, dir, groupId, idx);
@@ -779,26 +810,38 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 
 		let menuContext = null;
 
-		S.Menu.open('dataviewTemplateList', {
+		S.Menu.open('dataviewNew', {
 			...menuParam,
 			offsetY: 10,
 			noAnimation: true,
 			subIds: J.Menu.dataviewTemplate.concat([ 'dataviewTemplateContext' ]),
 			vertical: dir > 0 ? I.MenuDirection.Top : I.MenuDirection.Bottom,
 			horizontal: dir > 0 ? I.MenuDirection.Left : I.MenuDirection.Right,
-			onOpen: context => menuContext = context,
+			onOpen: context => {
+				menuContext = context;
+				this.refControls?.toggleHoverArea(true);
+			},
+			onClose: () => {
+				menuContext = null;
+				this.refControls?.toggleHoverArea(false);
+			},
 			data: {
 				rootId,
 				blockId: block.id,
+				subId: this.getSubId(),
 				hasSources,
 				getView: this.getView,
 				withTypeSelect: this.isAllowedDefaultType(),
 				typeId,
 				templateId: this.getDefaultTemplateId(),
 				route,
+				isAllowedObject: this.isAllowedObject(),
+				isCollection,
 				onTypeChange: (id) => {
 					if (id != this.getTypeId()) {
-						Dataview.viewUpdate(rootId, block.id, view.id, { defaultTypeId: id, defaultTemplateId: J.Constant.templateId.blank });
+						const newType = S.Record.getTypeById(id);
+
+						Dataview.viewUpdate(rootId, block.id, view.id, { defaultTypeId: id, defaultTemplateId: newType?.defaultTemplateId });
 						analytics.event('DefaultTypeChange', { route });
 					};
 				},
@@ -888,16 +931,16 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		};
 
 		if (!view.isGrid() && Relation.isUrl(relation.format)) {
-			Action.openUrl(Relation.getUrlScheme(relation.format, record[relationKey]) + record[relationKey]);
+			Action.openUrl(Relation.checkUrlScheme(relation.format, record[relationKey]));
 			return;
 		};
 
-		if ((relationKey == 'name') && (!ref.ref.state.isEditing)) {
+		if ((relationKey == 'name') && ref.isEditing && !ref.isEditing()) {
 			const ids = selection?.get(I.SelectType.Record) || [];
 
 			if (keyboard.withCommand(e)) {
 				if (!ids.length) {
-					U.Object.openWindow(record);
+					U.Object.openEvent(e, record);
 				};
 			} else {
 				U.Object.openConfig(record);
@@ -948,7 +991,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 			objectIds = [ id ];
 		};
 
-		S.Menu.open('dataviewContext', {
+		S.Menu.open('objectContext', {
 			recalcRect: () => { 
 				const { x, y } = keyboard.mouse.page;
 				return { width: 0, height: 0, x: x + 4, y: y };
@@ -963,7 +1006,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 				route: this.analyticsRoute(),
 				relationKeys: this.getVisibleRelations().map(it => it.relationKey),
 				view,
-				allowedLink: true,
+				allowedLinkTo: true,
 				allowedOpen: true,
 			}
 		});
@@ -980,17 +1023,17 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 		
 		if (isCollection) {
 			filters = filters.concat([
-				{ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Collection },
+				{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Collection },
 			]);
 
 			addParam.name = translate('blockDataviewCreateNewCollection');
 			addParam.nameWithFilter = translate('blockDataviewCreateNewCollectionWithName');
 			addParam.onClick = (details: any) => {
-				C.ObjectCreate({ ...details, layout: I.ObjectLayout.Collection }, [], '', collectionType?.uniqueKey, S.Common.space, message => onSelect(message.details, true));
+				C.ObjectCreate(details, [], '', collectionType?.uniqueKey, S.Common.space, message => onSelect(message.details, true));
 			};
 		} else {
 			filters = filters.concat([
-				{ relationKey: 'layout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Set },
+				{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Set },
 				{ relationKey: 'setOf', condition: I.FilterCondition.NotEmpty, value: null },
 			]);
 
@@ -1173,7 +1216,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 			return [];
 		};
 
-		const keys = S.Record.getObjectRelationKeys(rootId, block.id);
+		const keys = S.Record.getDataviewRelationKeys(rootId, block.id);
 		return view.getVisibleRelations().filter(it => keys.includes(it.relationKey));
 	};
 
@@ -1262,6 +1305,11 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 
 		for (const type of types) {
 			if (skipLayouts.includes(type.recommendedLayout)) {
+				isAllowed = false;
+				break;
+			};
+
+			if (type.uniqueKey == J.Constant.typeKey.template) {
 				isAllowed = false;
 				break;
 			};
@@ -1396,9 +1444,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 	};
 
 	setSelected (ids: string[]) {
-		if (this.refSelect) {
-			this.refSelect.setIds(ids);
-		};
+		this.refSelect?.setIds(ids);
 	};
 
 	multiSelectAction (id: string) {
@@ -1415,7 +1461,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 
 		switch (id) {
 			case 'archive': {
-				Action.archive(ids);
+				Action.archive(ids, this.analyticsRoute());
 				break;
 			};
 
@@ -1450,7 +1496,7 @@ const BlockDataview = observer(class BlockDataview extends React.Component<Props
 				const node = $(this.node);
 				const obj = $(`#block-${block.id}`);
 
-				node.width() <= getWrapperWidth() / 2 ? obj.addClass('isVertical') : obj.removeClass('isVertical');
+				obj.toggleClass('isVertical', node.width() <= getWrapperWidth() / 2);
 			};
 
 			if (this.refControls && this.refControls.resize) {

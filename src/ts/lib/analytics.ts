@@ -1,23 +1,21 @@
 import * as amplitude from 'amplitude-js';
-import { I, C, S, U, J, Storage, Relation } from 'Lib';
+import { I, C, S, U, J, Relation } from 'Lib';
 
 const KEYS = [ 
 	'method', 'id', 'action', 'style', 'code', 'route', 'format', 'color', 'step',
 	'type', 'objectType', 'linkType', 'embedType', 'relationKey', 'layout', 'align', 'template', 'index', 'condition',
 	'tab', 'document', 'page', 'count', 'context', 'originalId', 'length', 'group', 'view', 'limit', 'usecase', 'name',
-	'processor', 'emptyType', 'status',
+	'processor', 'emptyType', 'status', 'sort',
 ];
-const KEY_CONTEXT = 'analyticsContext';
-const KEY_ORIGINAL_ID = 'analyticsOriginalId';
 const URL = 'amplitude.anytype.io';
 
 class Analytics {
 	
 	instance: any = null;
+	contextId: string = '';
 
 	public route = {
 		block: 'Block',
-		navigation: 'Navigation',
 		onboarding: 'Onboarding',
 		collection: 'Collection',
 		set: 'Set',
@@ -28,6 +26,8 @@ class Analytics {
 		deleted: 'Deleted',
 		banner: 'Banner',
 		widget: 'Widget',
+		addWidget: 'AddWidget',
+		inWidget: 'InWidget',
 		graph: 'Graph',
 		store: 'Library',
 		type: 'Type',
@@ -45,6 +45,17 @@ class Analytics {
 		media: 'Media',
 		calendar: 'Calendar',
 		allObjects: 'AllObjects',
+		vault: 'Vault',
+		void: 'Void',
+		chat: 'Chat',
+		archive: 'Bin',
+		toast: 'Toast',
+		share: 'Share',
+		navigation: 'Navigation',
+
+		screenDate: 'ScreenDate',
+		screenRelation: 'ScreenRelation',
+		screenType: 'ScreenType',
 
 		menuOnboarding: 'MenuOnboarding',
 		menuObject: 'MenuObject',
@@ -66,7 +77,10 @@ class Analytics {
 		addWidgetMain: 'Main',
 		addWidgetEditor: 'Editor',
 		addWidgetMenu: 'Menu',
-		addWidgetDnD: 'DnD'
+		addWidgetDnD: 'DnD',
+
+		usecaseApp: 'App',
+		usecaseSite: 'Site',
 	};
 
 	debug () {
@@ -114,7 +128,7 @@ class Analytics {
 			this.instance.setVersionName(electron.version.app);
 		};
 
-		this.instance.setUserProperties(props);
+		this.setProperty(props);
 		this.removeContext();
 		this.setVersion();
 
@@ -125,7 +139,7 @@ class Analytics {
 		const { config } = S.Common;
 		const platform = U.Common.getPlatform();
 		const electron = U.Common.getElectron();
-		const { version, isPackaged } = electron;
+		const { version, isPackaged, userPath } = electron;
 
 		if (!version) {
 			return;
@@ -143,7 +157,7 @@ class Analytics {
 			ret.push(config.channel);
 		};
 
-		C.MetricsSetParameters(platform, ret.join('-'));
+		C.InitialSetParameters(platform, ret.join('-'), userPath(), '', false, false);
 	};
 
 	profile (id: string, networkId: string) {
@@ -152,30 +166,33 @@ class Analytics {
 		};
 
 		this.instance.setUserId(id);
+		this.log(`[Analytics].profile: ${id}`);	
 
 		if (id) {
-			this.instance.setUserProperties({ networkId });
+			this.setProperty({ networkId });
 		};
-		this.log(`[Analytics].profile: ${id} networkId: ${networkId}`);	
 	};
 
-	setContext (context: string, id: string) {
-		Storage.set(KEY_CONTEXT, context);
-		Storage.set(KEY_ORIGINAL_ID, id);
-
+	setContext (context: string) {
+		this.contextId = context;
 		this.log(`[Analytics].setContext: ${context}`);
 	};
 
 	removeContext () {
-		Storage.delete(KEY_CONTEXT);
-		Storage.delete(KEY_ORIGINAL_ID);
+		this.contextId = '';
 	};
 
 	setTier (tier: I.TierType) {
-		const t = I.TierType[tier] || 'Custom';
+		this.setProperty({ tier: I.TierType[tier] || 'Custom' });
+	};
 
-		this.instance.setUserProperties({ tier: t });
-		this.log(`[Analytics].setTier: ${t}`);
+	setProperty (props: any) {
+		if (!this.instance || !this.isAllowed()) {
+			return;
+		};
+
+		this.instance.setUserProperties(props);
+		this.log(`[Analytics].setProperty: ${JSON.stringify(props, null, 3)}`);
 	};
 
 	event (code: string, data?: any) {
@@ -230,11 +247,6 @@ class Analytics {
 		switch (code) {
 			case 'ScreenType': {
 				data.objectType = data.params.id;
-				break;
-			};
-
-			case 'ScreenRelation': {
-				data.relationKey = data.params.id;
 				break;
 			};
 
@@ -365,6 +377,7 @@ class Analytics {
 				break;
 			};
 
+			case 'ShowDataviewRelation':
 			case 'DeleteRelationValue':
 			case 'ChangeRelationValue':
 			case 'FeatureRelation':
@@ -373,6 +386,15 @@ class Analytics {
 			case 'AddExistingRelation': {
 				data.format = Number(data.format) || 0;
 				data.format = I.RelationType[data.format];
+				break;
+			};
+
+			case 'ClickGridFormula':
+			case 'ChangeGridFormula': {
+				data.format = Number(data.format) || 0;
+				data.format = I.RelationType[data.format];
+				data.type = Number(data.type) || 0;
+				data.type = I.FormulaType[data.type];
 				break;
 			};
 
@@ -393,11 +415,6 @@ class Analytics {
 
 			case 'AddWidget': {
 				data.type = I.WidgetLayout[data.type];
-				break;
-			};
-
-			case 'ChangeShowQuickCapture': {
-				data.type = I.NavigationMenuMode[data.type];
 				break;
 			};
 
@@ -451,6 +468,11 @@ class Analytics {
 				break;
 			};
 
+			case 'ChangeLibraryType': {
+				data.type = data.type ? U.Common.toUpperCamelCase(`-${data.type}`) : '';
+				break;
+			};
+
 			case 'DeleteSpace': {
 				data.type = Number(data.type) || 0;
 				data.type = I.SpaceType[data.type];
@@ -486,11 +508,25 @@ class Analytics {
 				break;
 			};
 
+			case 'ChangeDateFormat': {
+				data.type = I.DateFormat[Number(data.type)];
+				break;
+			};
+
+			case 'ChangeTimeFormat': {
+				data.type = I.TimeFormat[Number(data.type)];
+				break;
+			};
+
+			case 'ObjectListSort': {
+				data.type = I.SortType[Number(data.type)];
+				break;
+			};
+
 		};
 
 		param.middleTime = Number(data.middleTime) || 0;
-		param.context = String(Storage.get(KEY_CONTEXT) || '');
-		param.originalId = String(Storage.get(KEY_ORIGINAL_ID) || '');
+		param.context = String(this.contextId || '');
 
 		for (const k of KEYS) {
 			if (undefined !== data[k]) {
@@ -548,9 +584,10 @@ class Analytics {
 			'main/graph':		 'ScreenGraph',
 			'main/navigation':	 'ScreenNavigation',
 			'main/type':		 'ScreenType',
-			'main/relation':	 'ScreenRelation',
 			'main/media':		 'ScreenMedia',
 			'main/history':		 'ScreenHistory',
+			'main/date':		 'ScreenDate',
+			'main/archive':		 'ScreenBin',
 		};
 
 		return map[key] || '';
@@ -560,6 +597,7 @@ class Analytics {
 		const { id } = params;
 		const map = {
 			inviteRequest:		 'ScreenInviteRequest',
+			spaceCreate:		 'ScreenSettingsSpaceCreate',
 		};
 
 		return map[id] || '';
@@ -569,8 +607,6 @@ class Analytics {
 		const { id } = params;
 		const map = {
 			help:				 'MenuHelp',
-			blockRelationView:	 'ScreenObjectRelation',
-			quickCapture:		 'ScreenQuickCapture',
 		};
 
 		return map[id] || '';

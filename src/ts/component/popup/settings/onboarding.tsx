@@ -11,6 +11,16 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 	constructor (props: I.Popup) {
 		super(props);
 
+		const { networkConfig } = S.Auth;
+		const { mode, path } = networkConfig;
+		const userPath = U.Common.getElectron().userPath();
+
+		this.config = {
+			userPath,
+			mode,
+			path: path || '',
+		};
+
 		this.onUpload = this.onUpload.bind(this);
 		this.onSave = this.onSave.bind(this);
 		this.onPathClick = this.onPathClick.bind(this);
@@ -26,21 +36,7 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 		const { interfaceLang } = S.Common;
 		const interfaceLanguages = U.Menu.getInterfaceLanguages();
 		const isDefault = path == U.Common.getElectron().defaultPath();
-		const networkModes: any[] = ([
-			{ id: I.NetworkMode.Default },
-			{ id: I.NetworkMode.Local },
-			{ id: I.NetworkMode.Custom },
-		] as any[]).map(it => {
-			it.name = translate(`networkMode${it.id}Title`);
-			it.description = translate(`networkMode${it.id}Text`);
-			it.withDescription = true;
-
-			if (it.id == I.NetworkMode.Local) {
-				it.note = translate('popupSettingsOnboardingLocalOnlyNote');
-			};
-
-			return it;
-		});
+		const networkModes = this.getNetworkModes();
 
 		return (
 			<div className="mainSides">
@@ -50,7 +46,6 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 					<div className="actionItems">
 						<div className="item">
 							<Label text={translate('popupSettingsPersonalInterfaceLanguage')} />
-
 							<Select
 								id="interfaceLang"
 								value={interfaceLang}
@@ -77,7 +72,8 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 								menuParam={{ 
 									horizontal: I.MenuDirection.Right, 
 									width: 300,
-									className: 'fixed',
+									className: 'fixed withFullDescripion',
+									data: { noVirtualisation: true, noScroll: true }
 								}}
 							/>
 						</div>
@@ -88,7 +84,7 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 									<Label text={translate('popupSettingsOnboardingNetworkTitle')} />
 									{path ? <Label className="small" text={U.Common.shorten(path, 32)} /> : ''}
 								</div>
-								<Button className="c28" text={translate('commonUpload')} onClick={this.onUpload} />
+								<Button className="c28" text={translate('commonLoad')} onClick={this.onUpload} />
 							</div>
 						) : ''}
 
@@ -112,18 +108,22 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 		);
 	};
 
-	componentDidMount(): void {
-		const { networkConfig } = S.Auth;
-		const { mode, path } = networkConfig;
-		const userPath = U.Common.getElectron().userPath();
+	getNetworkModes () {
+		return ([
+			{ id: I.NetworkMode.Default },
+			{ id: I.NetworkMode.Local },
+			{ id: I.NetworkMode.Custom },
+		] as any[]).map(it => {
+			it.name = translate(`networkMode${it.id}Title`);
+			it.description = translate(`networkMode${it.id}Text`);
+			it.withDescription = true;
 
-		this.config = {
-			userPath,
-			mode,
-			path: path || ''
-		};
-		this.refMode?.setValue(this.config.mode);
-		this.forceUpdate();
+			if (it.id == I.NetworkMode.Local) {
+				it.note = translate('popupSettingsOnboardingLocalOnlyNote');
+			};
+
+			return it;
+		});
 	};
 
 	onChange (key: string, value: any) {
@@ -132,7 +132,7 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 	};
 
 	onUpload () {
-		Action.openFileDialog([ 'yml' ], (paths: string[]) => this.onChange('path', paths[0]));
+		Action.openFileDialog({ extensions: [ 'yml', 'yaml' ] }, (paths: string[]) => this.onChange('path', paths[0]));
 	};
 
 	onSave () {
@@ -155,7 +155,7 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 			};
 
 			S.Auth.networkConfigSet(this.config);
-			this.props.close();
+			window.setTimeout(() => this.props.close(), S.Popup.getTimeout());
 		};
 
 		if (this.config.mode == I.NetworkMode.Local) {
@@ -184,7 +184,7 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 
 	onPathClick (path: string) {
 		if (path) {
-			Renderer.send('openPath', U.Common.getElectron().dirName(path));
+			Action.openPath(U.Common.getElectron().dirName(path));
 		};
 	};
 
@@ -230,10 +230,9 @@ const PopupSettingsOnboarding = observer(class PopupSettingsOnboarding extends R
 	};
 
 	onTooltipShow (e: any, text: string) {
-		if (!text) {
-			return;
+		if (text) {
+			Preview.tooltipShow({ text, element: $(e.currentTarget) });
 		};
-		Preview.tooltipShow({ text, element: $(e.currentTarget) });
 	};
 
 	onTooltipHide () {

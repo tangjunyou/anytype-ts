@@ -1,8 +1,8 @@
 export default {
-	'': {
-
-		color: {
-			default: '#252525',
+	icon: {
+		text: '#fff',
+		bg: {
+			grey: '#949494',
 			yellow: '#ecd91b',
 			orange: '#ffb522',
 			red: '#f55522',
@@ -12,7 +12,30 @@ export default {
 			ice: '#2aa7ee',
 			teal: '#0fc8ba',
 			lime: '#5dd400',
-			green: '#57c600',
+			default: '#e3e3e3',
+		},
+
+		list: [ 'grey', 'yellow', 'orange', 'red', 'pink', 'purple', 'blue', 'ice', 'teal', 'lime' ],
+	},
+
+	/* ----------------------------------------------------------- */
+
+	'': {
+
+		error: '#000',
+
+		color: {
+			default: '#252525',
+			grey: '#b6b6b6',
+			yellow: '#ecd91b',
+			orange: '#ffb522',
+			red: '#f55522',
+			pink: '#e51ca0',
+			purple: '#ab50cc',
+			blue: '#3e58eb',
+			ice: '#2aa7ee',
+			teal: '#0fc8ba',
+			lime: '#5dd400',
 		},
 
 		graph: {
@@ -36,28 +59,24 @@ export default {
 			bg: '#fff'
 		},
 
-		icon: {
+		iconUser: {
 			text: '#b6b6b6',
-			bg: {
-				grey: '#f2f2f2',
-				black: '#252525',
-				brown: '#b6b6b6',
-				orange: '#ffb522',
-				red: '#f55522',
-				purple: '#ab50cc',
-				blue: '#3e58eb',
-				teal: '#0fc8ba',
-				lime: '#5dd400',
-				green: '#57c600'
-			}
-		}
+			bg: '#f2f2f2'
+		},
 
+		progress: {
+			bg: '#ebebeb',
+			fg: '#ffd15b',
+		}
 	},
 
 	dark: {
 
+		error: '#fff',
+
 		color: {
-			default: '#252525',
+			default: '#f8f8f8',
+			grey: '#737373',
 			yellow: '#ecd91b',
 			orange: '#ffb522',
 			red: '#f55522',
@@ -67,7 +86,6 @@ export default {
 			ice: '#2aa7ee',
 			teal: '#0fc8ba',
 			lime: '#5dd400',
-			green: '#57c600',
 		},
 
 		graph: {
@@ -97,22 +115,15 @@ export default {
 			bg: '#fff'
 		},
 
-		icon: {
+		iconUser: {
 			text: '#9a9a9a',
-			bg: {
-				grey: '#2b2b2b',
-				black: '#252525',
-				brown: '#b6b6b6',
-				orange: '#ffb522',
-				red: '#f55522',
-				purple: '#ab50cc',
-				blue: '#3e58eb',
-				teal: '#0fc8ba',
-				lime: '#5dd400',
-				green: '#57c600'
-			}
-		}
+			bg: '#b6b6b6'
+		},
 
+		progress: {
+			bg: '#292929',
+			fg: '#ffd15b',
+		}
 	}
 
 };

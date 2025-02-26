@@ -5,7 +5,7 @@ import { observable, set } from 'mobx';
 import Commands from 'dist/lib/pb/protos/commands_pb';
 import Events from 'dist/lib/pb/protos/events_pb';
 import Service from 'dist/lib/pb/protos/service/service_grpc_web_pb';
-import { I, M, S, U, J, translate, analytics, Renderer, Action, Dataview, Mapper, Storage, keyboard } from 'Lib';
+import { I, M, S, U, J, analytics, Renderer, Action, Dataview, Mapper, keyboard } from 'Lib';
 import * as Response from './response';
 import { ClientReadableStream } from 'grpc-web';
 
@@ -110,8 +110,8 @@ class Dispatcher {
 
 		const rootId = ctx.join('-');
 		const messages = event.getMessagesList() || [];
-		const log = (rootId: string, type: string, data: any, valueCase: any) => {
-			console.log(`%cEvent.${type}`, 'font-weight: bold; color: #ad139b;', rootId);
+		const log = (rootId: string, type: string, spaceId: string, data: any, valueCase: any) => {
+			console.log(`%cEvent.${type}`, 'font-weight: bold; color: #ad139b;', rootId, spaceId);
 			if (!type) {
 				console.error('Event not found for valueCase', valueCase);
 			};
@@ -130,9 +130,13 @@ class Dispatcher {
 
 		for (const message of messages) {
 			const type = Mapper.Event.Type(message.getValueCase());
-			const data = Mapper.Event.Data(message);
-			const mapped = Mapper.Event[type] ? Mapper.Event[type](data) : {};
+			const { spaceId, data } = Mapper.Event.Data(message);
+			const mapped = Mapper.Event[type] ? Mapper.Event[type](data) : null;
 			const needLog = this.checkLog(type) && !skipDebug;
+
+			if (!mapped) {
+				continue;
+			};
 
 			switch (type) {
 
@@ -158,10 +162,19 @@ class Dispatcher {
 					};
 
 					Renderer.send('showChallenge', {
-						challenge: mapped.challenge,
+						...mapped,
 						theme: S.Common.getThemeClass(),
 						lang: S.Common.interfaceLang,
 					});
+					break;
+				};
+
+				case 'AccountLinkChallengeHide': {
+					if (!isMainWindow) {
+						break;
+					};
+
+					Renderer.send('hideChallenge', mapped);
 					break;
 				};
 
@@ -244,7 +257,6 @@ class Dispatcher {
 
 					if (id == rootId) {
 						S.Block.checkBlockType(rootId);
-						S.Block.checkBlockChat(rootId);
 					};
 
 					updateParents = true;
@@ -529,7 +541,7 @@ class Dispatcher {
 					const content: any = {};
 
 					if (text !== null) {
-						content.key = text;
+						content.text = text;
 					};
 
 					S.Block.updateContent(rootId, id, content);
@@ -816,7 +828,6 @@ class Dispatcher {
 
 					S.Detail.delete(rootId, id, keys);
 					S.Block.checkBlockType(rootId);
-					S.Block.checkBlockChat(rootId);
 
 					updateMarkup = true;
 					break;
@@ -835,6 +846,7 @@ class Dispatcher {
 
 					if (!dep) {
 						S.Record.recordDelete(subId, '', id);
+						S.Detail.delete(subId, id, []);
 					};
 					break;
 				};
@@ -875,7 +887,7 @@ class Dispatcher {
 					S.Notification.add(item);
 
 					if (isMainWindow && !electron.isFocused()) {
-						U.Common.notification(item.title, item.text);
+						U.Common.notification(item);
 					};
 					break;
 				};
@@ -905,6 +917,13 @@ class Dispatcher {
 							};
 
 							analytics.createObject(object.type, object.layout, analytics.route.webclipper, 0);
+							break;
+						};
+
+						case 'analyticsEvent': {
+							const { code, param } = payload;
+
+							analytics.event(code, param);
 							break;
 						};
 					};
@@ -949,7 +968,18 @@ class Dispatcher {
 					S.Chat.add(rootId, idx, message);
 
 					if (isMainWindow && !electron.isFocused() && (message.creator != account.id)) {
-						U.Common.notification(author?.name, message.content.text);
+						U.Common.notification({ title: author?.name, text: message.content.text }, () => {
+							const { space } = S.Common;
+							const open = () => {
+								U.Object.openAuto({ id: S.Block.workspace, layout: I.ObjectLayout.Chat });
+							};
+
+							if (spaceId != space) {
+								U.Router.switchSpace(spaceId, '', false, { onRouteChange: open });
+							} else {
+								open();
+							};
+						});
 					};
 
 					$(window).trigger('messageAdd', [ message ]);
@@ -958,6 +988,8 @@ class Dispatcher {
 
 				case 'ChatUpdate': {
 					S.Chat.update(rootId, mapped.message);
+
+					$(window).trigger('messageUpdate', [ mapped.message ]);
 					break;
 				};
 
@@ -972,44 +1004,42 @@ class Dispatcher {
 						set(message, { reactions: mapped.reactions });
 					};
 
-					$(window).trigger('updateReactions', [ message ]);
+					$(window).trigger('reactionUpdate', [ message ]);
 					break;
 				};
 
-				case 'ProcessNew':
-				case 'ProcessUpdate':
-				case 'ProcessDone': {
+				case 'ProcessNew': {
 					const { process } = mapped;
-					const { id, progress, state, type } = process;
+					const { progress, type } = process;
 
-					switch (state) {
-						case I.ProgressState.Running: {
-							let canCancel = true;
-							let isUnlocked = true;
+					S.Progress.update({
+						...process,
+						current: progress.done,
+						total: progress.total,
+						canCancel: [ 
+							I.ProgressType.Migrate, 
+							I.ProgressType.Import, 
+							I.ProgressType.Export, 
+							I.ProgressType.Drop,
+						].includes(type),
+					});
+					break;
+				};
 
-							if ([ I.ProgressType.Recover, I.ProgressType.Migration ].includes(type)) {
-								canCancel = false;
-								isUnlocked = false;
-							};
+				case 'ProcessUpdate': {
+					const { process } = mapped;
+					const { progress } = process;
 
-							S.Common.progressSet({
-								id,
-								status: translate(`progress${type}`),
-								current: progress.done,
-								total: progress.total,
-								isUnlocked,
-								canCancel,
-							});
-							break;
-						};
+					S.Progress.update({
+						...process,
+						current: progress.done,
+						total: progress.total,
+					});
+					break;
+				};
 
-						case I.ProgressState.Error:
-						case I.ProgressState.Done:
-						case I.ProgressState.Canceled: {
-							S.Common.progressClear();
-							break;
-						};
-					};
+				case 'ProcessDone': {
+					S.Progress.delete(mapped.process.id);
 					break;
 				};
 
@@ -1021,7 +1051,7 @@ class Dispatcher {
 			};
 
 			if (needLog) {
-				log(rootId, type, data, message.getValueCase());
+				log(rootId, type, spaceId, data, message.getValueCase());
 			};
 		};
 
@@ -1043,16 +1073,23 @@ class Dispatcher {
 	};
 
 	detailsUpdate (details: any, rootId: string, id: string, subIds: string[], clear: boolean) {
-		this.getUniqueSubIds(subIds).forEach(subId => S.Detail.update(subId, { id, details }, clear));
+		subIds = this.getUniqueSubIds(subIds);
+		subIds.forEach(subId => S.Detail.update(subId, { id, details }, clear));
 
-		if ([ I.SpaceStatus.Deleted, I.SpaceStatus.Removing ].includes(details.spaceAccountStatus)) {
-			if (id == S.Block.spaceview) {
-				U.Router.switchSpace(S.Auth.accountSpaceId);
+		const { space } = S.Common;
+		const keys = Object.keys(details);
+		const check = [ 'creator', 'spaceDashboardId', 'spaceAccountStatus' ];
+		const intersection = check.filter(k => keys.includes(k));
+
+		if (subIds.length && subIds.includes(J.Constant.subId.space)) {
+			const object = U.Space.getSpaceview(id);
+
+			if (intersection.length && object.targetSpaceId) {
+				U.Data.createSubSpaceSubscriptions([ object.targetSpaceId ]);
 			};
 
-			const spaceview = U.Space.getSpaceview(id);
-			if (spaceview && !spaceview._empty_) {
-				Storage.deleteSpace(spaceview.targetSpaceId);
+			if (object.isAccountDeleted && (object.targetSpaceId == space)) {
+				U.Space.openFirstSpaceOrVoid(null, { replace: true });
 			};
 		};
 
@@ -1069,8 +1106,11 @@ class Dispatcher {
 				S.Block.update(rootId, rootId, { layout: details.layout });
 			};
 
+			if ((undefined !== details.resolvedLayout) && (root.layout != details.resolvedLayout)) {
+				S.Block.update(rootId, rootId, { layout: details.resolvedLayout });
+			};
+
 			S.Block.checkBlockType(rootId);
-			S.Block.checkBlockChat(rootId);
 		};
 
 		if (undefined !== details.setOf) {
@@ -1116,18 +1156,17 @@ class Dispatcher {
 	};
 
 	onObjectView (rootId: string, traceId: string, objectView: any) {
-		const { details, restrictions, relationLinks, participants } = objectView;
+		const { details, restrictions, participants } = objectView;
 		const root = objectView.blocks.find(it => it.id == rootId);
 		const structure: any[] = [];
 		const contextId = [ rootId, traceId ].filter(it => it).join('-');
 
 		if (root && root.fields.analyticsContext) {
-			analytics.setContext(root.fields.analyticsContext, root.fields.analyticsOriginalId);
+			analytics.setContext(root.fields.analyticsContext);
 		} else {
 			analytics.removeContext();
 		};
 
-		S.Record.relationsSet(contextId, rootId, relationLinks);
 		S.Detail.set(contextId, details);
 		S.Block.restrictionsSet(contextId, restrictions);
 		S.Block.participantsSet(contextId, participants);
@@ -1159,23 +1198,12 @@ class Dispatcher {
 			content: {}
 		}));
 
-		// BlockChat
-		blocks.push(new M.Block({
-			id: J.Constant.blockId.chat,
-			parentId: rootId,
-			type: I.BlockType.Chat,
-			fields: {},
-			childrenIds: [],
-			content: {}
-		}));
-
 		S.Block.set(contextId, blocks);
 		S.Block.setStructure(contextId, structure);
 		S.Block.updateStructureParents(contextId);
 		S.Block.updateNumbers(contextId); 
 		S.Block.updateMarkup(contextId);
 		S.Block.checkBlockType(contextId);
-		S.Block.checkBlockChat(contextId);
 
 		keyboard.setWindowTitle();
 	};

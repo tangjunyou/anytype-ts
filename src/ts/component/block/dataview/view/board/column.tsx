@@ -1,10 +1,9 @@
 import * as React from 'react';
 import $ from 'jquery';
 import { observer } from 'mobx-react';
-import { Icon, LoadMore } from 'Component';
+import { Icon, LoadMore, Cell } from 'Component';
 import { I, S, U, translate, Dataview } from 'Lib';
 import Card from './card';
-import Cell from 'Component/block/dataview/cell';
 
 interface Props extends I.ViewComponent {
 	id: string;
@@ -116,7 +115,9 @@ const Column = observer(class Column extends React.Component<Props> {
 							/>
 						))}
 
-						{limit + this.offset < total ? <LoadMore limit={limit} loaded={items.length} total={total} onClick={this.onLoadMore} /> : ''}
+						{limit + this.offset < total ? (
+							<LoadMore limit={limit} loaded={items.length} total={total} onClick={this.onLoadMore} />
+						): ''}
 
 						{isAllowedObject ? (
 							<div id={`record-${id}-add`} className="card add" onClick={e => this.onAdd(e, 1)}>
@@ -157,7 +158,7 @@ const Column = observer(class Column extends React.Component<Props> {
 		const subId = getSubId();
 		const limit = getLimit() + this.offset;
 		const filters: I.Filter[] = [
-			{ relationKey: 'layout', condition: I.FilterCondition.NotIn, value: U.Object.excludeFromSet() },
+			{ relationKey: 'resolvedLayout', condition: I.FilterCondition.NotIn, value: U.Object.excludeFromSet() },
 			Dataview.getGroupFilter(relation, value),
 		].concat(view.filters as any[]);
 		const sorts: I.Sort[] = [].concat(view.sorts);

@@ -21,7 +21,12 @@ const BlockType = observer(class BlockType extends React.Component<I.BlockCompon
 	};
 
 	render (): any {
-		const { block } = this.props;
+		const { block, readonly } = this.props;
+
+		if (readonly) {
+			return null;
+		};
+
 		const items = this.getItems();
 		const cn = [ 'wrap', 'focusable', 'c' + block.id ];
 
@@ -180,7 +185,6 @@ const BlockType = observer(class BlockType extends React.Component<I.BlockCompon
 		const { block } = this.props;
 		const element = `#block-${block.id} #item-menu`;
 		const obj = $(element);
-		const items = this.getItems();
 
 		S.Menu.open('typeSuggest', {
 			element: `#block-${block.id} #item-menu`,
@@ -192,8 +196,8 @@ const BlockType = observer(class BlockType extends React.Component<I.BlockCompon
 			data: {
 				filter: '',
 				filters: [
-					{ relationKey: 'id', condition: I.FilterCondition.NotIn, value: items.map(it => it.id) },
-					{ relationKey: 'recommendedLayout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
+					{ relationKey: 'recommendedLayout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts().concat(U.Object.getSetLayouts()) },
+					{ relationKey: 'uniqueKey', condition: I.FilterCondition.NotEqual, value: J.Constant.typeKey.template }
 				],
 				onClick: (item: any) => {
 					this.onClick(e, item);
@@ -259,7 +263,7 @@ const BlockType = observer(class BlockType extends React.Component<I.BlockCompon
 		};
 
 		C.ObjectSetObjectType(rootId, type.uniqueKey, () => {
-			C.ObjectApplyTemplate(rootId, type.defaultTemplateId || J.Constant.templateId.blank, this.onTemplate);
+			C.ObjectApplyTemplate(rootId, type.defaultTemplateId, this.onTemplate);
 		});
 
 		Onboarding.start('objectCreationFinish', isPopup);

@@ -1,10 +1,10 @@
 import * as React from 'react';
 import $ from 'jquery';
-import { Icon, Title, PreviewObject, IconObject } from 'Component';
-import { I, C, S, U, J, translate, keyboard } from 'Lib';
+import { Icon, PreviewObject } from 'Component';
+import { I, C, S, U, J, translate, keyboard, sidebar } from 'Lib';
 import { observer } from 'mobx-react';
 
-const TEMPLATE_WIDTH = 230;
+const TEMPLATE_WIDTH = 224;
 
 const MenuTemplateList = observer(class MenuTemplateList extends React.Component<I.Menu> {
 
@@ -14,17 +14,14 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 
 	node: any = null;
 	n = 0;
-	typeId = '';
 
 	constructor (props: I.Menu) {
 		super(props);
 
 		this.onClick = this.onClick.bind(this);
 		this.onMore = this.onMore.bind(this);
-		this.onType = this.onType.bind(this);
 		this.setCurrent = this.setCurrent.bind(this);
 		this.getTemplateId = this.getTemplateId.bind(this);
-		this.updateRowLength = this.updateRowLength.bind(this);
 		this.onKeyDown = this.onKeyDown.bind(this);
 		this.rebind = this.rebind.bind(this);
 	};
@@ -32,38 +29,9 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 	render () {
 		const { param, setHover } = this.props;
 		const { data } = param;
-		const { withTypeSelect, noTitle, typeId } = data;
 		const previewSize = data.previewSize || I.PreviewSize.Small;
 		const templateId = this.getTemplateId();
 		const items = this.getItems();
-		const type = S.Record.getTypeById(typeId);
-		const isAllowed = U.Object.isAllowedTemplate(typeId);
-
-		const ItemBlank = (item: any) => {
-			const cn = [ 'previewObject', 'blank', I.PreviewSize[previewSize].toLowerCase() ];
-
-			if (item.id == templateId) {
-				cn.push('isDefault');
-			};
-
-			return (
-				<div className={cn.join(' ')}>
-					{isAllowed ? (
-						<div id={`item-more-${item.id}`} className="moreWrapper" onClick={e => this.onMore(e, item)}>
-							<Icon className="more" />
-						</div>
-					) : ''}
-
-					<div className="scroller">
-						<div className="heading">
-							<div className="name">{translate('commonBlank')}</div>
-							<div className="featured" />
-						</div>
-					</div>
-					<div className="border" />
-				</div>
-			);
-		};
 
 		const ItemAdd = () => (
 			<div className="previewObject small">
@@ -75,9 +43,6 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 		const Item = (item: any) => {
 			let content = null;
 
-			if (item.id == J.Constant.templateId.blank) {
-				content = <ItemBlank {...item} />;
-			} else
 			if (item.id == J.Constant.templateId.new) {
 				content = <ItemAdd {...item} />;
 			} else {
@@ -106,18 +71,6 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 
 		return (
 			<div ref={node => this.node = node}>
-				{withTypeSelect ? (
-					<div id="defaultType" className="select big defaultTypeSelect" onClick={this.onType}>
-						<div className="item">
-							<IconObject object={type} size={18} />
-							<div className="name">{type?.name || translate('commonObjectType')}</div>	
-						</div>
-						<Icon className="arrow black" />
-					</div>
-				) : ''}
-
-				{!noTitle ? <Title text={translate('commonTemplates')} /> : ''}
-
 				<div className="items">
 					{items.map((item: any, i: number) => (
 						<Item key={i} {...item} />
@@ -140,6 +93,7 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 
 	componentWillUnmount () {
 		C.ObjectSearchUnsubscribe([ this.getSubId() ]);
+		this.unbind();
 	};
 
 	rebind () {
@@ -188,17 +142,15 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 		const items = this.getItems();
 
 		this.n = items.findIndex(it => it.id == templateId);
-		this.rebind();
 	};
 
 	load () {
 		const { param } = this.props;
 		const { data } = param;
 		const { typeId } = data;
-		const templateType = S.Record.getTemplateType();
 
 		const filters: I.Filter[] = [
-			{ relationKey: 'type', condition: I.FilterCondition.Equal, value: templateType?.id },
+			{ relationKey: 'type.uniqueKey', condition: I.FilterCondition.Equal, value: J.Constant.typeKey.template },
 			{ relationKey: 'targetObjectType', condition: I.FilterCondition.In, value: typeId },
 		];
 		const sorts = [
@@ -235,7 +187,7 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 			};
 		};
 
-		return ret || templateId || J.Constant.templateId.blank;
+		return ret || templateId || '';
 	};
 
 	getItems () {
@@ -245,8 +197,6 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 		const items = S.Record.getRecords(this.getSubId());
 		const isAllowed = U.Object.isAllowedTemplate(typeId);
 
-		items.unshift({ id: J.Constant.templateId.blank });
-
 		if (!noAdd && isAllowed) {
 			items.push({ id: J.Constant.templateId.new });
 		};
@@ -255,7 +205,7 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 	};
 
 	onMore (e: any, template: any) {
-		const { param, getId } = this.props;
+		const { id, param, getId } = this.props;
 		const { data } = param;
 		const { onSetDefault, route, typeId, getView } = data;
 		const item = U.Common.objectCopy(template);
@@ -287,8 +237,9 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 				onClose: () => {
 					node.removeClass('active');
 				},
+				rebind: this.rebind,
+				parentId: id,
 				data: {
-					rebind: this.rebind,
 					template: item,
 					isView: !!getView,
 					typeId,
@@ -318,42 +269,6 @@ const MenuTemplateList = observer(class MenuTemplateList extends React.Component
 		if (onSelect) {
 			onSelect(item);
 		};
-	};
-
-	onType () {
-		const { getId, param } = this.props;
-		const { data } = param;
-		const { onTypeChange } = data;
-		const allowedLayouts = U.Object.getPageLayouts().concat(U.Object.getSetLayouts()).concat(I.ObjectLayout.Chat);
-
-		S.Menu.open('typeSuggest', {
-			element: `#${getId()} #defaultType`,
-			horizontal: I.MenuDirection.Right,
-			data: {
-				rebind: this.rebind,
-				filter: '',
-				filters: [
-					{ relationKey: 'recommendedLayout', condition: I.FilterCondition.In, value: allowedLayouts },
-				],
-				onClick: type => {
-					data.typeId = type.id;
-					data.templateId = type.defaultTemplateId || J.Constant.templateId.blank;
-
-					this.load();
-
-					if (onTypeChange) {
-						onTypeChange(type.id);
-					};
-				},
-			}
-		});
-	};
-
-	updateRowLength (n: number) {
-		const node = $(this.node);
-		const items = node.find('.items');
-
-		items.css({ 'grid-template-columns': `repeat(${n}, 1fr)` });
 	};
 
 	beforePosition () {

@@ -15,7 +15,7 @@ const PopupObjectManager = observer(class PopupObjectManager extends React.Compo
 	};
 
 	render () {
-		const { param, getId } = this.props;
+		const { param, getId, close } = this.props;
 		const { data } = param;
 		const { collectionId, type } = data;
 		const subId = [ getId(), 'data' ].join('-');
@@ -32,14 +32,14 @@ const PopupObjectManager = observer(class PopupObjectManager extends React.Compo
 		};
 
 		return (
-			<React.Fragment>
+			<>
 				<Title text={title} />
 
 				<ListObjectManager
 					ref={ref => this.refManager = ref}
 					subId={subId}
 					rowLength={2}
-					withArchived={true}
+					ignoreArchived={false}
 					buttons={[]}
 					iconSize={48}
 					collectionId={collectionId}
@@ -47,8 +47,11 @@ const PopupObjectManager = observer(class PopupObjectManager extends React.Compo
 					onAfterLoad={this.onAfterLoad}
 				/>
 
-				<Button text={button} className="c36" onClick={this.onClick} />
-			</React.Fragment>
+				<div className="buttons">
+					<Button text={button} className="c36" onClick={this.onClick} />
+					<Button text={translate('commonCancel')} color="blank" className="c36" onClick={() => close()} />
+				</div>
+			</>
 		);
 	};
 
@@ -89,7 +92,7 @@ const PopupObjectManager = observer(class PopupObjectManager extends React.Compo
 
 		switch (type) {
 			case I.ObjectManagerPopup.Favorites: {
-				C.ObjectListSetIsFavorite(this.refManager.selected, true);
+				C.ObjectListSetIsFavorite(this.refManager.getSelected(), true);
 				break;
 			};
 		};

@@ -1,6 +1,10 @@
 import { Rpc } from 'dist/lib/pb/protos/commands_pb';
 import { S, Decode, Mapper } from 'Lib';
 
+const details = (o: any) => {
+	return o ? S.Detail.mapper(Decode.struct(o.getDetails())) : {};
+};
+
 export const AppGetVersion = (response: Rpc.App.GetVersion.Response) => {
 	return {
 		details: response.getDetails(),
@@ -56,6 +60,18 @@ export const DebugStat = (response: Rpc.Debug.Stat.Response) => {
 	return res;
 };
 
+export const DebugNetCheck = (response: Rpc.Debug.NetCheck.Response) => {
+	return {
+		result: response.getResult(),
+	};
+};
+
+export const DebugRunProfiler = (response: Rpc.Debug.RunProfiler.Response) => {
+	return {
+		path: response.getPath(),
+	};
+};
+
 export const Export = (response: any) => {
 	return {
 		path: response.getPath(),
@@ -99,7 +115,7 @@ export const FileNodeUsage = (response: Rpc.File.NodeUsage.Response) => {
 export const FileUpload = (response: Rpc.File.Upload.Response) => {
 	return {
 		objectId: response.getObjectid(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
@@ -133,35 +149,35 @@ export const WalletCreateSession = (response: Rpc.Wallet.CreateSession.Response)
 export const ObjectCreate = (response: Rpc.Object.Create.Response) => {
 	return {
 		objectId: response.getObjectid(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
 export const ObjectCreateSet = (response: Rpc.Object.CreateSet.Response) => {
 	return {
 		objectId: response.getObjectid(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
 export const ObjectCreateBookmark = (response: Rpc.Object.CreateBookmark.Response) => {
 	return {
 		objectId: response.getObjectid(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
 export const ObjectCreateFromUrl = (response: Rpc.Object.CreateFromUrl.Response) => {
 	return {
 		objectId: response.getObjectid(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
 export const ObjectCreateObjectType = (response: Rpc.Object.CreateObjectType.Response) => {
 	return {
 		objectId: response.getObjectid(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
@@ -169,14 +185,14 @@ export const ObjectCreateRelation = (response: Rpc.Object.CreateRelation.Respons
 	return {
 		objectId: response.getObjectid(),
 		relationKey: response.getKey(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
 export const ObjectCreateRelationOption = (response: Rpc.Object.CreateRelationOption.Response) => {
 	return {
 		objectId: response.getObjectid(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
@@ -298,6 +314,12 @@ export const ObjectChatAdd = (response: Rpc.Object.ChatAdd.Response) => {
 	};
 };
 
+export const ObjectDateByTimestamp = (response: Rpc.Object.DateByTimestamp.Response) => {
+	return {
+		details: details(response),
+	};
+};
+
 export const BlockCreate = (response: Rpc.Block.Create.Response) => {
 	return {
 		blockId: response.getBlockid(),
@@ -376,7 +398,7 @@ export const BlockLinkCreateWithObject = (response: Rpc.BlockLink.CreateWithObje
 	return {
 		blockId: response.getBlockid(),
 		targetId: response.getTargetid(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
@@ -410,10 +432,17 @@ export const HistoryDiffVersions = (response: Rpc.History.DiffVersions.Response)
 	return {
 		events: (response.getHistoryeventsList() || []).map(it => {
 			const type = Mapper.Event.Type(it.getValueCase());
-			const data = Mapper.Event[type](Mapper.Event.Data(it));
+			const { spaceId, data } = Mapper.Event.Data(it);
+			const mapped = Mapper.Event[type] ? Mapper.Event[type](data) : null;
 
-			return { type, data };
-		}),
+			return mapped ? { spaceId, type, data: mapped } : null;
+		}).filter(it => it),
+	};
+};
+
+export const ObjectTypeListConflictingRelations = (response: Rpc.ObjectType.ListConflictingRelations.Response) => {
+	return {
+		conflictRelationIds: response.getRelationidsList()
 	};
 };
 
@@ -454,7 +483,7 @@ export const WorkspaceOpen = (response: Rpc.Workspace.Open.Response) => {
 export const WorkspaceObjectAdd = (response: Rpc.Workspace.Object.Add.Response) => {
 	return {
 		objectId: response.getObjectid(),
-		details: Decode.struct(response.getDetails()),
+		details: details(response),
 	};
 };
 
@@ -579,5 +608,40 @@ export const ChatSubscribeLastMessages = (response: Rpc.Chat.SubscribeLastMessag
 export const ChatAddMessage = (response: Rpc.Chat.AddMessage.Response) => {
 	return {
 		messageId: response.getMessageid(),
+	};
+};
+
+export const RelationListWithValue = (response: Rpc.Relation.ListWithValue.Response) => {
+	return {
+		relations: (response.getListList() || []).map(it => {
+			return {
+				relationKey: it.getRelationkey(),
+				counter: it.getCounter(),
+			};
+		}),
+	};
+};
+
+export const PublishingCreate = (response: Rpc.Publishing.Create.Response) => {
+	return { 
+		url: response.getUri(),
+	};
+};
+
+export const PublishingList = (response: Rpc.Publishing.List.Response) => {
+	return {
+		list: (response.getPublishesList() || []).map(Mapper.From.PublishState),
+	};
+};
+
+export const PublishingResolveUri = (response: Rpc.Publishing.ResolveUri.Response) => {
+	return {
+		state: response.hasPublish() ? Mapper.From.PublishState(response.getPublish()) : null,
+	};
+};
+
+export const PublishingGetStatus = (response: Rpc.Publishing.GetStatus.Response) => {
+	return {
+		state: response.hasPublish() ? Mapper.From.PublishState(response.getPublish()) : null,
 	};
 };

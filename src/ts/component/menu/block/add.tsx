@@ -3,13 +3,13 @@ import $ from 'jquery';
 import { observer } from 'mobx-react';
 import { AutoSizer, CellMeasurer, InfiniteLoader, List, CellMeasurerCache } from 'react-virtualized';
 import { MenuItemVertical, Icon, Cell } from 'Component';
-import { I, C, S, U, J, Mark, keyboard, focus, Action, Storage, translate, analytics, Relation } from 'Lib';
+import { I, C, S, U, J, M, Mark, keyboard, focus, Action, Storage, translate, analytics, Relation, Dataview } from 'Lib';
 
 const HEIGHT_ITEM = 32;
 const HEIGHT_SECTION = 42;
 const HEIGHT_DESCRIPTION = 56;
 const HEIGHT_RELATION = 32;
-const LIMIT = 40;
+const LIMIT = 10;
 
 const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu> {
 	
@@ -34,7 +34,7 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 		const { data } = param;
 		const { rootId, blockId } = data;
 		const { filter } = S.Common;
-		const items = this.getItems(true);
+		const items = this.getItems();
 		const block = S.Block.getLeaf(rootId, blockId);
 		const idPrefix = 'menuBlockAdd';
 
@@ -57,9 +57,6 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 					</div>
 				);
 			} else 
-			if (item.isSection) {
-				content = <div className={[ 'sectionName', (index == 0 ? 'first' : '') ].join(' ')} style={param.style}>{item.name}</div>;
-			} else
 			if (item.isRelation) {
 				content = (
 					<div 
@@ -119,6 +116,7 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 
 				if (item.isObject) {
 					item.object = { 
+						name: item.name,
 						iconEmoji: item.iconEmoji, 
 						decription: item.description,
 						layout: I.ObjectLayout.Type,
@@ -130,6 +128,7 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 					<MenuItemVertical 
 						key={item.id + '-' + index} 
 						{...item} 
+						index={index}
 						className={cn.join(' ')}
 						withDescription={item.isBlock} 
 						onMouseEnter={e => this.onMouseEnter(e, item)} 
@@ -161,7 +160,6 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 							rowCount={items.length}
 							loadMoreRows={() => {}}
 							isRowLoaded={() => true}
-							threshold={LIMIT}
 						>
 							{({ onRowsRendered }) => (
 								<AutoSizer className="scrollArea">
@@ -175,7 +173,7 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 											rowHeight={({ index }) => this.getRowHeight(items[index], index)}
 											rowRenderer={rowRenderer}
 											onRowsRendered={onRowsRendered}
-											overscanRowCount={20}
+											overscanRowCount={LIMIT}
 											scrollToAlignment="center"
 										/>
 									)}
@@ -190,7 +188,7 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 	
 	componentDidMount () {
 		const { getId } = this.props;
-		const items = this.getItems(true);
+		const items = this.getItems();
 		
 		this._isMounted = true;
 		this.rebind();
@@ -199,7 +197,7 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 
 		this.cache = new CellMeasurerCache({
 			fixedWidth: true,
-			defaultHeight: HEIGHT_ITEM,
+			defaultHeight: i => this.getRowHeight(items[i], i),
 			keyMapper: i => (items[i] || {}).id,
 		});
 		
@@ -208,8 +206,8 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 	
 	componentDidUpdate () {
 		const { filter } = S.Common;
-		const items = this.getItems(true);
-		const itemsWithoutSections = this.getItems(false);
+		const items = this.getItems();
+		const itemsWithoutSections = items.filter(it => !it.isSection);
 
 		if (!itemsWithoutSections.length && !this.emptyLength) {
 			this.emptyLength = filter.text.length;
@@ -222,7 +220,7 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 
 		this.cache = new CellMeasurerCache({
 			fixedWidth: true,
-			defaultHeight: HEIGHT_ITEM,
+			defaultHeight: i => this.getRowHeight(items[i], i),
 			keyMapper: i => (items[i] || {}).id,
 		});
 
@@ -235,7 +233,6 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 
 		this.checkFilter();
 		this.resize();
-
 		this.props.setActive();
 	};
 
@@ -245,10 +242,10 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 	};
 
 	checkFilter () {
+		const { getId } = this.props;
 		const { filter } = S.Common;
-		const obj = $('#menuBlockAdd');
-		
-		filter ? obj.addClass('withFilter') : obj.removeClass('withFilter');
+
+		$(`#${getId()}`).toggleClass('withFilter', !!filter);
 	};
 	
 	rebind () {
@@ -265,20 +262,23 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 		const { param } = this.props;
 		const { data } = param;
 		const { rootId } = data;
-		const { config } = S.Common;
-		const object = S.Detail.get(rootId, rootId, [ 'targetObjectType' ]);
+		const object = S.Detail.get(rootId, rootId);
 		const isTemplate = U.Object.isTemplate(object.type);
-		const type = S.Record.getTypeById(isTemplate ? object.targetObjectType : object.type);
+		const objectKeys = S.Detail.getKeys(rootId, rootId);
+		const objectRelations = objectKeys.map(it => S.Record.getRelationByKey(it)).filter(it => it);
+		const typeIds = S.Detail.getTypeRelationIds(isTemplate ? object.targetObjectType : object.type);
+		const typeRelations = typeIds.map(it => S.Record.getRelationById(it)).filter(it => it);
+		
+		let ret = typeRelations;
+		if (!isTemplate) {
+			ret = ret.concat(objectRelations);
+		};
 
-		const relations = S.Record.getObjectRelations(rootId, rootId);
-		const relationKeys = relations.map(it => it.relationKey);
-		const typeRelations = (type ? type.recommendedRelations || [] : []).
-			map(it => S.Record.getRelationById(it)).
-			filter(it => it && it.relationKey && !relationKeys.includes(it.relationKey));
+		ret = S.Record.checkHiddenObjects(ret.filter(it => it.isInstalled)).sort(U.Data.sortByName);
 
-		const ret = relations.concat(typeRelations).filter(it => !config.debug.hiddenObject && it.isHidden ? false : it.isInstalled).sort(U.Data.sortByName);
-
-		ret.unshift({ id: 'add', name: translate('menuBlockAddNewRelation'), isRelationAdd: true });
+		if (!isTemplate) {
+			ret.unshift({ id: 'add', name: translate('menuBlockAddNewRelation'), isRelationAdd: true });
+		};
 
 		return ret.map(it => ({ ...it, type: I.BlockType.Relation, isRelation: true, isBlock: true }));
 	};
@@ -338,16 +338,16 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 			
 			sections = U.Menu.sectionsFilter(sections, filter.text);
 		};
-		
+
 		return U.Menu.sectionsMap(sections);
 	};
 	
-	getItems (withSections: boolean) {
+	getItems () {
 		const sections = this.getSections();
 		
 		let items: any[] = [];
 		for (const section of sections) {
-			if (withSections) {
+			if (section.name) {
 				items.push({ id: section.id, name: section.name, isSection: true });
 			};
 			items = items.concat(section.children);
@@ -368,7 +368,7 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 			return;
 		};
 
-		const { param, getId, getSize, close } = this.props;
+		const { id, param, getId, getSize, close } = this.props;
 		const { data } = param;
 		const { rootId, blockId } = data;
 		const { filter } = S.Common;
@@ -381,7 +381,6 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 			return;
 		};
 
-		let menuId = '';
 		const menuParam: I.MenuParam = {
 			menuKey: item.itemId,
 			element: `#${getId()} #item-${item.id}`,
@@ -389,8 +388,9 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 			vertical: I.MenuDirection.Center,
 			isSub: true,
 			className: param.className,
+			rebind: this.rebind,
+			parentId: id,
 			data: {
-				rebind: this.rebind,
 				rootId,
 				skipIds: [ rootId ],
 				blockId,
@@ -409,39 +409,74 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 			},
 		};
 
+		let menuId = '';
+
 		switch (item.itemId) {	
-			case 'move':
+			case 'move': {
 				menuId = 'searchObject';
 				menuParam.offsetY = -36;
 
 				menuParam.data = Object.assign(menuParam.data, {
 					type: I.NavigationType.Move, 
 					filters: [
-						{ relationKey: 'layout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
+						{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: U.Object.getPageLayouts() },
 					],
 				});
 				break;
+			};
 
-			case 'existingPage':
-				menuId = 'searchObject';
-				menuParam.data.canAdd = true;
+			case 'date': {
+				menuId = 'calendar';
 				menuParam.data = Object.assign(menuParam.data, {
+					canEdit: true,
+					value: U.Date.now(),
+					onChange: (t: number) => {
+						C.ObjectDateByTimestamp(S.Common.space, t, (message: any) => {
+							if (message.error.code) {
+								return;
+							};
+
+							const target = message.details;
+
+							C.BlockCreate(rootId, blockId, position, U.Data.getLinkBlockParam(target.id, target.layout, true), (message: any) => {
+								if (message.error.code) {
+									return;
+								};
+
+								focus.set(message.blockId, { from: 0, to: 0 });
+								focus.apply();
+
+								analytics.event('CreateLink');
+								close();
+							});
+						});
+					}
+				});
+				break;
+			};
+
+			case 'existingPage': {
+				menuId = 'searchObject';
+				menuParam.data = Object.assign(menuParam.data, {
+					canAdd: true,
 					type: I.NavigationType.Link,
 				});
 				break;
+			};
 
-			case 'existingFile':
+			case 'existingFile': {
 				menuId = 'searchObject';
-				menuParam.data.canAdd = true;
 				menuParam.data = Object.assign(menuParam.data, {
+					canAdd: true,
 					type: I.NavigationType.Link,
 					filters: [
-						{ relationKey: 'layout', condition: I.FilterCondition.In, value: U.Object.getFileLayouts() },
+						{ relationKey: 'resolvedLayout', condition: I.FilterCondition.In, value: U.Object.getFileLayouts() },
 					],
 				});
 				break;
+			};
 
-			case 'turnObject':
+			case 'turnObject': {
 				menuId = 'typeSuggest';
 				menuParam.data = Object.assign(menuParam.data, {
 					filter: '',
@@ -456,6 +491,7 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 					},
 				});
 				break;
+			};
 
 		};
 
@@ -541,8 +577,6 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 			if (item.isBlock) {
 				const param: any = {
 					type: item.type,
-					bgColor: block.bgColor,
-					hAlign: block.hAlign,
 					vAlign: block.vAlign,
 					content: {},
 				};
@@ -555,10 +589,6 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 						param.fields = { 
 							lang: (Storage.get('codeLang') || J.Constant.default.codeLang),
 						};
-					};
-
-					if ([ I.TextStyle.Code, I.TextStyle.Callout ].includes(param.content.style)) {
-						param.bgColor = 'grey';
 					};
 				};
 
@@ -584,6 +614,25 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 
 				if (item.type == I.BlockType.Embed) {
 					param.content.processor = item.itemId;
+				};
+
+				const newBlock = new M.Block(param);
+				if (newBlock.canHaveAlign()) {
+					const restricted = [];
+
+					if (!newBlock.isText()) {
+						restricted.push(I.BlockHAlign.Justify);
+					};
+					if (newBlock.isTextQuote()) {
+						restricted.push(I.BlockHAlign.Center);
+					};
+					if (!restricted.includes(block.hAlign)) {
+						param.hAlign = block.hAlign;
+					};
+				};
+
+				if (newBlock.canHaveBackground()) {
+					param.bgColor = block.bgColor;
 				};
 
 				if (item.type == I.BlockType.Table) {
@@ -685,38 +734,25 @@ const MenuBlockAdd = observer(class MenuBlockAdd extends React.Component<I.Menu>
 
 	resize () {
 		const { getId, position } = this.props;
-		const items = this.getItems(true);
+		const items = this.getItems().slice(0, LIMIT);
 		const obj = $(`#${getId()} .content`);
 		
 		let height = 16;
 		for (let i = 0; i < items.length; ++i) {
 			height += this.getRowHeight(items[i], i);
 		};
-		height = Math.max(HEIGHT_ITEM + 18, Math.min(360, height));
+		height = Math.max(HEIGHT_ITEM + 18, height);
 
-		obj.css({ height: height });
+		obj.css({ height });
 		position();
 	};
 
 	getRowHeight (item: any, index: number) {
-		if (item.isRelation || item.isRelationAdd) {
-			return HEIGHT_RELATION;
-		};
-		if (item.isSection && index > 0) {
-			return HEIGHT_SECTION;
-		};
-		if (item.isBlock) {
-			return HEIGHT_DESCRIPTION;
-		};
-		return HEIGHT_ITEM;
-	};
-
-	recalcIndex () {
-		const itemsWithSection = this.getItems(true);
-		const itemsWithoutSection = itemsWithSection.filter(it => !it.isSection);
-		const active: any = itemsWithoutSection[this.n] || {};
-
-		return itemsWithSection.findIndex(it => it.id == active.id);
+		let h = HEIGHT_ITEM;
+		if (item.isRelation || item.isRelationAdd) h = HEIGHT_RELATION;
+		else if (item.isSection && (index > 0)) h = HEIGHT_SECTION;
+		else if (item.isBlock) h = HEIGHT_DESCRIPTION;
+		return h;
 	};
 
 });

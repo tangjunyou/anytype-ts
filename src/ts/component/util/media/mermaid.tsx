@@ -1,59 +1,59 @@
-import * as React from 'react';
+import React, { forwardRef, useRef, useEffect } from 'react';
 import $ from 'jquery';
 import mermaid from 'mermaid';
 import { observer } from 'mobx-react';
-import { J, S } from 'Lib';
+import { J, S, U } from 'Lib';
 
 interface Props {
+	id?: string;
 	chart: string;
 };
 
-const Mermaid = observer(class Mermaid extends React.Component<Props> {
+const MediaMermaid = observer(forwardRef<HTMLDivElement, Props>(({
+	id = '',
+	chart = '',
+}, ref) => {
 
-	node = null;
+	const nodeRef = useRef(null);
+	const chartRef = useRef(null);
+	const errorRef = useRef(null);
+	const themeClass = S.Common.getThemeClass();
 
-	render () {
-		const { theme } = S.Common;
-		const { chart } = this.props;
+	const init = () => {
+		const obj = $(chartRef.current);
+		const themeVariables = (J.Theme[themeClass] || {}).mermaid || {};
 
-		return (
-			<div ref={ref => this.node = ref} className="mermaid">{chart}</div>
-		);
-	};
-
-	componentDidMount () {
-		this.init();
-		mermaid.contentLoaded();
-	};
-
-	async componentDidUpdate (prevProps: Props) {
-		this.init();
-		$(this.node).removeAttr('data-processed');
-		await this.drawDiagram();
-	};
-
-	init () {
-		const theme = (J.Theme[S.Common.getThemeClass()] || {}).mermaid;
-
-		if (theme) {
-			for (const k in theme) {
-				if (!theme[k]) {
-					delete(theme[k]);
-				};
+		for (const k in themeVariables) {
+			if (!themeVariables[k]) {
+				delete(themeVariables[k]);
 			};
-
-			mermaid.initialize({ theme: 'base', themeVariables: theme });
 		};
+
+		obj.text(chart).removeAttr('data-processed');
+		$(errorRef.current).text('');
+
+		try {
+			mermaid.initialize({ theme: 'base', themeVariables });
+			mermaid.run({ 
+				querySelector: `#${id} .mermaid`,
+				postRenderCallback: () => {
+					U.Common.renderLinks($(chartRef.current));
+				}, 
+			});
+		} catch (e) { /**/ };
 	};
 
-	async drawDiagram () {
-		const node = $(this.node);
-		const { chart } = this.props;
-		const { svg } = await mermaid.render('mermaid-chart', chart);
-		
-		node.html(svg);
-    };
+	useEffect(() => {
+		init();
+	});
 
-});
+	return (
+		<div id={id} ref={nodeRef} className="mermaidWrapper">
+			<div ref={errorRef} className="error" />
+			<div ref={chartRef} className="mermaid" />
+		</div>
+	);
 
-export default Mermaid;
+}));
+
+export default MediaMermaid;
