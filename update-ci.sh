@@ -101,7 +101,7 @@ else
     exit 1
 fi
 
-if [[ "$OS" = "windows-latest" ]]; then
+if [[ "$OS" =~ ^windows-.*$ ]]; then
     echo -n "Uncompressing... "
     unzip $FILE || exit 1
     echo "Done"
