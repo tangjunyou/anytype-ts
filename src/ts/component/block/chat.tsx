@@ -47,6 +47,8 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 		this.hasScroll = this.hasScroll.bind(this);
 		this.highlightMessage = this.highlightMessage.bind(this);
 		this.loadDepsAndReplies = this.loadDepsAndReplies.bind(this);
+		this.onFocusChange = this.onFocusChange.bind(this);
+		this.isWindowFocused = this.isWindowFocused.bind(this);
 	};
 
 	render () {
@@ -168,6 +170,11 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 
 			analytics.event('ScreenChat');
 		});
+
+		// Add listeners for focus and visibility changes
+		window.addEventListener('focus', this.onFocusChange);
+		window.addEventListener('blur', this.onFocusChange);
+		document.addEventListener('visibilitychange', this.onFocusChange);
 	};
 
 	componentWillUnmount () {
@@ -177,6 +184,11 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 		window.clearTimeout(this.timeoutInterface);
 		window.clearTimeout(this.timeoutScroll);
 		window.clearTimeout(this.timeoutScrollStop);
+
+		// Remove listeners for focus and visibility changes
+		window.removeEventListener('focus', this.onFocusChange);
+		window.removeEventListener('blur', this.onFocusChange);
+		document.removeEventListener('visibilitychange', this.onFocusChange);
 	};
 
 	unbind () {
@@ -523,7 +535,18 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 	onMessageAdd (message: I.ChatMessage, subIds: string[]) {
 		const subId = this.getSubId();
 		if (subIds.includes(subId)) {
-			this.loadDepsAndReplies([ message ], () => this.scrollToBottomCheck());
+			this.loadDepsAndReplies([ message ], () => {
+				// Add new message to scrolled items if chat is at bottom and window is not focused
+				if (this.isBottom && !this.isWindowFocused()) {
+					const viewport = this.getMessagesInViewport();
+					viewport.forEach(it => {
+						if (it.id === message.id) {
+							this.scrolledItems.add(it.id);
+						}
+					});
+				}
+				this.scrollToBottomCheck();
+			});
 		};
 	};
 
@@ -650,18 +673,26 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 			};
 		});
 
-		list.forEach(it => {
-			this.scrolledItems.add(it.id);
+		// Only mark messages as read if the window is focused
+		if (this.isWindowFocused()) {
+			list.forEach(it => {
+				this.scrolledItems.add(it.id);
 
-			if (!it.isReadMessage) {
-				S.Chat.setReadMessageStatus(subId, [ it.id ], true);
-				C.ChatReadMessages(rootId, it.orderId, it.orderId, lastStateId, I.ChatReadType.Message);
-			};
-			if (!it.isReadMention) {
-				S.Chat.setReadMentionStatus(subId, [ it.id ], true);
-				C.ChatReadMessages(rootId, it.orderId, it.orderId, lastStateId, I.ChatReadType.Mention);
-			};
-		});
+				if (!it.isReadMessage) {
+					S.Chat.setReadMessageStatus(subId, [ it.id ], true);
+					C.ChatReadMessages(rootId, it.orderId, it.orderId, lastStateId, I.ChatReadType.Message);
+				};
+				if (!it.isReadMention) {
+					S.Chat.setReadMentionStatus(subId, [ it.id ], true);
+					C.ChatReadMessages(rootId, it.orderId, it.orderId, lastStateId, I.ChatReadType.Mention);
+				};
+			});
+		} else {
+			// Just add to scrolled items without marking as read
+			list.forEach(it => {
+				this.scrolledItems.add(it.id);
+			});
+		}
 
 		window.clearTimeout(this.timeoutScrollStop);
 		this.timeoutScrollStop = window.setTimeout(() => this.onReadStop(), 300);
@@ -674,6 +705,11 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 
 	onReadStop () {
 		if (!this.scrolledItems.size) {
+			return;
+		};
+
+		// Only mark messages as read if the window is focused
+		if (!this.isWindowFocused()) {
 			return;
 		};
 
@@ -770,7 +806,11 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 		const viewport = this.getMessagesInViewport();
 
 		this.scrolledItems = new Set(viewport.map(it => it.id));
-		this.onReadStop();
+		
+		// Only mark as read if the window is focused
+		if (this.isWindowFocused()) {
+			this.onReadStop();
+		}
 	};
 
 	scrollToMessage (id: string, animate?: boolean, highlight?: boolean) {
@@ -811,7 +851,10 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 
 	scrollToBottom (animate?: boolean) {
 		if (!this.hasScroll()) {
-			this.readScrolledMessages();
+			// Only read messages if window is focused
+			if (this.isWindowFocused()) {
+				this.readScrolledMessages();
+			}
 			this.setIsBottom(true);
 			return;
 		};
@@ -825,7 +868,10 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 		this.setAutoLoadDisabled(true);
 
 		const cb = () => {
-			this.readScrolledMessages();
+			// Only read messages if window is focused
+			if (this.isWindowFocused()) {
+				this.readScrolledMessages();
+			}
 			this.setAutoLoadDisabled(false);
 		};
 
@@ -977,6 +1023,25 @@ const BlockChat = observer(class BlockChat extends React.Component<I.BlockCompon
 		};
 
 		this.messageRefs[target.id]?.highlight();
+	};
+
+	onFocusChange () {
+		// When the app regains focus, check if we have any scrolled items that weren't marked as read
+		if (this.isWindowFocused() && this.scrolledItems.size) {
+			// Mark messages that were scrolled over while unfocused as read
+			this.onReadStop();
+		}
+	};
+
+	isWindowFocused (): boolean {
+		// Check Electron window focus state
+		const electron = U.Common.getElectron();
+		if (electron.isFocused) {
+			return electron.isFocused();
+		}
+		
+		// Fallback to document focus state
+		return document.hasFocus() && !document.hidden;
 	};
 
 });
