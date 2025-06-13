@@ -674,7 +674,7 @@ class Dispatcher {
 
 									if (idx >= 0) {
 										if (key.id == 'relation') {
-											const updateKeys = [ 'includeTime' ];
+											const updateKeys = [];
 
 											for (const f of updateKeys) {
 												if (list[idx][f] != item[f]) {
@@ -1172,12 +1172,16 @@ class Dispatcher {
 		};
 
 		const records = S.Record.getRecordIds(sid, '');
-		const newIndex = afterId ? records.indexOf(afterId) + 1 : 0;
 
+		let newIndex = afterId ? records.indexOf(afterId) : 0;
 		let oldIndex = records.indexOf(id);
 
 		if (isAdding && (oldIndex >= 0)) {
 			return;
+		};
+
+		if (newIndex && (newIndex < oldIndex)) {
+			newIndex++;
 		};
 
 		if (oldIndex < 0) {

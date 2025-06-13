@@ -1,14 +1,5 @@
-import { I, S, J, C, U, Action } from 'Lib';
+import { I, S, J, C, U, Action, Relation } from 'Lib';
 import sha1 from 'sha1';
-
-const SYSTEM_DATE_RELATION_KEYS = [
-	'lastModifiedDate', 
-	'lastOpenedDate', 
-	'lastUsedDate',
-	'lastMessageDate',
-	'createdDate',
-	'addedDate',
-];
 
 /**
  * Utility class for managing subscriptions, search, and data synchronization in the application.
@@ -374,7 +365,10 @@ class UtilSubscription {
 	 */
 	sortMapper (it: any) {
 		if (undefined === it.includeTime) {
-			it.includeTime = SYSTEM_DATE_RELATION_KEYS.includes(it.relationKey);
+			const relation = S.Record.getRelationByKey(it.relationKey);
+			if (relation && Relation.isDate(relation.format)) {
+				it.includeTime = relation.includeTime;
+			};
 		};
 		return it;
 	};

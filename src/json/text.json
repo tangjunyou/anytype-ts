@@ -158,6 +158,7 @@
 	"commonVersionHistory": "Version History",
 	"commonActions": "Actions",
 	"commonAddRelation": "Add Property",
+	"commonAddTemplate": "Add Template",
 	"commonCollection": "Collection",
 	"commonSet": "Query",
 	"commonNewObject" : "New Object",
@@ -210,6 +211,8 @@
 	"commonAppSettings": "App Settings",
 	"commonAddPinned": "Add to Pinned",
 	"commonRemovePinned": "Remove from Pinned",
+	"commonCreateSpace": "Create space",
+	"commonCreateChat": "Create chat",
 
 	"pluralDay": "day|days",
 	"pluralObject": "Object|Objects",
@@ -217,6 +220,7 @@
 	"pluralTemplate": "Template|Templates",
 	"pluralLCTemplate": "template|templates",
 	"pluralBlock": "Block|Blocks",
+	"pluralLCBlock": "block|blocks",
 	"pluralObjectType": "Object Type|Object Types",
 	"pluralProperty": "Property|Properties",
 	"pluralLinks": "link|links",
@@ -230,7 +234,6 @@
 	"pluralYear": "year|years",
 	"pluralDevice": "device|devices",
 	"pluralOption": "Option|Options",
-
 	"pluralImage": "Image|Images",
 	"pluralVideo": "Video|Videos",
 	"pluralAudio": "Audio|Audios",
@@ -392,7 +395,7 @@
 	"headerSettingsIdentityInfoText": "Anytype Identity can be linked to your global name in the network. Become a member to select your custom name.",
 	"headerSettingsIdentityInfoExplorePlans": "Explore plans",
 
-	"shareTooltipLabel": "<b>Share Anytype</b> with<br/>those you care about",
+	"shareTooltipLabel": "Become Anytype<br/>member today!",
 	"shareBannerLabel": "<b>Share the space!</b> Invite your friends and build together.",
 
 	"authInviteTitle": "Welcome to Anytype",
@@ -513,7 +516,6 @@
 
 	"pageMainVoidTitle": "You're all out of spaces",
 	"pageMainVoidText": "Looks like you've cleaned the house. Ready to start fresh?<br/>Create a new space to get things rolling!",
-	"pageMainVoidCreateSpace": "Create space",
 
 	"pageMainDateEmptyText" : "There is nothing here for this date yet",
 
@@ -1051,8 +1053,6 @@
 
 	"popupSpaceCreateLabel": "Encrypted & local-first",
 	"popupSpaceCreateCreate": "Create from scratch",
-	"popupSpaceCreateCreateSpace": "Create space",
-	"popupSpaceCreateCreateChat": "Create chat",
 	"popupSpaceCreateImport": "Import my data",
 
 	"popupSpaceJoinByLinkLabel": "Join by invite link",
@@ -1265,6 +1265,7 @@
 
 	"popupIndexComponentNotFound": "Component %s not found",
 
+	"popupShortcutDescription": "Click any shortcut to edit it",
 	"popupShortcutKeyboard": "Keyboard Shortcuts",
 	"popupShortcutResetKey": "Conflicts with %s. It has been set to blank.",
 	"popupShortcutConflict": "Conflicts with %s",
@@ -1701,6 +1702,8 @@
 	"menuHelpTerms": "Terms of Use",
 	"menuHelpPrivacy": "Privacy Policy",
 	"menuHelpGallery": "ANY Experience Gallery",
+	"menuHelpShare": "Share Anytype",
+	"menuHelpMore": "More",
 
 	"menuObjectPrint": "Print",
 	"menuObjectSearchOnPage": "Search in Object",
@@ -2053,6 +2056,8 @@
 	"sidebarMenuSpaceCreateDescriptionImport": "Transfer your data from another app",
 	"sidebarMenuSpaceCreateTitleJoin": "Join by Link",
 	"sidebarMenuSpaceCreateDescriptionJoin": "For those with an invite link",
+
+	"sidebarTemplateEmpty": "There are no Templates yet",
 
 	"unsplashString": "Photo by %s on %s",
 	"templateBannner": "You are editing a template",

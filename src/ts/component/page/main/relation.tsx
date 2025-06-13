@@ -79,7 +79,7 @@ const PageMainRelation = observer(class PageMainRelation extends React.Component
 				options = (
 					<Switch
 						value={object.includeTime}
-						onChange={(e: any, v: boolean) => this.onSwitch(e, 'includeTime', v)}
+						onChange={(e: any, v: boolean) => this.onSwitch(e, 'relationFormatIncludeTime', v)}
 					/>
 				);
 				break;
@@ -109,6 +109,10 @@ const PageMainRelation = observer(class PageMainRelation extends React.Component
 			} else {
 				options.push(add);
 			};
+		};
+
+		if (!output.length && (!canAdd || isReadonlyRelation)) {
+			options = null;
 		};
 
 		return (
@@ -387,6 +391,9 @@ const PageMainRelation = observer(class PageMainRelation extends React.Component
 							rootId: this.getRootId(),
 							relation: observable.box(object),
 							value: objectTypes,
+							addParam: {
+								details: U.Object.getNewTypeDetails(),
+							},
 							filters: [
 								{ relationKey: 'resolvedLayout', condition: I.FilterCondition.Equal, value: I.ObjectLayout.Type },
 								{ relationKey: 'recommendedLayout', condition: I.FilterCondition.NotIn, value: U.Object.getSystemLayouts() },
