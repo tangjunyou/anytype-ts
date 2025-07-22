@@ -1,0 +1,66 @@
+# 自动同步上游 anytype-ts 项目的 GitHub Actions 工作流
+name: Sync Upstream
+
+# 触发条件：每天凌晨 2 点自动执行，或手动触发
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 每天凌晨 2 点
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Configure Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+    
+    - name: Add upstream remote
+      run: |
+        git remote add upstream https://github.com/anyproto/anytype-ts.git || true
+        git fetch upstream
+    
+    - name: Sync main branch
+      run: |
+        git checkout main
+        git merge upstream/main --no-edit
+    
+    - name: Push changes
+      run: |
+        git push origin main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create Pull Request for conflicts
+      if: failure()
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: sync upstream changes with conflicts'
+        title: '🔄 Upstream Sync - Manual Review Required'
+        body: |
+          ## 上游同步冲突
+          
+          自动同步上游 `anyproto/anytype-ts` 时遇到冲突，需要手动解决。
+          
+          ### 冲突原因
+          - 本地修改与上游更新存在冲突
+          - 需要手动合并代码
+          
+          ### 解决步骤
+          1. 检查冲突文件
+          2. 手动解决冲突
+          3. 测试功能完整性
+          4. 合并此 PR
+          
+          **注意**: 请确保扩展功能不受影响。
+        branch: sync/upstream-conflicts
+        delete-branch: true

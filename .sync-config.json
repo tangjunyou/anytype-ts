@@ -1,0 +1,59 @@
+{
+  "syncConfig": {
+    "upstream": {
+      "url": "https://github.com/anyproto/anytype-ts.git",
+      "branch": "main"
+    },
+    "schedule": {
+      "enabled": true,
+      "cron": "0 2 * * *",
+      "description": "每天凌晨2点自动同步"
+    },
+    "backup": {
+      "enabled": true,
+      "branchPrefix": "backup-",
+      "keepDays": 30
+    }
+  },
+  "extensionProtection": {
+    "enabled": true,
+    "protectedPaths": [
+      "src/extensions/",
+      "extension/",
+      "dist/extension/"
+    ],
+    "customFiles": [
+      ".sync-config.json",
+      "sync-upstream.sh",
+      ".github/workflows/sync-upstream.yml"
+    ],
+    "mergeStrategy": {
+      "conflictResolution": "manual",
+      "autoMergeNonConflicting": true,
+      "preserveCustomChanges": true
+    }
+  },
+  "notifications": {
+    "onSuccess": false,
+    "onConflict": true,
+    "onError": true,
+    "channels": {
+      "github": true,
+      "email": false
+    }
+  },
+  "testing": {
+    "runAfterSync": true,
+    "commands": [
+      "npm install",
+      "npm run build",
+      "npm run test:extensions"
+    ],
+    "failOnTestError": false
+  },
+  "lastSync": {
+    "timestamp": null,
+    "commit": null,
+    "status": "never"
+  }
+}
