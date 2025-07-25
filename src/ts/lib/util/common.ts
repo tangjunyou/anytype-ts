@@ -24,7 +24,7 @@ class UtilCommon {
 	 * Gets the current Electron window ID as a string.
 	 * @returns {string} The current window ID or '0' if not available.
 	 */
-	getCurrentElectronWindowId (): string {
+	getWindowId (): string {
 		const electron = this.getElectron();
 
 		if (!electron) {
@@ -1127,7 +1127,7 @@ class UtilCommon {
 		s = String(s || '');
 
 		const rw = new RegExp(/^(file:\/\/)?(?:[a-zA-Z]:|[\\\/]{2}[^\\\/]+[\\\/]+[^\\\/]+)\\(?:[\p{L}\p{N}\s\._-]+\\)*[\p{L}\p{N}\s\._-]+(?:\.[\p{L}\p{N}\s_-]+)?$/ugi);
-		const ru = new RegExp(/^(file:\/\/)?(\/[\p{L}\p{N}\s\._-]+)+\/?$/u);
+		const ru = new RegExp(/^(file:\/\/)?(\/[\p{L}\p{N}\s\._%-]+)+\/?$/u);
 
 		let m = s.match(rw);
 		if (!m) {
