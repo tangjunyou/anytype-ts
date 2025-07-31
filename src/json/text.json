@@ -916,6 +916,7 @@
 	"popupSettingsSpaceIndexAutoWidgetsText": "Add a widget when the first object of a type is created",
 	"popupSettingsSpaceIndexPushTitle": "Message notifications",
 	"popupSettingsSpaceIndexPushText": "You will receive notifications when you are mentioned only",
+	"popupSettingsSpaceIndexUxTypeTitle": "Space UX Type",
 
 	"popupSettingsSpaceStorageManagerEmptyLabel": "Your storage is empty",
 
@@ -1367,6 +1368,7 @@
 	"popupShortcutMainBasics24": "Lock / Unlock Object",
 	"popupShortcutMainBasics25": "Move to / restore from Bin",
 	"popupShortcutMainBasics26": "Pin / Unpin",
+	"popupShortcutMainBasics27": "Space %d",
 
 	"popupShortcutMainTextStyle": "Text style",
 	"popupShortcutMainTextStyle1": "Bold",
@@ -1375,8 +1377,8 @@
 	"popupShortcutMainTextStyle4": "Strikethrough",
 	"popupShortcutMainTextStyle5": "Add a link",
 	"popupShortcutMainTextStyle6": "Convert to inline code",
-	"popupShortcutMainTextStyle7": "Apply previously selected font color",
-	"popupShortcutMainTextStyle8": "Apply previously selected highlight",
+	"popupShortcutMainTextStyle7": "Select font color",
+	"popupShortcutMainTextStyle8": "Select highlight",
 
 	"popupShortcutMainStructuring1": "New text block",
 	"popupShortcutMainStructuring2": "Line break",
@@ -2055,6 +2057,9 @@
 	"quickOption9": "Next month",
 	"quickOption10": "Number of days ago",
 	"quickOption11": "Number of days from now",
+	"quickOption12": "Last year",
+	"quickOption13": "Current year",
+	"quickOption14": "Next year",
 
 	"sidebarMenuAll": "Spaces & widgets",
 	"sidebarMenuSidebar": "Only widgets",
@@ -2598,6 +2603,11 @@
 
 	"notificationMode0": "Enable all",
 	"notificationMode1": "Mentions only",
-	"notificationMode2": "Disable all"
+	"notificationMode2": "Disable all",
+
+	"spaceUxType0": "None",
+	"spaceUxType1": "Space",
+	"spaceUxType2": "Stream",
+	"spaceUxType3": "Chat"
 
 }
