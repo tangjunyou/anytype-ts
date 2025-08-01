@@ -58,7 +58,7 @@ const PageMainSettingsStorageManager = observer(class PageMainSettingsStorageMan
 				{ icon: 'remove', text: translate('commonDeleteImmediately'), onClick: () => this.onRemove(refId) }
 			];
 			const filters: I.Filter[] = [
-				{ relationKey: 'fileSyncStatus', condition: I.FilterCondition.In, value: item.filters },
+				{ relationKey: 'syncStatus', condition: I.FilterCondition.In, value: item.filters },
 			];
 			const sorts: I.Sort[] = [
 				{ type: I.SortType.Desc, relationKey: 'sizeInBytes' },
@@ -76,8 +76,8 @@ const PageMainSettingsStorageManager = observer(class PageMainSettingsStorageMan
 						info={I.ObjectManagerItemInfo.FileSize}
 						iconSize={18}
 						sorts={sorts}
-						keys={U.Subscription.syncStatusRelationKeys()}
 						filters={filters}
+						keys={U.Subscription.syncStatusRelationKeys()}
 						ignoreHidden={false}
 						ignoreArchived={false}
 						textEmpty={translate('popupSettingsSpaceStorageManagerEmptyLabel')}
@@ -102,7 +102,7 @@ const PageMainSettingsStorageManager = observer(class PageMainSettingsStorageMan
 						refId={'notSynced'}
 						subId={J.Constant.subId.fileManagerNotSynced}
 						title={translate('pageSettingsSpaceNotSyncedFiles')}
-						filters={[ I.FileSyncStatus.NotSynced ]}
+						filters={[ I.SyncStatusObject.Error ]}
 					/>
 				) : ''}
 
@@ -111,7 +111,7 @@ const PageMainSettingsStorageManager = observer(class PageMainSettingsStorageMan
 						refId={'synced'}
 						subId={J.Constant.subId.fileManagerSynced}
 						title={translate('pageSettingsSpaceSyncedFiles')}
-						filters={[ I.FileSyncStatus.Synced ]}
+						filters={[ I.SyncStatusObject.Synced ]}
 					/>
 				) : ''}
 			</div>
