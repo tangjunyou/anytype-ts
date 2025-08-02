@@ -85,6 +85,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		this.removeBookmark = this.removeBookmark.bind(this);
 		this.getMarksAndRange = this.getMarksAndRange.bind(this);
 		this.getObjectFromPath = this.getObjectFromPath.bind(this);
+		this.updateAttachments = this.updateAttachments.bind(this);
 	};
 
 	render () {
@@ -195,6 +196,7 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 											object={item}
 											onRemove={this.onAttachmentRemove}
 											bookmarkAsDefault={true}
+											updateAttachments={this.updateAttachments}
 										/>
 									</SwiperSlide>
 								))}
@@ -463,8 +465,8 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 
 		let adjustMarks = false;
 
-		if ((value !== parsed.text) || parsed.updatedValue) {
-			this.updateValue(parsed.text);
+		if (value !== parsed.text) {
+			this.updateMarkup(parsed.text, { from: to, to });
 		};
 
 		if (canOpenMenuMention) {
@@ -1259,6 +1261,23 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		this.refEditable.setRange(this.range);
 	};
 
+	updateAttachments () {
+		const { attachments } = this.state;
+		const ids = attachments.filter(it => !it.isTmp).map(it => it.id).filter(it => it);
+
+		U.Object.getByIds(ids, {}, (objects: any[]) => {
+			objects.forEach(item => {	
+				const idx = attachments.findIndex(it => it.id == item.id);
+
+				if (idx >= 0) {
+					attachments[idx] = item;
+				};
+			});
+
+			this.setAttachments(attachments);
+		});
+	};
+
 	caretMenuParam () {
 		const win = $(window);
 		const rect = U.Common.getSelectionRect();
@@ -1315,7 +1334,6 @@ const ChatForm = observer(class ChatForm extends React.Component<Props, State> {
 		const value = this.refEditable.getTextValue();
 		const onChange = (text: string, marks: I.Mark[]) => {
 			this.marks = marks;
-			this.updateValue(text);
 			this.updateMarkup(text, this.range);
 		};
 		const getValue = () => value;
