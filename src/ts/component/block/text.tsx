@@ -868,6 +868,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 
 		raf(() => {
 			S.Menu.open('blockMention', {
+				classNameWrap: 'fromBlock',
 				element,
 				recalcRect: () => {
 					const rect = U.Common.getSelectionRect();
@@ -915,6 +916,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 
 		S.Menu.open('smile', {
 			element: `#block-${block.id}`,
+			classNameWrap: 'fromBlock',
 			recalcRect: () => {
 				const rect = U.Common.getSelectionRect();
 				return rect ? { ...rect, y: rect.y + win.scrollTop() } : null;
@@ -1155,6 +1157,7 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 
 			this.setText(this.marks, true, () => {
 				S.Menu.open('blockContext', {
+					classNameWrap: 'fromBlock',
 					element: el,
 					recalcRect: () => { 
 						const rect = U.Common.getSelectionRect();
@@ -1268,9 +1271,9 @@ const BlockText = observer(class BlockText extends React.Component<Props> {
 			return;
 		};
 
-		requestAnimationFrame(() => {
+		raf(() => {
 			html = html.replace(/<\/?font[^>]*>/g, '');
-			html = html.replace(/<span[^>]*>(.*?)<\/span>/g, '$1')
+			html = html.replace(/<span[^>]*>(.*?)<\/span>/g, '$1');
 
 			this.refEditable.setValue(html);
 			this.refEditable.setRange(range);
