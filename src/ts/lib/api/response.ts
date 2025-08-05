@@ -333,11 +333,13 @@ export const ObjectGraph = (response: Rpc.Object.Graph.Response) => {
 	return { edges, nodes };
 };
 
+/*
 export const ObjectToBookmark = (response: Rpc.Object.ToBookmark.Response) => {
 	return {
 		objectId: response.getObjectid(),
 	};
 };
+*/
 
 export const ObjectShareByLink = (response: Rpc.Object.ShareByLink.Response) => {
 	return {
@@ -650,6 +652,12 @@ export const SpaceInviteView = (response: Rpc.Space.InviteView.Response) => {
 		creatorName: response.getCreatorname(),
 		spaceId: response.getSpaceid(),
 		inviteType: response.getInvitetype(),
+	};
+};
+
+export const SpaceSetOrder = (response: Rpc.Space.SetOrder.Response) => {
+	return {
+		list: response.getSpacevieworderList() || [],
 	};
 };
 
