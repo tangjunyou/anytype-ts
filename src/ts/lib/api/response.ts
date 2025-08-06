@@ -333,13 +333,11 @@ export const ObjectGraph = (response: Rpc.Object.Graph.Response) => {
 	return { edges, nodes };
 };
 
-/*
 export const ObjectToBookmark = (response: Rpc.Object.ToBookmark.Response) => {
 	return {
 		objectId: response.getObjectid(),
 	};
 };
-*/
 
 export const ObjectShareByLink = (response: Rpc.Object.ShareByLink.Response) => {
 	return {
@@ -643,6 +641,7 @@ export const SpaceInviteGetCurrent = (response: Rpc.Space.InviteGetCurrent.Respo
 		inviteCid: response.getInvitecid(),
 		inviteKey: response.getInvitefilekey(),
 		inviteType: response.getInvitetype(),
+		permissions: response.getPermissions(),
 	};
 };
 

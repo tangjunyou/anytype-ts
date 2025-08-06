@@ -33,11 +33,15 @@ export default () => {
 		text('Meanwhile, we’re also putting the final touches on something <i>big</i>. Some of you might already know what’s coming… Stay tuned!'),
 		text(''),
 
+
+		callout(`<b>TL;DR:</b> List View with properties on the right, new ToC menu in the sidebar, 18 quality-of-life improvements and 68+ bug fixes across 16 categories.`, '📃'),
+
 		h2(`Highlights`),
 
 		h3(`Polished List View`),
 		text(`We’ve given the List View some well-deserved attention. It’s a simple and practical way to manage your objects, and now it’s smoother to use:`),
-		bullet(`<b>Properties now appear on the right-hand side</b>, making them easier to scan.`),
+		bullet(`<b>Properties now appear on the right-hand side by default, making them easier to scan.`),
+		bullet(`You can also place <b>properties before the object name</b>, if that suits your workflow better.`),
 		bullet(`<b>In-place editing</b> lets you click a property to edit it on the go, speeding up multi-object workflows.`),
 		bullet(`<b>Visual refinements</b> bring a cleaner, more consistent layout.`),
 		video('48/1.mp4', 'c70'),
@@ -45,6 +49,7 @@ export default () => {
 
 		h3('Table of Contents Enhancements'),
 		text(`A new ToC menu on the right side of the Editor makes it easier to navigate and manage long pages. For a steady overview while editing, you can also open it in the sidebar.`),
+		text(`Thanks for the contribution, @${link('https://github.com/anyproto/anytype-ts/pull/1493', 'CamilleHbp')}!`),
 		video('48/2.mp4', 'c70'),
 		text(''),
 
@@ -52,12 +57,12 @@ export default () => {
 		text(''),
 
 		text('<b>Add Properties in Kanban and Calendar Views</b>'),
-		text(`You can now quickly add a new property directly from the Layout menu when configuring "Group by" in Kanban or "Date Property" in Calendar view.`),
+		text(`You can now quickly add a new property directly from the Layout menu when configuring ${hl('Group by')} in Kanban or ${hl('Date Property')} in Calendar view.`),
 		img(`48/1.png`, 'c70'),
 		text(''),
 
-		text('<b>Quick Filters for Year Ranges</b>'),
-		text(`You can now easily filter by This Year, Last Year or Next Year when using date-based filters – no need to manually set the range.`),
+		text('<b>Year Filters for Date Properties</b>'),
+		text(`When working with projects across years, you can now filter by <i>Last Year</i>, <i>Current Year</i> or <i>Next Year</i> – no need to manually enter date ranges.`),
 		img(`48/2.png`, 'c70'),
 		text(''),
 
@@ -83,8 +88,8 @@ export default () => {
 		text(`Thank you for the suggestion @${link('https://community.anytype.io/t/make-the-space-widget-fixed/26539', 'VisualNotes')}!`),
 		text(''),
 
-		text('<b>Create Objects and Widgets from Search</b>'),
-		text(`From the Add Widget search, you can now create a new object with your search query and instantly make a widget for it.`),
+		text('<b>Add Widget Context Menu: Create Objects Instantly</b>'),
+		text(`When no matching results appear in the ${hl('Add Widget')} search, you can now create a new object directly from your input, and a widget will be added for it right away.`),
 		text(''),
 
 		text('<b>Pin Spaces in the Vault</b>'),
@@ -101,7 +106,7 @@ export default () => {
 		text(''),
 
 		text('<b>Improved Sorting on Manual Reordering in Collections</b>'),
-		text(`Manually reordering objects in a Collection now removes existing sorting rules upon confirmation. This ensures the new order is preserved and avoids confusion from conflicting sort logic.`),
+		text(`Manually reordering objects in a Collection now removes existing sorting rules upon confirmation. This ensures the new order is preserved and avoids conflicts in the sorting logic.`),
 		text(''),
 
 		text('<b>Default Sorting by Creation Date</b>'),
@@ -112,12 +117,12 @@ export default () => {
 		text(`We tweaked our accent color palette for improved consistency across light and dark themes.`),
 		text(''),
 
-		text('<b>Auto-Open File Pickers When Inserting Media</b>'),
+		text('<b>Auto-Open File Picker When Inserting Media</b>'),
 		text(`When you use the ${hl('/ command')} menu to add an image, file or video block, the correct system picker will now open automatically, skipping an extra click.`),
 		text(''),
 
 		text('<b>New Shortcut for Copying Deeplinks</b>'),
-		text(`You can now assign a custom shortcut to quickly copy an object’s deeplink from anywhere in the app.`),
+		text(`You can now assign a custom shortcut to copy an object’s deeplink from anywhere in the app.`),
 		text(`Thanks to @${link('https://community.anytype.io/t/copy-deeplink-shortcut/28203', 'siousu')}!`),
 		text(''),
 
@@ -169,12 +174,12 @@ export default () => {
 		bullet(`Fixed an issue where the previously opened space couldn't be reopened after visiting App Settings.`),
 		bullet(`Fixed issues with keyboard navigation and scrolling after DnD actions in Filter, Sort and Group settings menus in List and Kanban views.`),
 		bullet(`The ${hl('Back')} button works correctly when returning from Preferences. Thanks to @${link('https://community.anytype.io/t/sometimes-no-back-from-the-preferences/28076', 'Code-Jack')}!`),
-		bullet(`Fixed unresponsive top navigation buttons (back, forward, graph) after clicking a link to another object. Thanks to @${link('https://community.anytype.io/t/buttons-not-working/28207', 'cameronray')}!`),
+		bullet(`Fixed unresponsive top navigation buttons (${hl('Back')}, ${hl('Forward')}, ${hl('Graph')}) after clicking a link to another object. Thanks to @${link('https://community.anytype.io/t/buttons-not-working/28207', 'cameronray')}!`),
 		bullet(`Fixed an issue where arrow key navigation in the ${hl('/ command')} menu didn't scroll to the bottom of the list.`),
 		text(''),
 
 		text('<b>Links</b>'),
-		bullet(`Fixed an issue where links to local files or folders on macOS would break if the path contained spaces. These now parse correctly again.`),
+		bullet(`Fixed an issue where links to local files or folders on macOS would break if the path contained spaces.`),
 		bullet(`Dragging and dropping an object link onto itself no longer creates a self-link. Thanks to @${link('https://community.anytype.io/t/26722', 'siousu')}!`),
 		bullet(`${hl('Paste as link')} is no longer hidden behind the formatting pane when pasting URLs. Thanks to @${link('https://community.anytype.io/t/15656', 'Salsa')}!`),
 		bullet(`Editing multiple links on the same line no longer causes some of them to disappear. Thanks to @${link('https://community.anytype.io/t/editing-multiple-links-on-one-line-will-cause-some-of-them-to-be-lost/21134', 'Ming_anytype')}!`),
@@ -191,7 +196,6 @@ export default () => {
 		bullet(`After creating a new object via built-in type Queries, the cursor now appears in the title field. Thanks to @${link('https://community.anytype.io/t/cursor-removed-after-adding-new-object-in-built-in-type-queries/28289', 'sandyeggo')}!`),
 		bullet(`Changing a column's width in a Query no longer causes it to move position.`),
 		bullet(`Scrolling a table in Grid layout no longer clears unsaved input. Thanks to @${link('https://community.anytype.io/t/scrolling-a-table-clears-unsaved-input/27492', 'spiffytech')}!`),
-		bullet(`Opening a modal window from a card in Gallery view no longer causes the background to scroll. Thanks to @${link('https://community.anytype.io/t/28252', 'VisualNotes')}!`),
 		bullet(`Converting a Note to another type in a modal window no longer scrolls the background to scroll. Thanks to @${link('https://community.anytype.io/t/28129', 'Code-Jack')}!`),
 		bullet(`Menus in Grid and List views no longer overflow over the sidebar when scrolling horizontally.`),
 		text(''),
@@ -257,7 +261,7 @@ export default () => {
 
 		text('<b>Media</b>'),
 		bullet(`Downloading an image now saves the original resolution.`),
-		bullet(`Fixed an issue where bookmark thumbnails appeared in search but couldn't be deleted or located in queries or the bin. Thanks to @${link('https://community.anytype.io/t/bookmark-thumbnails-ghosts/28040', 'dxn0')}!`),
+		bullet(`Fixed an issue where bookmark thumbnails appeared in search but couldn't be deleted or located in Queries or the Bin. Thanks to @${link('https://community.anytype.io/t/bookmark-thumbnails-ghosts/28040', 'dxn0')}!`),
 		text(''),
 
 		div(),
