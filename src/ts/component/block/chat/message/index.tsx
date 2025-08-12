@@ -19,7 +19,7 @@ interface ChatMessageRefProps {
 const ChatMessageBase = observer(forwardRef<ChatMessageRefProps, I.ChatMessageComponent>((props, ref) => {
 
 	const { 
-		rootId, id, isNew, readonly, subId, hasMore, isPopup, scrollToBottom, onContextMenu, onMore, onReplyEdit,
+		rootId, id, isNew, readonly, subId, hasMore, isPopup, style, scrollToBottom, onContextMenu, onMore, onReplyEdit,
 		renderLinks, renderMentions, renderObjects, renderEmoji,
 	} = props;
 	const { space } = S.Common;
@@ -29,6 +29,20 @@ const ChatMessageBase = observer(forwardRef<ChatMessageRefProps, I.ChatMessageCo
 	const attachmentRefs = useRef({});
 	const [ isExpanded, setIsExpanded ] = useState(false);
 	const message = S.Chat.getMessage(subId, id);
+
+	useEffect(() => {
+		init();
+	});
+
+	useImperativeHandle(ref, () => ({
+		highlight: highlight,
+		onReactionAdd: onReactionAdd,
+		getNode: () => nodeRef.current,
+	}));
+
+	if (!message) {
+		return null;
+	};
 
 	const init = () => {
 		const { creator, content } = message;
@@ -306,16 +320,6 @@ const ChatMessageBase = observer(forwardRef<ChatMessageRefProps, I.ChatMessageCo
 		};
 	};
 
-	useEffect(() => {
-		init();
-	});
-
-	useImperativeHandle(ref, () => ({
-		highlight: highlight,
-		onReactionAdd: onReactionAdd,
-		getNode: () => nodeRef.current,
-	}));
-
 	return (
 		<div
 			ref={nodeRef}
@@ -323,6 +327,7 @@ const ChatMessageBase = observer(forwardRef<ChatMessageRefProps, I.ChatMessageCo
 			className={cn.join(' ')}
 			onContextMenu={onContextMenu}
 			onDoubleClick={onReplyEdit}
+			style={style}
 		>
 			{isNew ? (
 				<div className="newMessages">
